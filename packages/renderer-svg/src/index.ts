@@ -1,6 +1,8 @@
 import type { SceneNode, SceneStyle } from "@owlplot/core";
 export { renderSvgScene };
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
 function setStyle(el: Element, style: SceneStyle | undefined) {
   if (!style) return;
   for (const [key, val] of Object.entries(style)) {
@@ -11,7 +13,7 @@ function setStyle(el: Element, style: SceneStyle | undefined) {
 }
 
 function createElement(tag: string): SVGElement {
-  return document.createElementNS("http://www.w3.org/2000/svg", tag);
+  return document.createElementNS(SVG_NS, tag);
 }
 
 function appendNode(node: SceneNode, parent: SVGElement) {

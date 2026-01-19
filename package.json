@@ -1,0 +1,24 @@
+{
+    "name": "owlplot",
+    "private": true,
+    "workspaces": [
+        "packages/*",
+        "apps/*"
+    ],
+    "scripts": {
+        "build": "npm run -ws build",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "lint": "npm run -ws lint",
+        "dev:react": "npm --workspace apps/react-playground run dev",
+        "dev:vue": "npm --workspace apps/vue-playground run dev",
+        "test:e2e": "playwright test",
+        "test:visual": "playwright test --project=chromium",
+        "ci": "npm run build && npm run test && npm run test:e2e"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.47.0",
+        "typescript": "^5.6.0",
+        "vitest": "^4.0.17"
+    }
+}

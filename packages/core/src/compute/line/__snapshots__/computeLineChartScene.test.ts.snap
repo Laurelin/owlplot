@@ -1,0 +1,123 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
+{
+  "children": [
+    {
+      "height": 360,
+      "id": "background",
+      "kind": "rect",
+      "style": {
+        "fill": "transparent",
+      },
+      "width": 640,
+      "x": 0,
+      "y": 0,
+    },
+    {
+      "height": 320,
+      "id": "plot:clip",
+      "kind": "rect",
+      "style": {
+        "fill": "transparent",
+        "stroke": "transparent",
+      },
+      "width": 584,
+      "x": 40,
+      "y": 16,
+    },
+    {
+      "d": "M 40 176 L 234.66666666666666 16M 624 176",
+      "id": "series:a",
+      "kind": "path",
+      "style": {
+        "fill": "transparent",
+        "stroke": "currentColor",
+        "strokeWidth": 2,
+      },
+    },
+    {
+      "cx": 40,
+      "cy": 176,
+      "id": "point:a:0",
+      "kind": "circle",
+      "r": 2.5,
+      "style": {
+        "fill": "currentColor",
+      },
+    },
+    {
+      "cx": 234.66666666666666,
+      "cy": 16,
+      "id": "point:a:1",
+      "kind": "circle",
+      "r": 2.5,
+      "style": {
+        "fill": "currentColor",
+      },
+    },
+    {
+      "cx": 624,
+      "cy": 176,
+      "id": "point:a:3",
+      "kind": "circle",
+      "r": 2.5,
+      "style": {
+        "fill": "currentColor",
+      },
+    },
+    {
+      "d": "M 40 336 L 234.66666666666666 176 L 429.3333333333333 96 L 624 16",
+      "id": "series:b",
+      "kind": "path",
+      "style": {
+        "fill": "transparent",
+        "stroke": "currentColor",
+        "strokeWidth": 2,
+      },
+    },
+    {
+      "cx": 40,
+      "cy": 336,
+      "id": "point:b:0",
+      "kind": "circle",
+      "r": 2.5,
+      "style": {
+        "fill": "currentColor",
+      },
+    },
+    {
+      "cx": 234.66666666666666,
+      "cy": 176,
+      "id": "point:b:1",
+      "kind": "circle",
+      "r": 2.5,
+      "style": {
+        "fill": "currentColor",
+      },
+    },
+    {
+      "cx": 429.3333333333333,
+      "cy": 96,
+      "id": "point:b:2",
+      "kind": "circle",
+      "r": 2.5,
+      "style": {
+        "fill": "currentColor",
+      },
+    },
+    {
+      "cx": 624,
+      "cy": 16,
+      "id": "point:b:3",
+      "kind": "circle",
+      "r": 2.5,
+      "style": {
+        "fill": "currentColor",
+      },
+    },
+  ],
+  "id": "root",
+  "kind": "group",
+}
+`;

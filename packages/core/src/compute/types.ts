@@ -1,7 +1,7 @@
-import { SceneNode } from "../scene/types";
+import { SceneNode } from '../scene/types'
 
-export type ChartSize = { width: number; height: number };
+export type ChartSize = { width: number; height: number }
 
 export type ComputeResult = {
-  scene: SceneNode;
-};
+  scene: SceneNode
+}

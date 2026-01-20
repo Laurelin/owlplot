@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>owlplot svg playground</title>
+
+  <!-- tiny polish so it looks less bare -->
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 24px;
+    }
+    svg {
+      background: white;
+    }
+  </style>
+
+</head>
+<body>
+  <svg id="chart" width="600" height="300"
+       style="border: 1px solid #ddd"></svg>
+
+  <script type="module">
+    import { computeChartScene, approximateMeasureText } from "@owlplot/core";
+    import { renderSvgScene } from "@owlplot/renderer-svg";
+
+    const svg = document.getElementById("chart");
+
+    const data = {
+      kind: "line",
+      series: [
+        { id: "demo", points: [
+            { x: 0, y: 0 },
+            { x: 1, y: 2 },
+            { x: 2, y: 1 },
+            { x: 3, y: 3 },
+            { x: 4, y: 2 }
+        ] }
+      ],
+      options: { showPoints: true }
+    };
+
+    const result = computeChartScene(
+      data,
+      { width: 600, height: 300 },
+      { devicePixelRatio: window.devicePixelRatio || 1,
+        measureText: approximateMeasureText }
+    );
+
+    renderSvgScene(result.scene, svg);
+  </script>
+</body>
+</html>

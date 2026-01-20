@@ -5,6 +5,7 @@ import { SceneNodeKind, type SceneNode } from '../../scene/types'
 
 import { computeCartesianLayout } from '../cartesian2d/layout'
 import { mergePadding } from '../../config/helpers'
+import { AxisLayout } from '../cartesian2d/types/axis'
 
 function buildLinePathD(
   data: { x: number; y: number | null }[],
@@ -32,81 +33,88 @@ function buildLinePathD(
   return d
 }
 
-function axisToSceneNodes(
-  axis: ReturnType<typeof computeCartesianLayout>['axes'][keyof ReturnType<
-    typeof computeCartesianLayout
-  >['axes']],
+/**
+ * turn an AxisLayout into scene nodes,
+ * placing them relative to the plotRect
+ */
+export function axisToSceneNodes(
+  axis: AxisLayout,
   plotRect: { x: number; y: number; width: number; height: number }
 ): SceneNode[] {
-  const nodes: SceneNode[] = []
-
   const isHorizontal =
     axis.orientation === Position.BOTTOM || axis.orientation === Position.TOP
 
-  const tx = isHorizontal ? 0 : plotRect.x
+  // the *translate* point in absolute chart space for this axis:
+  const tx = plotRect.x
   const ty =
     axis.orientation === Position.BOTTOM
-      ? plotRect.y + plotRect.height
+      ? plotRect.y + plotRect.height // bottom
       : axis.orientation === Position.TOP
-        ? plotRect.y
-        : 0
+        ? plotRect.y // top
+        : plotRect.y
+
+  const transform = `translate(${tx},${ty})`
+
+  // Wrap all axis elements in a group with the transform
+  // (The renderer only applies transforms to GROUP nodes)
+  const children: SceneNode[] = []
 
   // axis line
-  nodes.push({
+  children.push({
     kind: SceneNodeKind.PATH,
     id: `axis-line:${axis.orientation}`,
-    transform: `translate(${tx},${ty})`,
     d: `M ${axis.line.x1} ${axis.line.y1} L ${axis.line.x2} ${axis.line.y2}`,
     style: { stroke: 'currentColor', strokeWidth: 1 },
   })
 
-  // ticks & labels
+  // ticks and tick labels
   axis.ticks.forEach((tick, i) => {
-    const label = axis.labelLayouts[i]
+    const lbl = axis.labelLayouts[i]
 
-    if (!label) return
+    // tick mark
+    let tickStart: [number, number]
+    let tickEnd: [number, number]
 
-    const tickPosX = isHorizontal ? tick.position : axis.line.x1
-    const tickPosY = isHorizontal ? axis.line.y1 : tick.position
+    if (isHorizontal) {
+      // bottom or top axis
+      tickStart = [tick.position, axis.line.y1]
+      tickEnd = [
+        tick.position,
+        axis.orientation === Position.BOTTOM
+          ? axis.line.y1 + axis.tickSize
+          : axis.line.y1 - axis.tickSize,
+      ]
+    } else {
+      // left or right axis
+      tickStart = [axis.line.x1, tick.position]
+      tickEnd = [axis.line.x1 - axis.tickSize, tick.position]
+    }
 
-    const tickEndX =
-      axis.orientation === Position.LEFT
-        ? tickPosX - axis.tickSize
-        : axis.orientation === Position.RIGHT
-          ? tickPosX + axis.tickSize
-          : tickPosX
-
-    const tickEndY =
-      axis.orientation === Position.BOTTOM
-        ? tickPosY + axis.tickSize
-        : axis.orientation === Position.TOP
-          ? tickPosY - axis.tickSize
-          : tickPosY
-
-    nodes.push({
+    children.push({
       kind: SceneNodeKind.PATH,
       id: `axis-tick:${axis.orientation}:${i}`,
-      transform: `translate(${tx},${ty})`,
-      d: `M ${tickPosX} ${tickPosY} L ${tickEndX} ${tickEndY}`,
+      d: `M ${tickStart[0]} ${tickStart[1]} L ${tickEnd[0]} ${tickEnd[1]}`,
       style: { stroke: 'currentColor', strokeWidth: 1 },
     })
 
-    nodes.push({
-      kind: SceneNodeKind.TEXT,
-      id: `axis-tick-label:${axis.orientation}:${i}`,
-      x: label.x,
-      y: label.y,
-      text: label.text,
-      textAnchor: label.textAnchor,
-      dominantBaseline: label.dominantBaseline,
-      transform: `translate(${tx},${ty})`,
-      style: { fill: 'currentColor', fontSizePx: 12 },
-    })
+    if (lbl) {
+      children.push({
+        kind: SceneNodeKind.TEXT,
+        id: `axis-tick-label:${axis.orientation}:${i}`,
+        x: lbl.x,
+        y: lbl.y,
+        text: lbl.text,
+        textAnchor: lbl.textAnchor,
+        dominantBaseline: lbl.dominantBaseline,
+        style: { fill: 'currentColor', fontSizePx: 12 },
+      })
+    }
   })
 
+  // optional axis title
   if (axis.axisLabelLayout) {
     const al = axis.axisLabelLayout
-    nodes.push({
+    children.push({
       kind: SceneNodeKind.TEXT,
       id: `axis-label:${axis.orientation}`,
       x: al.x,
@@ -114,12 +122,19 @@ function axisToSceneNodes(
       text: al.text,
       textAnchor: al.textAnchor,
       dominantBaseline: al.dominantBaseline,
-      transform: `translate(${tx},${ty})`,
       style: { fill: 'currentColor', fontSizePx: 14 },
     })
   }
 
-  return nodes
+  // Return a single group node with the transform
+  return [
+    {
+      kind: SceneNodeKind.GROUP,
+      id: `axis-group:${axis.orientation}`,
+      transform,
+      children,
+    },
+  ]
 }
 
 export function scene(

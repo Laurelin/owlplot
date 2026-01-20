@@ -1,4 +1,5 @@
-export type AxisOrientation = "bottom" | "left" | "top" | "right";
+import { Position } from "../../../config/types";
+import { DominantBaseline, TextAnchor } from "../../../text/types";
 
 export interface AxisTick {
   value: number;
@@ -10,14 +11,15 @@ export interface AxisLabelLayout {
   x: number;
   y: number;
   text: string;
-  textAnchor: string;
-  dominantBaseline: string;
+  textAnchor: TextAnchor;
+  dominantBaseline: DominantBaseline;
 }
 
 export interface AxisLayout {
-  orientation: AxisOrientation;
+  orientation: Position;
   line: { x1: number; y1: number; x2: number; y2: number };
   ticks: AxisTick[];
-  tickLabelLayouts: AxisLabelLayout[];
-  axisLabelLayout?: AxisLabelLayout;
+  tickSize: number;
+  labelLayouts: AxisLabelLayout[];
+  axisLabelLayout: AxisLabelLayout | undefined;
 }

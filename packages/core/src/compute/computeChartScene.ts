@@ -1,13 +1,7 @@
-import type { ChartConfig } from "../config/chartConfig";
-import type { ChartEnvironment } from "../env/chartEnvironment";
-import type { SceneNode } from "../scene/sceneNode";
-import { computeLineChartScene } from "./line/computeLineChartScene";
-
-export type ChartSize = { width: number; height: number };
-
-export type ComputeResult = {
-  scene: SceneNode;
-};
+import { ChartKind, type ChartConfig } from "../config/types";
+import type { ChartEnvironment } from "../env/types.ts";
+import { scene } from "./line/scene";
+import { ChartSize, ComputeResult } from "./types";
 
 export function computeChartScene(
   config: ChartConfig,
@@ -15,7 +9,7 @@ export function computeChartScene(
   env: ChartEnvironment
 ): ComputeResult {
   switch (config.kind) {
-    case "line":
-      return computeLineChartScene(config, size, env);
+    case ChartKind.LINE:
+      return scene(config, size, env);
   }
 }

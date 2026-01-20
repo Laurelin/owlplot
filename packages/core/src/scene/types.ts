@@ -1,3 +1,23 @@
+import type { TextAnchor, DominantBaseline } from "../text/types";
+// -----------------------------------
+// enums (never use hardcoded strings)
+// -----------------------------------
+
+/**
+ * scene node kinds
+ */
+export enum SceneNodeKind {
+  GROUP  = "group",
+  PATH   = "path",
+  RECT   = "rect",
+  CIRCLE = "circle",
+  TEXT   = "text"
+}
+
+// -----------------------------------
+// scene graph node types
+// -----------------------------------
+
 export type SceneNode =
   | SceneGroupNode
   | ScenePathNode
@@ -21,18 +41,18 @@ export type SceneBaseNode = {
 };
 
 export type SceneGroupNode = SceneBaseNode & {
-  kind: "group";
+  kind: SceneNodeKind.GROUP;
   transform?: string;
   children: SceneNode[];
 };
 
 export type ScenePathNode = SceneBaseNode & {
-  kind: "path";
+  kind: SceneNodeKind.PATH;
   d: string;
 };
 
 export type SceneRectNode = SceneBaseNode & {
-  kind: "rect";
+  kind: SceneNodeKind.RECT;
   x: number;
   y: number;
   width: number;
@@ -42,17 +62,17 @@ export type SceneRectNode = SceneBaseNode & {
 };
 
 export type SceneCircleNode = SceneBaseNode & {
-  kind: "circle";
+  kind: SceneNodeKind.CIRCLE;
   cx: number;
   cy: number;
   r: number;
 };
 
 export type SceneTextNode = SceneBaseNode & {
-  kind: "text";
+  kind: SceneNodeKind.TEXT;
   x: number;
   y: number;
   text: string;
-  textAnchor?: "start" | "middle" | "end";
-  dominantBaseline?: "auto" | "middle" | "hanging";
+  textAnchor?: TextAnchor;
+  dominantBaseline?: DominantBaseline;
 };

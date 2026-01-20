@@ -1,4 +1,13 @@
-export type ChartKind = "line"; // expand later
+export enum ChartKind {
+  LINE = "line",
+}
+
+export enum Position {
+  BOTTOM = "bottom",    
+  LEFT = "left",
+  TOP = "top",
+  RIGHT = "right"
+}
 
 export type DataPoint = { x: number; y: number | null };
 
@@ -15,6 +24,8 @@ export type Cartesian2DOptions = {
   showGrid?: boolean;
   showPoints?: boolean;
   padding?: Partial<Padding>;
+  xTickCount?: number;
+  yTickCount?: number;
 };
 
 export type LineChartOptions = Cartesian2DOptions & {
@@ -22,7 +33,7 @@ export type LineChartOptions = Cartesian2DOptions & {
 };
 
 export type LineChartConfig = {
-  kind: "line";
+  kind: ChartKind.LINE;
   series: LineSeries[];
   options?: LineChartOptions;
 };

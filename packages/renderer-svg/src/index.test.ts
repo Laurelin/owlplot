@@ -1,5 +1,5 @@
 import { JSDOM } from "jsdom";
-import { computeChartScene } from "@owlplot/core";
+import { ChartKind, computeChartScene } from "@owlplot/core";
 import { renderSvgScene } from "../src/index";
 import { expect, it } from "vitest";
 
@@ -8,7 +8,7 @@ it("renders a line path", () => {
   const svg = dom.window.document.querySelector("svg")!;
   const result = computeChartScene(
     {
-      kind: "line",
+      kind: ChartKind.LINE,
       series: [
         { id: "s", points: [ { x: 0, y: 0 }, { x: 1, y: 1 } ] }
       ]

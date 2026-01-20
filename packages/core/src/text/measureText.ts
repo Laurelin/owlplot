@@ -1,6 +1,4 @@
-export type TextMetrics = { width: number; height: number };
-
-export type MeasureText = (text: string, fontCss: string) => TextMetrics;
+import { MeasureText } from "./types";
 
 // used in node tests + as fallback in non-dom envs
 export const approximateMeasureText: MeasureText = (text, fontCss) => {

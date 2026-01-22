@@ -1,17 +1,26 @@
 import { Position } from '../../config/types'
+import { measureTextFont } from '../../text/helpers'
 import {
   DominantBaseline,
   TextAnchor,
   type MeasureText,
 } from '../../text/types'
-import type { AxisLabelLayout, AxisLayout, AxisTick } from './types/axis'
+import type {
+  AxisLabelLayout,
+  AxisLayout,
+  AxisTick,
+  LabelOrientationConfig,
+} from './types/axis'
+import { LabelOrientation } from './types/axis'
 
 const DEFAULT_TICK_COUNT = 5
 const DEFAULT_TICK_SIZE = 4
-const DEFAULT_LABEL_OFFSET = 8
+export const DEFAULT_TICK_LABEL_OFFSET = 8
+export const DEFAULT_TICK_FONT = '8pt sans-serif'
+export const DEFAULT_LABEL_FONT = '9pt sans-serif' // for axis titles
 
 // simple linear tick generator
-function linearTickValues(
+export function linearTickValues(
   domainMin: number,
   domainMax: number,
   count: number
@@ -26,9 +35,10 @@ function linearTickValues(
   return ticks
 }
 
-interface ComputeAxisConfig {
+export interface AxisConfig {
   tickCount?: number
   axisLabel?: string
+  labelOrientation?: LabelOrientationConfig
 }
 
 /**
@@ -43,7 +53,11 @@ export function computeAxisLayout(
   domain: [number, number],
   rangePx: [number, number],
   measureText: MeasureText,
-  config: ComputeAxisConfig | undefined
+  config: AxisConfig | undefined,
+  options: {
+    axisTickFont?: string
+    axisLabelFont?: string
+  }
 ): AxisLayout {
   const tickCount = config?.tickCount ?? DEFAULT_TICK_COUNT
   const [domainMin, domainMax] = domain
@@ -61,36 +75,68 @@ export function computeAxisLayout(
     label: value.toString(),
   }))
 
+  const labelOrientation = config?.labelOrientation?.orientation
+  const labelAngle = config?.labelOrientation?.angle
+
   const labelLayouts: AxisLabelLayout[] = ticks.map(tick => {
-    const { width, height } = measureText(tick.label, '12px sans-serif')
+    const { height } = measureTextFont(
+      measureText,
+      tick.label,
+      options.axisTickFont,
+      DEFAULT_TICK_FONT
+    )
 
     let x = tick.position
     let y = 0
     let textAnchor: AxisLabelLayout['textAnchor'] = TextAnchor.MIDDLE
     let dominantBaseline: AxisLabelLayout['dominantBaseline'] =
       DominantBaseline.MIDDLE
+    let rotation: number | undefined = undefined
 
-    if (orientation === 'bottom') {
-      y = height + DEFAULT_LABEL_OFFSET
+    // Handle label orientation
+    if (labelOrientation === LabelOrientation.VERTICAL) {
+      // Vertical labels: rotate 90 degrees
+      // For horizontal axes, rotate -90 (text reads top to bottom)
+      // For vertical axes, rotate 90 (text reads bottom to top)
+      rotation =
+        orientation === Position.BOTTOM || orientation === Position.TOP
+          ? -90
+          : 90
+    } else if (
+      labelOrientation === LabelOrientation.ANGLED &&
+      labelAngle !== undefined
+    ) {
+      rotation = labelAngle
+    }
+
+    if (orientation === Position.BOTTOM) {
+      y = height + DEFAULT_TICK_LABEL_OFFSET
       textAnchor = TextAnchor.MIDDLE
       dominantBaseline = DominantBaseline.HANGING
-    } else if (orientation === 'top') {
-      y = -DEFAULT_LABEL_OFFSET
+    } else if (orientation === Position.TOP) {
+      y = -DEFAULT_TICK_LABEL_OFFSET
       textAnchor = TextAnchor.MIDDLE
       dominantBaseline = DominantBaseline.AUTO
-    } else if (orientation === 'left') {
-      x = -DEFAULT_LABEL_OFFSET
+    } else if (orientation === Position.LEFT) {
+      x = -DEFAULT_TICK_LABEL_OFFSET
       textAnchor = TextAnchor.END
       dominantBaseline = DominantBaseline.MIDDLE
       y = tick.position
-    } else if (orientation === 'right') {
-      x = DEFAULT_LABEL_OFFSET
+    } else if (orientation === Position.RIGHT) {
+      x = DEFAULT_TICK_LABEL_OFFSET
       textAnchor = TextAnchor.START
       dominantBaseline = DominantBaseline.MIDDLE
       y = tick.position
     }
 
-    return { text: tick.label, x, y, textAnchor, dominantBaseline }
+    return {
+      text: tick.label,
+      x,
+      y,
+      textAnchor,
+      dominantBaseline,
+      rotation,
+    }
   })
 
   let x1 = 0,
@@ -99,7 +145,7 @@ export function computeAxisLayout(
     y2 = 0
 
   // axis line (in local axis coords)
-  if (orientation === 'bottom' || orientation === 'top') {
+  if (orientation === Position.BOTTOM || orientation === Position.TOP) {
     x1 = rangeMin
     x2 = rangeMax
     y1 = y2 = 0
@@ -112,28 +158,33 @@ export function computeAxisLayout(
   const axisLabelLayout: AxisLayout['axisLabelLayout'] =
     config?.axisLabel !== undefined
       ? (() => {
-          const { height } = measureText(config.axisLabel, '14px sans-serif')
+          const { height } = measureTextFont(
+            measureText,
+            config.axisLabel,
+            options.axisLabelFont,
+            DEFAULT_LABEL_FONT
+          )
           let x = (rangeMin + rangeMax) / 2
           let y = 0
           let textAnchor: AxisLabelLayout['textAnchor'] = TextAnchor.MIDDLE
           let dominantBaseline: AxisLabelLayout['dominantBaseline'] =
             DominantBaseline.MIDDLE
 
-          if (orientation === 'bottom') {
-            y = height + DEFAULT_LABEL_OFFSET
+          if (orientation === Position.BOTTOM) {
+            y = height + DEFAULT_TICK_LABEL_OFFSET
             textAnchor = TextAnchor.MIDDLE
             dominantBaseline = DominantBaseline.HANGING
-          } else if (orientation === 'top') {
-            y = -DEFAULT_LABEL_OFFSET
+          } else if (orientation === Position.TOP) {
+            y = -DEFAULT_TICK_LABEL_OFFSET
             textAnchor = TextAnchor.MIDDLE
             dominantBaseline = DominantBaseline.AUTO
-          } else if (orientation === 'left') {
-            x = -DEFAULT_LABEL_OFFSET
+          } else if (orientation === Position.LEFT) {
+            x = -DEFAULT_TICK_LABEL_OFFSET
             textAnchor = TextAnchor.END
             dominantBaseline = DominantBaseline.MIDDLE
             y = (rangeMin + rangeMax) / 2
-          } else if (orientation === 'right') {
-            x = DEFAULT_LABEL_OFFSET
+          } else if (orientation === Position.RIGHT) {
+            x = DEFAULT_TICK_LABEL_OFFSET
             textAnchor = TextAnchor.START
             dominantBaseline = DominantBaseline.MIDDLE
             y = (rangeMin + rangeMax) / 2

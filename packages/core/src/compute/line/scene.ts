@@ -6,6 +6,24 @@ import { SceneNodeKind, type SceneNode } from '../../scene/types'
 import { computeCartesianLayout } from '../cartesian2d/layout'
 import { mergePadding } from '../../config/helpers'
 import { AxisLayout } from '../cartesian2d/types/axis'
+import type { AxisConfig } from '../cartesian2d/axis'
+import { DEFAULT_TICK_FONT, DEFAULT_LABEL_FONT } from '../cartesian2d/axis'
+import { LabelOrientation } from '../cartesian2d/types/axis'
+
+/**
+ * Extract font size in pixels from a font string like "8pt sans-serif" or "12px Arial"
+ * Returns the size in pixels (converting pt to px if needed: 1pt ≈ 1.33px)
+ */
+function extractFontSizePx(fontString: string | undefined): number {
+  if (!fontString) return 10 // fallback
+  const match = /(\d+(?:\.\d+)?)(pt|px)/i.exec(fontString)
+  if (!match) return 10 // fallback
+  const size = Number(match[1])
+  const unit = match[2]?.toLowerCase()
+  if (!unit) return 10 // fallback
+  // Convert pt to px: 1pt = 4/3px ≈ 1.33px
+  return unit === 'pt' ? size * (4 / 3) : size
+}
 
 function buildLinePathD(
   data: { x: number; y: number | null }[],
@@ -39,19 +57,30 @@ function buildLinePathD(
  */
 export function axisToSceneNodes(
   axis: AxisLayout,
-  plotRect: { x: number; y: number; width: number; height: number }
+  plotRect: { x: number; y: number; width: number; height: number },
+  tickFont?: string,
+  labelFont?: string,
+  isYAxis = false,
+  hideLabelAtIntersection = false
 ): SceneNode[] {
   const isHorizontal =
     axis.orientation === Position.BOTTOM || axis.orientation === Position.TOP
 
   // the *translate* point in absolute chart space for this axis:
-  const tx = plotRect.x
-  const ty =
-    axis.orientation === Position.BOTTOM
-      ? plotRect.y + plotRect.height // bottom
-      : axis.orientation === Position.TOP
-        ? plotRect.y // top
-        : plotRect.y
+  let tx = plotRect.x
+  let ty = plotRect.y
+
+  if (axis.orientation === Position.BOTTOM) {
+    ty = plotRect.y + plotRect.height // bottom
+  } else if (axis.orientation === Position.TOP) {
+    ty = plotRect.y // top
+  } else if (axis.orientation === Position.LEFT) {
+    tx = plotRect.x // left
+    ty = plotRect.y
+  } else if (axis.orientation === Position.RIGHT) {
+    tx = plotRect.x + plotRect.width // right
+    ty = plotRect.y
+  }
 
   const transform = `translate(${tx},${ty})`
 
@@ -98,22 +127,39 @@ export function axisToSceneNodes(
     })
 
     if (lbl) {
-      children.push({
-        kind: SceneNodeKind.TEXT,
-        id: `axis-tick-label:${axis.orientation}:${i}`,
-        x: lbl.x,
-        y: lbl.y,
-        text: lbl.text,
-        textAnchor: lbl.textAnchor,
-        dominantBaseline: lbl.dominantBaseline,
-        style: { fill: 'currentColor', fontSizePx: 12 },
-      })
+      // Skip label at intersection (Y-axis at value 0 when X-axis also has 0)
+      // For vertical axes, intersection is at the bottom (y1 for reversed range)
+      const isAtIntersection =
+        isYAxis &&
+        hideLabelAtIntersection &&
+        Math.abs(tick.value) < 1e-10 &&
+        Math.abs(tick.position - axis.line.y1) < 1e-10
+
+      if (!isAtIntersection) {
+        const transform =
+          lbl.rotation !== undefined
+            ? `rotate(${lbl.rotation} ${lbl.x} ${lbl.y})`
+            : undefined
+        const fontSizePx = extractFontSizePx(tickFont ?? DEFAULT_TICK_FONT)
+        children.push({
+          kind: SceneNodeKind.TEXT,
+          id: `axis-tick-label:${axis.orientation}:${i}`,
+          x: lbl.x,
+          y: lbl.y,
+          text: lbl.text,
+          textAnchor: lbl.textAnchor,
+          dominantBaseline: lbl.dominantBaseline,
+          transform,
+          style: { fill: 'currentColor', fontSizePx },
+        })
+      }
     }
   })
 
   // optional axis title
   if (axis.axisLabelLayout) {
     const al = axis.axisLabelLayout
+    const fontSizePx = extractFontSizePx(labelFont ?? DEFAULT_LABEL_FONT)
     children.push({
       kind: SceneNodeKind.TEXT,
       id: `axis-label:${axis.orientation}`,
@@ -122,7 +168,7 @@ export function axisToSceneNodes(
       text: al.text,
       textAnchor: al.textAnchor,
       dominantBaseline: al.dominantBaseline,
-      style: { fill: 'currentColor', fontSizePx: 14 },
+      style: { fill: 'currentColor', fontSizePx },
     })
   }
 
@@ -144,15 +190,45 @@ export function scene(
 ): { scene: SceneNode } {
   const padding = mergePadding(config.options?.padding)
 
-  const xAxisConfig: { tickCount?: number; axisLabel?: string } = {
+  const bottomAxisConfig: AxisConfig = {
     tickCount: config.options?.xTickCount,
     axisLabel: config.options?.xLabel,
+    labelOrientation: config.options?.xLabelOrientation
+      ? {
+          orientation: config.options.xLabelOrientation.orientation as
+            | LabelOrientation
+            | undefined,
+          angle: config.options.xLabelOrientation.angle,
+        }
+      : undefined,
   }
 
-  const yAxisConfig: { tickCount?: number; axisLabel?: string } = {
+  const leftAxisConfig: AxisConfig = {
     tickCount: config.options?.yTickCount,
     axisLabel: config.options?.yLabel,
+    labelOrientation: config.options?.yLabelOrientation
+      ? {
+          orientation: config.options.yLabelOrientation.orientation as
+            | LabelOrientation
+            | undefined,
+          angle: config.options.yLabelOrientation.angle,
+        }
+      : undefined,
   }
+
+  const rightAxisConfig: AxisConfig | undefined = config.options?.yAxisRight
+    ? {
+        tickCount: config.options.yAxisRight.tickCount,
+        axisLabel: config.options.yAxisRight.axisLabel,
+        labelOrientation: config.options.yAxisRight.labelOrientation
+          ? {
+              orientation: config.options.yAxisRight.labelOrientation
+                .orientation as LabelOrientation | undefined,
+              angle: config.options.yAxisRight.labelOrientation.angle,
+            }
+          : undefined,
+      }
+    : undefined
 
   const { plotRect, scales, axes } = computeCartesianLayout(
     config.series,
@@ -160,8 +236,12 @@ export function scene(
     env.measureText,
     {
       padding,
-      xAxis: xAxisConfig,
-      yAxis: yAxisConfig,
+      xAxis: bottomAxisConfig,
+      yAxis: leftAxisConfig,
+      yAxisRight: rightAxisConfig,
+      enableAdaptivePadding: config.options?.enableAdaptivePadding ?? true,
+      axisTickFont: config.options?.axisTickFont,
+      axisLabelFont: config.options?.axisLabelFont,
     }
   )
 
@@ -178,11 +258,40 @@ export function scene(
     style: { fill: 'transparent' },
   })
 
+  // Get X-axis domain to check for intersection
+  const xAxisDomain = axes.x.ticks.map(t => t.value)
+  const xAxisHasZero = xAxisDomain.some(v => Math.abs(v) < 1e-10)
+
   // axes
   children.push(
-    ...axisToSceneNodes(axes.x, plotRect),
-    ...axisToSceneNodes(axes.y, plotRect)
+    ...axisToSceneNodes(
+      axes.x,
+      plotRect,
+      config.options?.axisTickFont,
+      config.options?.axisLabelFont,
+      false // isYAxis
+    ),
+    ...axisToSceneNodes(
+      axes.y,
+      plotRect,
+      config.options?.axisTickFont,
+      config.options?.axisLabelFont,
+      true, // isYAxis
+      xAxisHasZero // hideLabelAtIntersection
+    )
   )
+  if (axes.yRight) {
+    children.push(
+      ...axisToSceneNodes(
+        axes.yRight,
+        plotRect,
+        config.options?.axisTickFont,
+        config.options?.axisLabelFont,
+        true, // isYAxis
+        xAxisHasZero // hideLabelAtIntersection
+      )
+    )
+  }
 
   // line paths and optional points
   for (const series of config.series) {

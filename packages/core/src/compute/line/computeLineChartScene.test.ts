@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ChartConfig, ChartKind } from "../../config/types";
 import { computeChartScene } from "../computeChartScene";
-import { approximateMeasureText } from "../../text/measureText";
+import { approximateMeasureText } from "../../text/helpers";
 
 describe("computeChartScene (line)", () => {
     it("produces a deterministic scene graph", () => {

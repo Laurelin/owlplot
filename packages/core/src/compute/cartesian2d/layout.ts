@@ -3,6 +3,8 @@ import { Position, type LineSeries } from '../../config/types'
 import { computeAxisLayout } from './axis'
 import type { AxisLayout } from './types/axis'
 import type { PlotRect } from '../types'
+import { computeAdaptivePadding } from './adaptivePadding'
+import type { AxisConfig } from './axis'
 
 export type CartesianLayoutResult = {
   plotRect: PlotRect
@@ -13,6 +15,7 @@ export type CartesianLayoutResult = {
   axes: {
     x: AxisLayout
     y: AxisLayout
+    yRight?: AxisLayout
   }
 }
 
@@ -22,8 +25,12 @@ export function computeCartesianLayout(
   measureText: MeasureText,
   options: {
     padding: { top: number; right: number; bottom: number; left: number }
-    xAxis?: { tickCount?: number; axisLabel?: string }
-    yAxis?: { tickCount?: number; axisLabel?: string }
+    xAxis?: AxisConfig
+    yAxis?: AxisConfig
+    yAxisRight?: AxisConfig
+    enableAdaptivePadding?: boolean
+    axisTickFont?: string
+    axisLabelFont?: string
   }
 ): CartesianLayoutResult {
   // 1) figure domain extents
@@ -54,8 +61,41 @@ export function computeCartesianLayout(
   if (xMin === xMax) xMax = xMin + 1
   if (yMin === yMax) yMax = yMin + 1
 
-  // 2) compute plot rect from padding
-  const { top, right, bottom, left } = options.padding
+  // 2) compute adaptive padding if enabled
+  const userPadding = options.padding
+  let finalPadding = userPadding
+
+  if (options.enableAdaptivePadding !== false) {
+    const xTickCount = options.xAxis?.tickCount
+    const yTickCount = options.yAxis?.tickCount
+    const adaptivePadding = computeAdaptivePadding(
+      size.width,
+      size.height,
+      [xMin, xMax],
+      [yMin, yMax],
+      measureText,
+      options.xAxis,
+      options.yAxis,
+      options.yAxisRight,
+      xTickCount ?? 5,
+      yTickCount ?? 5,
+      {
+        axisTickFont: options.axisTickFont,
+        axisLabelFont: options.axisLabelFont,
+      }
+    )
+
+    // merge user padding with adaptive padding (max of each side)
+    finalPadding = {
+      top: Math.max(userPadding.top, adaptivePadding.top),
+      right: Math.max(userPadding.right, adaptivePadding.right),
+      bottom: Math.max(userPadding.bottom, adaptivePadding.bottom),
+      left: Math.max(userPadding.left, adaptivePadding.left),
+    }
+  }
+
+  // 3) compute plot rect from final padding
+  const { top, right, bottom, left } = finalPadding
   const plotRect: PlotRect = {
     x: left,
     y: top,
@@ -63,7 +103,7 @@ export function computeCartesianLayout(
     height: Math.max(0, size.height - top - bottom),
   }
 
-  // 3) build scale functions
+  // 4) build scale functions
   const xScale = (v: number): number =>
     plotRect.x + ((v - xMin) / (xMax - xMin)) * plotRect.width
 
@@ -72,26 +112,48 @@ export function computeCartesianLayout(
     plotRect.height -
     ((v - yMin) / (yMax - yMin)) * plotRect.height
 
-  // 4) axis layouts (local axis coords)
+  // 5) axis layouts (local axis coords)
   const xAxis: AxisLayout = computeAxisLayout(
     Position.BOTTOM,
     [xMin, xMax],
     [0, plotRect.width],
     measureText,
-    options.xAxis
+    options.xAxis,
+    {
+      axisTickFont: options.axisTickFont,
+      axisLabelFont: options.axisLabelFont,
+    }
   )
 
   const yAxis: AxisLayout = computeAxisLayout(
     Position.LEFT,
     [yMin, yMax],
-    [0, plotRect.height],
+    [plotRect.height, 0], // reversed: bottom to top for standard Y-axis
     measureText,
-    options.yAxis
+    options.yAxis,
+    {
+      axisTickFont: options.axisTickFont,
+      axisLabelFont: options.axisLabelFont,
+    }
   )
+
+  const yAxisRight: AxisLayout | undefined = options.yAxisRight
+    ? computeAxisLayout(
+        Position.RIGHT,
+        [yMin, yMax],
+        [plotRect.height, 0], // reversed: bottom to top for standard Y-axis
+        measureText,
+        options.yAxisRight,
+        {
+          axisTickFont: options.axisTickFont,
+          axisLabelFont: options.axisLabelFont,
+        }
+      )
+    : undefined
 
   return {
     plotRect,
     scales: { x: xScale, y: yScale },
-    axes: { x: xAxis, y: yAxis },
+    axes: { x: xAxis, y: yAxis, yRight: yAxisRight },
   }
 }

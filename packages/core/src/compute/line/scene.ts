@@ -1,7 +1,7 @@
 import { Position, type LineChartConfig } from '../../config/types'
 import type { ChartEnvironment } from '../../env/types.ts'
 import type { ChartSize } from '../types'
-import { SceneNodeKind, type SceneNode } from '../../scene/types'
+import { SceneNodeKind, type SceneNode, createSceneTooltip } from '../../scene/types'
 
 import { computeCartesianLayout } from '../cartesian2d/layout'
 import { mergePadding } from '../../config/helpers'
@@ -9,6 +9,22 @@ import { AxisLayout } from '../cartesian2d/types/axis'
 import type { AxisConfig } from '../cartesian2d/axis'
 import { DEFAULT_TICK_FONT, DEFAULT_LABEL_FONT } from '../cartesian2d/axis'
 import { LabelOrientation } from '../cartesian2d/types/axis'
+
+/**
+ * Core → Renderer Contract for Hover Metadata:
+ * 
+ * hover.sortedPoints:
+ * - filtered (finite x/y, y !== null)
+ * - sorted ascending by x
+ * - immutable for renderer lifetime (frozen)
+ * 
+ * Renderer MUST use sortedPoints directly - NO per-hover sorting or filtering.
+ * This is a one-time cost during scene computation, not per mousemove.
+ */
+export type HoverSeries = {
+  id: string
+  sortedPoints: ReadonlyArray<{ x: number; y: number }>
+}
 
 /**
  * Extract font size in pixels from a font string like "8pt sans-serif" or "12px Arial"
@@ -230,7 +246,7 @@ export function scene(
       }
     : undefined
 
-  const { plotRect, scales, axes } = computeCartesianLayout(
+  const { plotRect, scales, axes, xDomain, yDomain } = computeCartesianLayout(
     config.series,
     size,
     env.measureText,
@@ -313,6 +329,9 @@ export function scene(
           cy: scales.y(pt.y),
           r: 2.5,
           style: { fill: 'currentColor' },
+          metadata: {
+            tooltip: createSceneTooltip('point', { x: pt.x, y: pt.y }, { seriesId: series.id })
+          }
         })
       })
     }
@@ -323,6 +342,31 @@ export function scene(
       kind: SceneNodeKind.GROUP,
       id: 'root',
       children,
+      metadata: {
+        hover: {
+          xInvert: scales.xInvert,
+          yInvert: scales.yInvert,
+          scales: { x: scales.x, y: scales.y },
+          plotRect,
+          xDomain,
+          yDomain,
+          series: config.series.map((s): HoverSeries => {
+            // Filter valid points and sort by x ONCE (core guarantees sorted)
+            const validPoints = s.points
+              .filter(p => p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y))
+              .map(p => ({ x: p.x, y: p.y! }))
+              .sort((a, b) => a.x - b.x)  // Sort once, not per hover
+            
+            // Freeze to signal immutability and prevent accidental mutation
+            const sortedPoints = Object.freeze(validPoints)
+            
+            return {
+              id: s.id,
+              sortedPoints  // Pre-sorted, pre-filtered, frozen for hover lookup
+            }
+          })
+        }
+      }
     },
   }
 }

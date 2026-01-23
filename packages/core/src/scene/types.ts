@@ -33,10 +33,21 @@ export type SceneStyle = {
   fontWeight?: number | string
 }
 
+export type TooltipDatum = {
+  kind: string
+  seriesId?: string
+  values: Record<string, unknown>
+  label?: string
+}
+
 export type SceneBaseNode = {
   id: string
   style?: SceneStyle
   transform?: string // pull up into base so every node can have it
+  metadata?: {
+    tooltip?: TooltipDatum
+    [key: string]: unknown
+  }
 }
 
 export type SceneGroupNode = SceneBaseNode & {
@@ -73,4 +84,20 @@ export type SceneTextNode = SceneBaseNode & {
   text: string
   textAnchor?: TextAnchor
   dominantBaseline?: DominantBaseline
+}
+
+// -----------------------------------
+// helper for building tooltip metadata
+// -----------------------------------
+
+export function createSceneTooltip(
+  kind: string,
+  values: Record<string, unknown>,
+  options?: { seriesId?: string; label?: string }
+): TooltipDatum {
+  return {
+    kind,
+    values,
+    ...options
+  }
 }

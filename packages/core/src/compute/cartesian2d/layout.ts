@@ -11,12 +11,16 @@ export type CartesianLayoutResult = {
   scales: {
     x: (value: number) => number
     y: (value: number) => number
+    xInvert: (px: number) => number
+    yInvert: (py: number) => number
   }
   axes: {
     x: AxisLayout
     y: AxisLayout
     yRight?: AxisLayout
   }
+  xDomain: [number, number]
+  yDomain: [number, number]
 }
 
 export function computeCartesianLayout(
@@ -112,7 +116,18 @@ export function computeCartesianLayout(
     plotRect.height -
     ((v - yMin) / (yMax - yMin)) * plotRect.height
 
-  // 5) axis layouts (local axis coords)
+  // 5) build scale inversion functions (for axis-aligned hover)
+  const xInvert = (px: number): number => {
+    const relativeX = (px - plotRect.x) / plotRect.width
+    return xMin + relativeX * (xMax - xMin)
+  }
+
+  const yInvert = (py: number): number => {
+    const relativeY = (plotRect.height - (py - plotRect.y)) / plotRect.height
+    return yMin + relativeY * (yMax - yMin)
+  }
+
+  // 6) axis layouts (local axis coords)
   const xAxis: AxisLayout = computeAxisLayout(
     Position.BOTTOM,
     [xMin, xMax],
@@ -153,7 +168,9 @@ export function computeCartesianLayout(
 
   return {
     plotRect,
-    scales: { x: xScale, y: yScale },
+    scales: { x: xScale, y: yScale, xInvert, yInvert },
     axes: { x: xAxis, y: yAxis, yRight: yAxisRight },
+    xDomain: [xMin, xMax],
+    yDomain: [yMin, yMax],
   }
 }

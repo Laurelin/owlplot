@@ -41,7 +41,8 @@ scripts/run.bat
 scripts/**/*.js
 scripts/**/*.js.map
 coverage/
-internal/
+# Note: This was too broad - ignoring specific internal directories instead
+# internal/
 **/.DS_Store
 .settings
 **/.vs

@@ -1,12 +1,13 @@
-import { DataAttributeName } from '../shared/enums'
+import { DataAttributeName, SvgAttributeName } from '../shared/enums'
 import type { HoverPointRef } from '../shared/extendedElements'
+import type { PointIndex } from './types'
 
 // Re-export for convenience
 export type { HoverPointRef }
 
 export function buildPointIndexFromRenderedElements(
   svg: SVGSVGElement
-): Map<string, HoverPointRef[]> {
+): PointIndex {
   const index = new Map<string, HoverPointRef[]>()
   const circles = svg.querySelectorAll(
     `circle[data-${DataAttributeName.OWLPLOT_SERIES_ID}]`
@@ -17,11 +18,20 @@ export function buildPointIndexFromRenderedElements(
     const seriesId = el.dataset[DataAttributeName.OWLPLOT_SERIES_ID]
     const domainX = parseFloat(el.dataset[DataAttributeName.OWLPLOT_X] || '')
     const domainY = parseFloat(el.dataset[DataAttributeName.OWLPLOT_Y] || '')
+    const originalRadius = parseFloat(
+      el.getAttribute(SvgAttributeName.R) || '2.5'
+    )
 
     if (!seriesId || Number.isNaN(domainX) || Number.isNaN(domainY)) return
 
     const seriesRefs = index.get(seriesId) ?? []
-    seriesRefs.push({ element: el, seriesId, x: domainX, y: domainY })
+    seriesRefs.push({
+      element: el,
+      seriesId,
+      x: domainX,
+      y: domainY,
+      originalRadius, // Store at index build time to prevent restore drift
+    })
     index.set(seriesId, seriesRefs)
   })
 

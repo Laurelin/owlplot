@@ -434,6 +434,16 @@
         const svg = document.getElementById(svgId)
         if (!svg) return
 
+        // Extract hoverMode and hoverIndicator from config if present
+        const finalRenderOptions = {
+          ...renderOptions,
+          ...(config.hoverMode && { hoverMode: config.hoverMode }),
+          ...(config.hoverIndicator && {
+            hoverIndicator: config.hoverIndicator,
+          }),
+          ...(config.tooltip && { tooltip: config.tooltip }),
+        }
+
         const result = computeChartScene(
           config,
           { width: 600, height: 300 },
@@ -443,7 +453,7 @@
           }
         )
 
-        renderSvgScene(result.scene, svg, renderOptions)
+        renderSvgScene(result.scene, svg, finalRenderOptions)
       }
 
       // ===== BASIC CHARTS =====

@@ -6,9 +6,6 @@ export const TOOLTIP_DATUM_SYMBOL = Symbol('owlplot-tooltip-datum')
 export const POINT_INDEX_SYMBOL = Symbol('owlplot-point-index')
 export const HOVER_LINE_SYMBOL = Symbol('owlplot-hover-line')
 
-export const X_AXIS_HOVER_LISTENERS_SYMBOL = Symbol(
-  'owlplot-x-axis-hover-listeners'
-)
-export const NODE_HOVER_LISTENERS_SYMBOL = Symbol(
-  'owlplot-node-hover-listeners'
+export const GLYPH_HOVER_LISTENERS_SYMBOL = Symbol(
+  'owlplot-glyph-hover-listeners'
 )

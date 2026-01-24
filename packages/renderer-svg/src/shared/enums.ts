@@ -4,7 +4,8 @@ export enum TooltipKind {
 }
 
 export enum HoverModeKind {
-  NODE = 'node',
+  GLYPH = 'glyph',
+  POINT = 'point',
   X_AXIS = 'x-axis',
   Y_AXIS = 'y-axis',
 }
@@ -51,6 +52,7 @@ export enum DataAttributeName {
   OWLPLOT_SERIES_ID = 'owlplotSeriesId',
   OWLPLOT_X = 'owlplotX',
   OWLPLOT_Y = 'owlplotY',
+  OWLPLOT_HOVER_LAYER = 'owlplotHoverLayer',
 }
 
 export enum CssClassName {

@@ -7,20 +7,12 @@ export type HoverPointRef = {
   seriesId: string
   x: number
   y: number
+  originalRadius: number // Store at index build time to prevent restore drift
 }
 
-export type NodeHoverListenerRef = {
-  element: SVGElement
-  handlers: {
-    mouseenter: (event: MouseEvent) => void
-    mousemove: (event: MouseEvent) => void
-    mouseleave: () => void
-  }
-}
-
-export type XAxisHoverListenerRef = {
-  mousemove: (event: MouseEvent) => void
-  mouseleave: () => void
+export type GlyphHoverListenerRef = {
+  pointermove: (event: PointerEvent) => void
+  pointerleave: () => void
 }
 
 import {
@@ -30,8 +22,7 @@ import {
   TOOLTIP_DATUM_SYMBOL,
   POINT_INDEX_SYMBOL,
   HOVER_LINE_SYMBOL,
-  X_AXIS_HOVER_LISTENERS_SYMBOL,
-  NODE_HOVER_LISTENERS_SYMBOL,
+  GLYPH_HOVER_LISTENERS_SYMBOL,
 } from './symbols'
 
 export interface ExtendedSVGElement extends SVGElement {
@@ -46,6 +37,5 @@ export interface ExtendedSVGSVGElement extends SVGSVGElement {
   [POINT_INDEX_SYMBOL]?: Map<string, HoverPointRef[]>
   [HOVER_LINE_SYMBOL]?: SVGLineElement
 
-  [X_AXIS_HOVER_LISTENERS_SYMBOL]?: XAxisHoverListenerRef
-  [NODE_HOVER_LISTENERS_SYMBOL]?: NodeHoverListenerRef[]
+  [GLYPH_HOVER_LISTENERS_SYMBOL]?: GlyphHoverListenerRef
 }

@@ -41,7 +41,7 @@ export const defaultTooltipRenderer: TooltipRenderer = {
         html += `<div class="${CssClassName.OWLPLOT_TOOLTIP_SERIES}" style="margin-bottom: 2px;">series: ${datum.seriesId}</div>`
       }
 
-      // Iterate over all values
+      // Iterate over all values, including "x" (user wants x value in tooltip)
       for (const [key, value] of Object.entries(datum.values)) {
         html += `<div class="${CssClassName.OWLPLOT_TOOLTIP_VALUE}" style="margin-bottom: 2px;">${key}: ${formatValue(value)}</div>`
       }

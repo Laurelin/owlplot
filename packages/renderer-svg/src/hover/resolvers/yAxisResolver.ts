@@ -1,8 +1,4 @@
-import type {
-  HoverResolver,
-  HoverResolutionResult,
-  HoverMetadata,
-} from '../types'
+import type { HoverResolver } from '../types'
 
 /**
  * Y_AXIS resolver: horizontal slice projection.

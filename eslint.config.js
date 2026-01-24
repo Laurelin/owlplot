@@ -13,8 +13,13 @@ export default tseslint.config(
     },
     rules: {
       'prettier/prettier': 'error', // shows Prettier issues as ESLint errors (red squiggles)
-      // add your custom rules here, e.g.:
-      // '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
     },
   },
   {

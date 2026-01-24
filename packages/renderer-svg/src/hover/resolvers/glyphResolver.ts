@@ -1,33 +1,17 @@
-import type { HoverResolver, HoverResolutionResult } from '../types'
+import type { HoverResolutionResult } from '../types'
 import type { ExtendedSVGElement } from '../../shared/extendedElements'
 import { TOOLTIP_DATUM_SYMBOL } from '../../shared/symbols'
 import { DataAttributeName } from '../../shared/enums'
-import type { TooltipDatum } from '@owlplot/core'
-
-/**
- * GLYPH resolver: extracts hover data from DOM elements with tooltip data.
- * Uses event target from pointer events (not elementFromPoint).
- * Reads domain coordinates from data attributes first, falls back to tooltip datum if available.
- * Returns 'none' if no domain coords available (scales may not be invertible).
- */
-export function createGlyphResolver(): HoverResolver {
-  return {
-    resolve(input) {
-      // This resolver is called from event handlers, so we need the event target
-      // For now, return 'none' - the actual resolution happens in the event handler
-      // This is a placeholder; the real logic is in attachGlyphHover
-      return { kind: 'none' }
-    },
-  }
-}
 
 /**
  * Resolve glyph hover from an event target element.
- * This is the actual implementation used by event handlers.
+ * GLYPH mode uses event delegation (not data-driven resolvers).
+ * Reads domain coordinates from data attributes first, falls back to tooltip datum if available.
+ * Returns 'none' if no domain coords available (scales may not be invertible).
  */
 export function resolveGlyphFromElement(
   element: Element | null,
-  metadata: { scales: { x: (v: number) => number; y: (v: number) => number } }
+  _metadata: { scales: { x: (v: number) => number; y: (v: number) => number } }
 ): HoverResolutionResult {
   if (!element) return { kind: 'none' }
 

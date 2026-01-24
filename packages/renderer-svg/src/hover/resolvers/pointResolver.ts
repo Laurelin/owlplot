@@ -1,8 +1,4 @@
-import type {
-  HoverResolver,
-  HoverResolutionResult,
-  HoverMetadata,
-} from '../types'
+import type { HoverResolver } from '../types'
 import { binarySearchNearestByX } from '../../shared/binarySearchNearestByX'
 
 /**

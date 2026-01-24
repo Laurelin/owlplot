@@ -98,6 +98,6 @@ export function createSceneTooltip(
   return {
     kind,
     values,
-    ...options
+    ...options,
   }
 }

@@ -18,6 +18,17 @@ const DEFAULT_TICK_SIZE = 4
 export const DEFAULT_TICK_LABEL_OFFSET = 8
 export const DEFAULT_TICK_FONT = '8pt sans-serif'
 export const DEFAULT_LABEL_FONT = '9pt sans-serif' // for axis titles
+export const AXIS_TITLE_OFFSET = 4 // spacing between tick labels and axis title
+
+// Canonical vertical rotation per position (gated by axisLabelOrientation config)
+// Only encodes rotation IF vertical orientation is requested
+// Exported for use in adaptivePadding to ensure consistency
+export const AXIS_TITLE_ROTATION_BY_POSITION: Record<Position, number | undefined> = {
+  [Position.LEFT]: -90, // IF vertical: top→bottom (inverted from bottom→top)
+  [Position.RIGHT]: 90, // IF vertical: bottom→top (implemented but less tested)
+  [Position.BOTTOM]: undefined, // horizontal default (wired + tested)
+  [Position.TOP]: undefined, // horizontal default (implemented but less tested)
+}
 
 // simple linear tick generator
 export function linearTickValues(
@@ -38,7 +49,8 @@ export function linearTickValues(
 export interface AxisConfig {
   tickCount?: number
   axisLabel?: string
-  labelOrientation?: LabelOrientationConfig
+  labelOrientation?: LabelOrientationConfig // for tick labels
+  axisLabelOrientation?: LabelOrientationConfig // for axis title
 }
 
 /**
@@ -78,8 +90,13 @@ export function computeAxisLayout(
   const labelOrientation = config?.labelOrientation?.orientation
   const labelAngle = config?.labelOrientation?.angle
 
+  // FIRST PASS: Compute tick label layouts + calculate max bounds
+  // Critical invariant: axis title position depends on max tick label bounds, never vice-versa
+  let maxTickLabelWidth = 0
+  let maxTickLabelHeight = 0
+
   const labelLayouts: AxisLabelLayout[] = ticks.map(tick => {
-    const { height } = measureTextFont(
+    const { width, height } = measureTextFont(
       measureText,
       tick.label,
       options.axisTickFont,
@@ -92,8 +109,10 @@ export function computeAxisLayout(
     let dominantBaseline: AxisLabelLayout['dominantBaseline'] =
       DominantBaseline.MIDDLE
     let rotation: number | undefined = undefined
+    let effectiveWidth = width
+    let effectiveHeight = height
 
-    // Handle label orientation
+    // Handle label orientation and calculate effective dimensions
     if (labelOrientation === LabelOrientation.VERTICAL) {
       // Vertical labels: rotate 90 degrees
       // For horizontal axes, rotate -90 (text reads top to bottom)
@@ -102,12 +121,25 @@ export function computeAxisLayout(
         orientation === Position.BOTTOM || orientation === Position.TOP
           ? -90
           : 90
+      // For 90° rotation, swap dimensions
+      effectiveWidth = height
+      effectiveHeight = width
     } else if (
       labelOrientation === LabelOrientation.ANGLED &&
       labelAngle !== undefined
     ) {
       rotation = labelAngle
+      // For angled labels, calculate rotated bounds
+      const angleRad = (labelAngle * Math.PI) / 180
+      const cos = Math.abs(Math.cos(angleRad))
+      const sin = Math.abs(Math.sin(angleRad))
+      effectiveWidth = width * cos + height * sin
+      effectiveHeight = width * sin + height * cos
     }
+
+    // Track max effective dimensions for title positioning
+    maxTickLabelWidth = Math.max(maxTickLabelWidth, effectiveWidth)
+    maxTickLabelHeight = Math.max(maxTickLabelHeight, effectiveHeight)
 
     if (orientation === Position.BOTTOM) {
       y = height + DEFAULT_TICK_LABEL_OFFSET
@@ -155,39 +187,243 @@ export function computeAxisLayout(
     x1 = x2 = 0
   }
 
+  // SECOND PASS: Compute axis title layout using tick label bounds
+  // Layout positions are derived from measured bounds only; no magic offsets besides documented constants.
   const axisLabelLayout: AxisLayout['axisLabelLayout'] =
     config?.axisLabel !== undefined
       ? (() => {
-          const { height } = measureTextFont(
+          const axisTitleOrientation = config.axisLabelOrientation?.orientation
+          const axisTitleAngle = config.axisLabelOrientation?.angle
+          // #region agent log
+          fetch(
+            'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'axis.ts:194',
+                message: 'computeAxisLayout received axisLabelOrientation',
+                data: {
+                  axisTitleOrientation,
+                  axisTitleAngle,
+                  orientation,
+                  hasAxisLabel: !!config.axisLabel,
+                  axisLabel: config.axisLabel,
+                  isVertical:
+                    axisTitleOrientation === LabelOrientation.VERTICAL,
+                  verticalEnum: LabelOrientation.VERTICAL,
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'run1',
+                hypothesisId: 'C',
+              }),
+            }
+          ).catch(() => {})
+          // #endregion
+
+          // Measure unrotated title bounds first
+          const unrotatedBounds = measureTextFont(
             measureText,
             config.axisLabel,
             options.axisLabelFont,
             DEFAULT_LABEL_FONT
           )
-          let x = (rangeMin + rangeMax) / 2
+
+          // Determine rotation for title
+          let rotation: number | undefined = undefined
+          // #region agent log
+          const orientationForLog = axisTitleOrientation
+          fetch(
+            'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'axis.ts:207',
+                message: 'Checking orientation for rotation',
+                data: {
+                  axisTitleOrientation: orientationForLog,
+                  isVertical: orientationForLog === LabelOrientation.VERTICAL,
+                  isAngled: orientationForLog === LabelOrientation.ANGLED,
+                  verticalEnum: LabelOrientation.VERTICAL,
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'run1',
+                hypothesisId: 'D',
+              }),
+            }
+          ).catch(() => {})
+          // #endregion
+          if (axisTitleOrientation === LabelOrientation.VERTICAL) {
+            // Use canonical rotation from constant (gated by orientation config)
+            rotation = AXIS_TITLE_ROTATION_BY_POSITION[orientation]
+            // #region agent log
+            fetch(
+              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'axis.ts:211',
+                  message: 'Rotation determined for vertical',
+                  data: {
+                    rotation,
+                    orientation,
+                    rotationByPosition:
+                      AXIS_TITLE_ROTATION_BY_POSITION[orientation],
+                  },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'run1',
+                  hypothesisId: 'D',
+                }),
+              }
+            ).catch(() => {})
+            // #endregion
+          } else if (
+            axisTitleOrientation === LabelOrientation.ANGLED &&
+            axisTitleAngle !== undefined
+          ) {
+            rotation = axisTitleAngle
+            // #region agent log
+            fetch(
+              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'axis.ts:218',
+                  message: 'Rotation determined for angled',
+                  data: { rotation: axisTitleAngle },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'run1',
+                  hypothesisId: 'D',
+                }),
+              }
+            ).catch(() => {})
+            // #endregion
+          } else {
+            // #region agent log
+            fetch(
+              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'axis.ts:222',
+                  message: 'No rotation applied',
+                  data: { axisTitleOrientation: orientationForLog, rotation },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'run1',
+                  hypothesisId: 'D',
+                }),
+              }
+            ).catch(() => {})
+            // #endregion
+          }
+
+          // Calculate rotated bounds if needed
+          let titleWidth = unrotatedBounds.width
+          let titleHeight = unrotatedBounds.height
+          if (rotation !== undefined) {
+            const angleRad = (rotation * Math.PI) / 180
+            const cos = Math.abs(Math.cos(angleRad))
+            const sin = Math.abs(Math.sin(angleRad))
+            titleWidth =
+              unrotatedBounds.width * cos + unrotatedBounds.height * sin
+            titleHeight =
+              unrotatedBounds.width * sin + unrotatedBounds.height * cos
+          }
+
+          // Position title with offset beyond tick labels
+          // Title centering uses plot range (rangeMin/rangeMax) in same coordinate space as title x/y
+          let x = (rangeMin + rangeMax) / 2 // center in axis-local coords
           let y = 0
           let textAnchor: AxisLabelLayout['textAnchor'] = TextAnchor.MIDDLE
           let dominantBaseline: AxisLabelLayout['dominantBaseline'] =
             DominantBaseline.MIDDLE
 
           if (orientation === Position.BOTTOM) {
-            y = height + DEFAULT_TICK_LABEL_OFFSET
+            // Position below tick labels
+            // Tick labels: y = height + DEFAULT_TICK_LABEL_OFFSET, baseline = HANGING
+            // Bottom of tick label text: y + height = height + DEFAULT_TICK_LABEL_OFFSET + height
+            // Title with MIDDLE baseline: center at bottom of ticks + offset + half title height
+            y =
+              maxTickLabelHeight +
+              DEFAULT_TICK_LABEL_OFFSET +
+              maxTickLabelHeight +
+              AXIS_TITLE_OFFSET +
+              titleHeight / 2
             textAnchor = TextAnchor.MIDDLE
-            dominantBaseline = DominantBaseline.HANGING
+            dominantBaseline = DominantBaseline.MIDDLE
           } else if (orientation === Position.TOP) {
-            y = -DEFAULT_TICK_LABEL_OFFSET
+            // Position above tick labels
+            // Tick labels: y = -DEFAULT_TICK_LABEL_OFFSET, baseline = AUTO
+            // Top of tick label text extends above y
+            // Title with MIDDLE baseline: center above ticks
+            y =
+              -DEFAULT_TICK_LABEL_OFFSET -
+              maxTickLabelHeight -
+              AXIS_TITLE_OFFSET -
+              titleHeight / 2
             textAnchor = TextAnchor.MIDDLE
-            dominantBaseline = DominantBaseline.AUTO
+            dominantBaseline = DominantBaseline.MIDDLE
           } else if (orientation === Position.LEFT) {
-            x = -DEFAULT_TICK_LABEL_OFFSET
-            textAnchor = TextAnchor.END
+            // Position to the left of tick labels
+            // Tick labels: x = -DEFAULT_TICK_LABEL_OFFSET, textAnchor = END
+            // Left edge of tick label text: x - width = -DEFAULT_TICK_LABEL_OFFSET - width
+            // Title with MIDDLE textAnchor: center at left edge of ticks - offset - half title width
+            x =
+              -DEFAULT_TICK_LABEL_OFFSET -
+              maxTickLabelWidth -
+              AXIS_TITLE_OFFSET -
+              titleWidth / 2
+            textAnchor = TextAnchor.MIDDLE
             dominantBaseline = DominantBaseline.MIDDLE
-            y = (rangeMin + rangeMax) / 2
+            y = (rangeMin + rangeMax) / 2 // center in axis-local coords
+            // #region agent log
+            fetch(
+              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'axis.ts:273',
+                  message: 'LEFT axis title position calculated',
+                  data: {
+                    x,
+                    y,
+                    titleWidth,
+                    titleHeight,
+                    rotation,
+                    maxTickLabelWidth,
+                    titleExtentLeft: x - titleWidth / 2,
+                  },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'run1',
+                  hypothesisId: 'E',
+                }),
+              }
+            ).catch(() => {})
+            // #endregion
           } else if (orientation === Position.RIGHT) {
-            x = DEFAULT_TICK_LABEL_OFFSET
-            textAnchor = TextAnchor.START
+            // Position to the right of tick labels
+            // Tick labels: x = DEFAULT_TICK_LABEL_OFFSET, textAnchor = START
+            // Right edge of tick label text: x + width = DEFAULT_TICK_LABEL_OFFSET + width
+            // Title with MIDDLE textAnchor: center at right edge of ticks + offset + half title width
+            x =
+              DEFAULT_TICK_LABEL_OFFSET +
+              maxTickLabelWidth +
+              AXIS_TITLE_OFFSET +
+              titleWidth / 2
+            textAnchor = TextAnchor.MIDDLE
             dominantBaseline = DominantBaseline.MIDDLE
-            y = (rangeMin + rangeMax) / 2
+            y = (rangeMin + rangeMax) / 2 // center in axis-local coords
           }
 
           return {
@@ -196,6 +432,7 @@ export function computeAxisLayout(
             y,
             textAnchor,
             dominantBaseline,
+            rotation,
           }
         })()
       : undefined

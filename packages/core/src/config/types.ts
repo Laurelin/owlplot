@@ -66,6 +66,22 @@ export type Cartesian2DOptions = {
     orientation?: 'horizontal' | 'vertical' | 'angled'
     angle?: number // for angled labels, in degrees
   }
+
+  /** axis title orientation for X-axis (separate from tick label orientation) */
+  xAxisLabelOrientation?: {
+    orientation?: 'horizontal' | 'vertical' | 'angled'
+    angle?: number // for angled labels, in degrees
+  }
+
+  /** axis title orientation for Y-axis (separate from tick label orientation)
+   * 
+   * Note: Axis label orientation is absolute, not auto-derived from axis side.
+   * Users must explicitly configure vertical orientation; it is not implicit based on axis position.
+   */
+  yAxisLabelOrientation?: {
+    orientation?: 'horizontal' | 'vertical' | 'angled'
+    angle?: number // for angled labels, in degrees
+  }
 }
 
 export type LineChartOptions = Cartesian2DOptions & {

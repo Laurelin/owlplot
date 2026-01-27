@@ -80,6 +80,12 @@ export function appendNode(
           SvgAttributeName.DOMINANT_BASELINE,
           node.dominantBaseline
         )
+      if (node.transform) {
+        el.setAttribute(SvgAttributeName.TRANSFORM, node.transform)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'appendNode.ts:86',message:'TEXT node transform applied',data:{id:node.id,transform:node.transform,text:node.text},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
+        // #endregion
+      }
       break
     }
   }

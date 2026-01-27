@@ -22,6 +22,7 @@ import type { AxisConfig } from '../cartesian2d/axis'
 import { DEFAULT_TICK_FONT, DEFAULT_LABEL_FONT } from '../cartesian2d/axis'
 import { LabelOrientation } from '../cartesian2d/types/axis'
 
+
 /**
  * Core → Renderer Contract for Hover Metadata:
  *
@@ -218,6 +219,13 @@ export function axisToSceneNodes(
   if (axis.axisLabelLayout) {
     const al = axis.axisLabelLayout
     const fontSizePx = extractFontSizePx(labelFont ?? DEFAULT_LABEL_FONT)
+    const transform =
+      al.rotation !== undefined
+        ? `rotate(${al.rotation} ${al.x} ${al.y})`
+        : undefined
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scene.ts:225',message:'Axis title transform in scene',data:{orientation:axis.orientation,hasRotation:al.rotation!==undefined,rotation:al.rotation,transform,text:al.text,x:al.x,y:al.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     children.push({
       kind: SceneNodeKind.TEXT,
       id: `axis-label:${axis.orientation}`,
@@ -226,6 +234,7 @@ export function axisToSceneNodes(
       text: al.text,
       textAnchor: al.textAnchor,
       dominantBaseline: al.dominantBaseline,
+      transform,
       style: { fill: DEFAULT_SOLID_CURRENT_COLOR, fontSizePx },
     })
   }
@@ -248,6 +257,19 @@ export function scene(
 ): { scene: SceneNode } {
   const padding = mergePadding(config.options?.padding)
 
+  // Config normalization: set UX-friendly defaults (compute layer remains explicit + dumb)
+  const xAxisTitleOrientation = config.options?.xAxisLabelOrientation ?? undefined
+  // Default y-axis title to vertical orientation if not specified
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scene.ts:271',message:'Checking yLabel and default',data:{hasYLabel:!!config.options?.yLabel,hasYAxisLabelOrientation:!!config.options?.yAxisLabelOrientation,yAxisLabelOrientationValue:config.options?.yAxisLabelOrientation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  const yAxisTitleOrientation =
+    config.options?.yAxisLabelOrientation ??
+    (config.options?.yLabel ? { orientation: LabelOrientation.VERTICAL } : undefined)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scene.ts:275',message:'Default yAxisTitleOrientation set',data:{yAxisTitleOrientation,orientationValue:yAxisTitleOrientation?.orientation,isVertical:yAxisTitleOrientation?.orientation===LabelOrientation.VERTICAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   const bottomAxisConfig: AxisConfig = {
     tickCount: config.options?.xTickCount,
     axisLabel: config.options?.xLabel,
@@ -257,6 +279,14 @@ export function scene(
             | LabelOrientation
             | undefined,
           angle: config.options.xLabelOrientation.angle,
+        }
+      : undefined,
+    axisLabelOrientation: xAxisTitleOrientation
+      ? {
+          orientation: xAxisTitleOrientation.orientation as
+            | LabelOrientation
+            | undefined,
+          angle: xAxisTitleOrientation.angle,
         }
       : undefined,
   }
@@ -272,6 +302,20 @@ export function scene(
           angle: config.options.yLabelOrientation.angle,
         }
       : undefined,
+    axisLabelOrientation: (() => {
+      // #region agent log
+      const result = yAxisTitleOrientation
+        ? {
+            orientation: yAxisTitleOrientation.orientation as
+              | LabelOrientation
+              | undefined,
+            angle: yAxisTitleOrientation.angle,
+          }
+        : undefined;
+      fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'scene.ts:296',message:'leftAxisConfig axisLabelOrientation',data:{result,orientation:result?.orientation,isVertical:result?.orientation===LabelOrientation.VERTICAL,labelOrientationEnum:LabelOrientation.VERTICAL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      return result;
+    })(),
   }
 
   const rightAxisConfig: AxisConfig | undefined = config.options?.yAxisRight
@@ -279,6 +323,13 @@ export function scene(
         tickCount: config.options.yAxisRight.tickCount,
         axisLabel: config.options.yAxisRight.axisLabel,
         labelOrientation: config.options.yAxisRight.labelOrientation
+          ? {
+              orientation: config.options.yAxisRight.labelOrientation
+                .orientation as LabelOrientation | undefined,
+              angle: config.options.yAxisRight.labelOrientation.angle,
+            }
+          : undefined,
+        axisLabelOrientation: config.options.yAxisRight.labelOrientation
           ? {
               orientation: config.options.yAxisRight.labelOrientation
                 .orientation as LabelOrientation | undefined,

@@ -5,9 +5,12 @@ import {
   DEFAULT_TICK_LABEL_OFFSET,
   DEFAULT_TICK_FONT,
   DEFAULT_LABEL_FONT,
+  AXIS_TITLE_OFFSET,
+  AXIS_TITLE_ROTATION_BY_POSITION,
   type AxisConfig,
 } from './axis'
 import { LabelOrientation } from './types/axis'
+import { Position } from '../../config/types'
 
 /**
  * Calculate bounding box dimensions for rotated text
@@ -42,6 +45,9 @@ const MIN_PADDING_BUFFER = 4
  *
  * Based on axis tick text + axis label text measurements,
  * returns the minimal extra padding needed so labels never overflow.
+ *
+ * Critical Invariant: Adaptive padding must be computable *without* scene nodes.
+ * Layout positions are derived from measured bounds only; no magic offsets besides documented constants.
  */
 export function computeAdaptivePadding(
   width: number,
@@ -107,32 +113,65 @@ export function computeAdaptivePadding(
     maxBottomTickLabelHeight = Math.max(maxBottomTickLabelHeight, h)
   }
 
-  // measure bottom axis title
-  const bottomAxisTitleHeight = bottomAxisConfig?.axisLabel
-    ? measureTextFont(
-        measureText,
-        bottomAxisConfig.axisLabel,
-        axisLabelFont,
-        DEFAULT_LABEL_FONT
-      ).height
-    : 0
+  // measure bottom axis title (with rotation support)
+  const bottomAxisTitleOrientation =
+    bottomAxisConfig?.axisLabelOrientation?.orientation
+  const bottomAxisTitleAngle = bottomAxisConfig?.axisLabelOrientation?.angle
+  let bottomAxisTitleHeight = 0
+  let bottomAxisTitleWidth = 0
 
-  // bottom axis needs space for tick labels
+  if (bottomAxisConfig?.axisLabel) {
+    // Always measure unrotated bounds first
+    const unrotatedBounds = measureTextFont(
+      measureText,
+      bottomAxisConfig.axisLabel,
+      axisLabelFont,
+      DEFAULT_LABEL_FONT
+    )
+
+    // Determine rotation (use constant to ensure consistency with axis.ts)
+    let rotation: number | undefined = undefined
+    if (bottomAxisTitleOrientation === LabelOrientation.VERTICAL) {
+      rotation = AXIS_TITLE_ROTATION_BY_POSITION[Position.BOTTOM]
+    } else if (
+      bottomAxisTitleOrientation === LabelOrientation.ANGLED &&
+      bottomAxisTitleAngle !== undefined
+    ) {
+      rotation = bottomAxisTitleAngle
+    }
+
+    // Calculate rotated bounds if needed (mechanical, not special-cased)
+    if (rotation !== undefined) {
+      const rotatedBounds = getRotatedTextBounds(
+        unrotatedBounds.width,
+        unrotatedBounds.height,
+        rotation
+      )
+      bottomAxisTitleWidth = rotatedBounds.width
+      bottomAxisTitleHeight = rotatedBounds.height
+    } else {
+      bottomAxisTitleWidth = unrotatedBounds.width
+      bottomAxisTitleHeight = unrotatedBounds.height
+    }
+  }
+
+  // bottom axis needs space for tick labels + title
   // With HANGING baseline: y = height + offset, text hangs down by height
-  // Total space: height (y position) + offset + height (text extends down) + title + buffer
-  // Note: Title is positioned at same y as tick labels, so we need max of both
+  // Tick label space: height (y position) + offset + height (text extends down)
   const bottomTickSpace =
     maxBottomTickLabelHeight + // space for y position
     DEFAULT_TICK_LABEL_OFFSET +
     maxBottomTickLabelHeight // space text extends down with HANGING baseline
-  const bottomTitleSpace = bottomAxisTitleHeight
-    ? bottomAxisTitleHeight + DEFAULT_TICK_LABEL_OFFSET + bottomAxisTitleHeight
+
+  // Title space: positioned below tick labels with offset
+  // Title with MIDDLE baseline: center at bottom of ticks + offset + half title height
+  const bottomTitleSpace = bottomAxisConfig?.axisLabel
+    ? bottomAxisTitleHeight + AXIS_TITLE_OFFSET
     : 0
+
   bottom = Math.max(
     bottom,
-    Math.max(bottomTickSpace, bottomTitleSpace) +
-      extraPadding +
-      MIN_PADDING_BUFFER
+    bottomTickSpace + bottomTitleSpace + extraPadding + MIN_PADDING_BUFFER
   )
 
   // top axis needs space too (rarely used)
@@ -185,26 +224,71 @@ export function computeAdaptivePadding(
     maxLeftTickLabelHeight = Math.max(maxLeftTickLabelHeight, h)
   }
 
-  const leftAxisTitleWidth = leftAxisConfig?.axisLabel
-    ? measureTextFont(
-        measureText,
-        leftAxisConfig.axisLabel,
-        axisLabelFont,
-        DEFAULT_LABEL_FONT
-      ).width
-    : 0
+  // measure left axis title (with rotation support)
+  const leftAxisTitleOrientation =
+    leftAxisConfig?.axisLabelOrientation?.orientation
+  const leftAxisTitleAngle = leftAxisConfig?.axisLabelOrientation?.angle
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'adaptivePadding.ts:227',message:'adaptivePadding left axis title orientation',data:{leftAxisTitleOrientation,isVertical:leftAxisTitleOrientation===LabelOrientation.VERTICAL,hasAxisLabel:!!leftAxisConfig?.axisLabel,axisLabel:leftAxisConfig?.axisLabel},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
+  let leftAxisTitleWidth = 0
+  let leftAxisTitleHeight = 0
 
-  // left axis needs space for tick text
+  if (leftAxisConfig?.axisLabel) {
+    // Always measure unrotated bounds first
+    const unrotatedBounds = measureTextFont(
+      measureText,
+      leftAxisConfig.axisLabel,
+      axisLabelFont,
+      DEFAULT_LABEL_FONT
+    )
+
+    // Determine rotation (use constant to ensure consistency with axis.ts)
+    let rotation: number | undefined = undefined
+    if (leftAxisTitleOrientation === LabelOrientation.VERTICAL) {
+      rotation = AXIS_TITLE_ROTATION_BY_POSITION[Position.LEFT]
+    } else if (
+      leftAxisTitleOrientation === LabelOrientation.ANGLED &&
+      leftAxisTitleAngle !== undefined
+    ) {
+      rotation = leftAxisTitleAngle
+    }
+
+    // Calculate rotated bounds if needed (mechanical, not special-cased)
+    if (rotation !== undefined) {
+      const rotatedBounds = getRotatedTextBounds(
+        unrotatedBounds.width,
+        unrotatedBounds.height,
+        rotation
+      )
+      leftAxisTitleWidth = rotatedBounds.width
+      leftAxisTitleHeight = rotatedBounds.height
+    } else {
+      leftAxisTitleWidth = unrotatedBounds.width
+      leftAxisTitleHeight = unrotatedBounds.height
+    }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'adaptivePadding.ts:264',message:'Left axis title dimensions calculated',data:{leftAxisTitleWidth,leftAxisTitleHeight,rotation,unrotatedWidth:unrotatedBounds.width,unrotatedHeight:unrotatedBounds.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
+  }
+
+  // left axis needs space for tick text + title
   // With textAnchor END: x = -offset, text ends at x and extends left by width
-  // Total space: offset + width + title + buffer
-  // Title also uses textAnchor END, so it extends left by its width
+  // Tick label space: offset + width
+  const leftTickLabelSpace =
+    DEFAULT_TICK_LABEL_OFFSET + maxLeftTickLabelWidth
+
+  // Title space: positioned to left of tick labels with offset
+  // Title with MIDDLE textAnchor: center at left edge of ticks - offset - half title width
+  const leftTitleSpace = leftAxisConfig?.axisLabel
+    ? leftAxisTitleWidth + AXIS_TITLE_OFFSET
+    : 0
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'adaptivePadding.ts:277',message:'Left padding calculation',data:{leftTickLabelSpace,leftTitleSpace,leftAxisTitleWidth,AXIS_TITLE_OFFSET,calculatedLeft:leftTickLabelSpace+leftTitleSpace+extraPadding+MIN_PADDING_BUFFER,currentLeft:left},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+  // #endregion
   left = Math.max(
     left,
-    DEFAULT_TICK_LABEL_OFFSET + // offset
-      maxLeftTickLabelWidth + // text extends left
-      leftAxisTitleWidth +
-      extraPadding +
-      MIN_PADDING_BUFFER
+    leftTickLabelSpace + leftTitleSpace + extraPadding + MIN_PADDING_BUFFER
   )
 
   // right axis needs space (use right axis config if provided, else left)
@@ -244,24 +328,66 @@ export function computeAdaptivePadding(
     maxRightTickLabelHeight = Math.max(maxRightTickLabelHeight, h)
   }
 
-  const rightAxisTitleWidth = rightAxisConfig?.axisLabel
-    ? measureTextFont(
-        measureText,
-        rightAxisConfig.axisLabel,
-        axisLabelFont,
-        DEFAULT_LABEL_FONT
-      ).width
-    : leftAxisTitleWidth
+  // measure right axis title (with rotation support)
+  const rightAxisTitleOrientation =
+    rightAxisConfig?.axisLabelOrientation?.orientation
+  const rightAxisTitleAngle = rightAxisConfig?.axisLabelOrientation?.angle
+  let rightAxisTitleWidth = 0
+  let rightAxisTitleHeight = 0
 
+  if (rightAxisConfig?.axisLabel) {
+    // Always measure unrotated bounds first
+    const unrotatedBounds = measureTextFont(
+      measureText,
+      rightAxisConfig.axisLabel,
+      axisLabelFont,
+      DEFAULT_LABEL_FONT
+    )
+
+    // Determine rotation (use constant to ensure consistency with axis.ts)
+    let rotation: number | undefined = undefined
+    if (rightAxisTitleOrientation === LabelOrientation.VERTICAL) {
+      rotation = AXIS_TITLE_ROTATION_BY_POSITION[Position.RIGHT]
+    } else if (
+      rightAxisTitleOrientation === LabelOrientation.ANGLED &&
+      rightAxisTitleAngle !== undefined
+    ) {
+      rotation = rightAxisTitleAngle
+    }
+
+    // Calculate rotated bounds if needed (mechanical, not special-cased)
+    if (rotation !== undefined) {
+      const rotatedBounds = getRotatedTextBounds(
+        unrotatedBounds.width,
+        unrotatedBounds.height,
+        rotation
+      )
+      rightAxisTitleWidth = rotatedBounds.width
+      rightAxisTitleHeight = rotatedBounds.height
+    } else {
+      rightAxisTitleWidth = unrotatedBounds.width
+      rightAxisTitleHeight = unrotatedBounds.height
+    }
+  } else {
+    // Fallback to left axis title width if no right axis title
+    rightAxisTitleWidth = leftAxisTitleWidth
+  }
+
+  // right axis needs space for tick text + title
   // With textAnchor START: x = offset, text starts at x and extends right by width
-  // Total space: offset + width + title + buffer
+  // Tick label space: offset + width
+  const rightTickLabelSpace =
+    DEFAULT_TICK_LABEL_OFFSET + maxRightTickLabelWidth
+
+  // Title space: positioned to right of tick labels with offset
+  // Title with MIDDLE textAnchor: center at right edge of ticks + offset + half title width
+  const rightTitleSpace = rightAxisConfig?.axisLabel
+    ? rightAxisTitleWidth + AXIS_TITLE_OFFSET
+    : 0
+
   right = Math.max(
     right,
-    DEFAULT_TICK_LABEL_OFFSET + // offset
-      maxRightTickLabelWidth + // text extends right
-      rightAxisTitleWidth +
-      extraPadding +
-      MIN_PADDING_BUFFER
+    rightTickLabelSpace + rightTitleSpace + extraPadding + MIN_PADDING_BUFFER
   )
 
   // clamp to not exceed half of chart (sensible limit)

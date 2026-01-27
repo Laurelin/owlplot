@@ -2,6 +2,6 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   root: '.',
-  base: './',
+  base: '/owlplot/',
   server: { open: true },
 })

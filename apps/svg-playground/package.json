@@ -1,14 +1,14 @@
 {
-    "name": "owlplot-svg-playground",
-    "version": "0.0.0",
-    "private": true,
-    "type": "module",
-    "scripts": {
-      "dev": "npm run -w @owlplot/core build && npm run -w @owlplot/renderer-svg build && vite"
-    },
-    "dependencies": {
-      "@owlplot/core": "*",
-      "@owlplot/renderer-svg": "*"
-    }
+  "name": "owlplot-svg-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run -w @owlplot/core build && npm run -w @owlplot/renderer-svg build && vite",
+    "build": "npm run -w @owlplot/core build && npm run -w @owlplot/renderer-svg build && vite build"
+  },
+  "dependencies": {
+    "@owlplot/core": "*",
+    "@owlplot/renderer-svg": "*"
   }
-  
+}

@@ -1,33 +1,35 @@
 {
-    "name": "owlplot",
-    "private": true,
-    "type": "module",
-    "workspaces": [
-        "packages/*",
-        "apps/*"
-    ],
-    "scripts": {
-        "build": "npm run -ws build",
-        "test": "vitest run",
-        "test:watch": "vitest",
-        "lint": "npm run -ws lint",
-        "dev:react": "npm --workspace apps/react-playground run dev",
-        "dev:vue": "npm --workspace apps/vue-playground run dev",
-        "test:e2e": "playwright test",
-        "test:visual": "playwright test --project=chromium",
-        "ci": "npm run build && npm run test && npm run test:e2e",
-        "dev:svg": "npm --workspace apps/svg-playground run dev"
-    },
-    "devDependencies": {
-        "@eslint/js": "^9.39.2",
-        "@playwright/test": "^1.47.0",
-        "eslint": "^9.39.2",
-        "eslint-config-prettier": "^9.1.0",
-        "eslint-plugin-prettier": "^5.2.0",
-        "prettier": "^3.3.0",
-        "typescript": "^5.6.0",
-        "typescript-eslint": "^8.0.0",
-        "vite": "^7.3.1",
-        "vitest": "^4.0.17"
-    }
+  "name": "owlplot",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run -ws build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "npm run -ws lint",
+    "dev:react": "npm --workspace apps/react-playground run dev",
+    "dev:vue": "npm --workspace apps/vue-playground run dev",
+    "dev:demo": "npm --workspace apps/svg-playground run dev",
+    "build:demo": "npm --workspace apps/svg-playground run build",
+    "deploy:demo": "npm run build:demo && gh-pages -d apps/svg-playground/dist",
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test --project=chromium",
+    "ci": "npm run build && npm run test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.47.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.17"
+  }
 }

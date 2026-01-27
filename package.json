@@ -15,7 +15,7 @@
     "dev:vue": "npm --workspace apps/vue-playground run dev",
     "dev:demo": "npm --workspace apps/svg-playground run dev",
     "build:demo": "npm --workspace apps/svg-playground run build",
-    "deploy:demo": "npm run build:demo && gh-pages -d apps/svg-playground/dist",
+    "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
     "test:e2e": "playwright test",
     "test:visual": "playwright test --project=chromium",
     "ci": "npm run build && npm run test && npm run test:e2e"

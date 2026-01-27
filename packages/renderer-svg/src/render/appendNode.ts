@@ -10,7 +10,11 @@ import {
   TooltipKind,
 } from '../shared/enums'
 
-export function appendNode(node: SceneNode, parent: SVGElement) {
+export function appendNode(
+  node: SceneNode,
+  parent: SVGElement,
+  svg?: SVGSVGElement
+) {
   let el: SVGElement | null = null
 
   switch (node.kind) {
@@ -18,7 +22,11 @@ export function appendNode(node: SceneNode, parent: SVGElement) {
       el = createSvgElement('g')
       if (node.transform)
         el.setAttribute(SvgAttributeName.TRANSFORM, node.transform)
-      node.children.forEach((child: SceneNode) => appendNode(child, el!))
+      // Pass svg down for gradient defs
+      const rootSvg = svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
+      node.children.forEach((child: SceneNode) =>
+        appendNode(child, el!, rootSvg)
+      )
       break
     }
     case SceneNodeKind.PATH: {
@@ -78,7 +86,10 @@ export function appendNode(node: SceneNode, parent: SVGElement) {
 
   if (!el) return
   el.setAttribute(SvgAttributeName.ID, node.id)
-  setStyle(el, node.style)
+  // Get root SVG for gradient defs (if parent is SVG, use it; otherwise use passed svg)
+  const rootSvg =
+    svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
+  setStyle(el, node.style, rootSvg)
 
   // Store tooltip datum on element if present
   if (node.metadata?.tooltip) {

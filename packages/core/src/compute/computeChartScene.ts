@@ -1,5 +1,5 @@
 import { ChartKind, type ChartConfig } from '../config/types'
-import type { ChartEnvironment } from '../env/types.ts'
+import type { ChartEnvironment } from '../env/types'
 import { scene } from './line/scene'
 import { ChartSize, ComputeResult } from './types'
 

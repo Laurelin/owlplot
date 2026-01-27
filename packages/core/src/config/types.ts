@@ -11,9 +11,13 @@ export enum Position {
 
 export type DataPoint = { x: number; y: number | null }
 
+import type { PaintStyles } from '../paint/types'
+
 export type LineSeries = {
   id: string
   points: DataPoint[]
+  color?: string // Simple: base color string
+  paint?: PaintStyles // Advanced: full paint control
 }
 
 export type Padding = {

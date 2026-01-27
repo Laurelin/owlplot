@@ -8,116 +8,577 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "id": "background",
       "kind": "rect",
       "style": {
-        "fill": "transparent",
+        "fill": {
+          "color": "transparent",
+          "type": "solid",
+        },
       },
       "width": 640,
       "x": 0,
       "y": 0,
     },
     {
-      "height": 320,
-      "id": "plot:clip",
-      "kind": "rect",
-      "style": {
-        "fill": "transparent",
-        "stroke": "transparent",
-      },
-      "width": 584,
-      "x": 40,
-      "y": 16,
+      "children": [
+        {
+          "d": "M 0 0 L 566.4 0",
+          "id": "axis-line:bottom",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "d": "M 0 0 L 0 4",
+          "id": "axis-tick:bottom:0",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "hanging",
+          "id": "axis-tick-label:bottom:0",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "0",
+          "textAnchor": "middle",
+          "transform": undefined,
+          "x": 0,
+          "y": 20,
+        },
+        {
+          "d": "M 141.6 0 L 141.6 4",
+          "id": "axis-tick:bottom:1",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "hanging",
+          "id": "axis-tick-label:bottom:1",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "0.75",
+          "textAnchor": "middle",
+          "transform": undefined,
+          "x": 141.6,
+          "y": 20,
+        },
+        {
+          "d": "M 283.2 0 L 283.2 4",
+          "id": "axis-tick:bottom:2",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "hanging",
+          "id": "axis-tick-label:bottom:2",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "1.5",
+          "textAnchor": "middle",
+          "transform": undefined,
+          "x": 283.2,
+          "y": 20,
+        },
+        {
+          "d": "M 424.79999999999995 0 L 424.79999999999995 4",
+          "id": "axis-tick:bottom:3",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "hanging",
+          "id": "axis-tick-label:bottom:3",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "2.25",
+          "textAnchor": "middle",
+          "transform": undefined,
+          "x": 424.79999999999995,
+          "y": 20,
+        },
+        {
+          "d": "M 566.4 0 L 566.4 4",
+          "id": "axis-tick:bottom:4",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "hanging",
+          "id": "axis-tick-label:bottom:4",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "3",
+          "textAnchor": "middle",
+          "transform": undefined,
+          "x": 566.4,
+          "y": 20,
+        },
+      ],
+      "id": "axis-group:bottom",
+      "kind": "group",
+      "transform": "translate(40,324)",
     },
     {
-      "d": "M 40 176 L 234.66666666666666 16M 624 176",
+      "children": [
+        {
+          "d": "M 0 300 L 0 0",
+          "id": "axis-line:left",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "d": "M 0 300 L -4 300",
+          "id": "axis-tick:left:0",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "d": "M 0 225 L -4 225",
+          "id": "axis-tick:left:1",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "middle",
+          "id": "axis-tick-label:left:1",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "0.5",
+          "textAnchor": "end",
+          "transform": undefined,
+          "x": -8,
+          "y": 225,
+        },
+        {
+          "d": "M 0 150 L -4 150",
+          "id": "axis-tick:left:2",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "middle",
+          "id": "axis-tick-label:left:2",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "1",
+          "textAnchor": "end",
+          "transform": undefined,
+          "x": -8,
+          "y": 150,
+        },
+        {
+          "d": "M 0 75 L -4 75",
+          "id": "axis-tick:left:3",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "middle",
+          "id": "axis-tick-label:left:3",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "1.5",
+          "textAnchor": "end",
+          "transform": undefined,
+          "x": -8,
+          "y": 75,
+        },
+        {
+          "d": "M 0 0 L -4 0",
+          "id": "axis-tick:left:4",
+          "kind": "path",
+          "style": {
+            "stroke": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "strokeWidth": 1,
+          },
+        },
+        {
+          "dominantBaseline": "middle",
+          "id": "axis-tick-label:left:4",
+          "kind": "text",
+          "style": {
+            "fill": {
+              "color": "currentColor",
+              "type": "solid",
+            },
+            "fontSizePx": 10.666666666666666,
+          },
+          "text": "2",
+          "textAnchor": "end",
+          "transform": undefined,
+          "x": -8,
+          "y": 0,
+        },
+      ],
+      "id": "axis-group:left",
+      "kind": "group",
+      "transform": "translate(40,24)",
+    },
+    {
+      "d": "M 40 174 L 228.79999999999998 24M 606.4 174",
       "id": "series:a",
       "kind": "path",
       "style": {
-        "fill": "transparent",
-        "stroke": "currentColor",
+        "stroke": {
+          "color": "currentColor",
+          "type": "solid",
+        },
         "strokeWidth": 2,
       },
     },
     {
       "cx": 40,
-      "cy": 176,
+      "cy": 174,
       "id": "point:a:0",
       "kind": "circle",
+      "metadata": {
+        "tooltip": {
+          "kind": "point",
+          "seriesId": "a",
+          "values": {
+            "x": 0,
+            "y": 1,
+          },
+        },
+      },
       "r": 2.5,
       "style": {
-        "fill": "currentColor",
+        "fill": {
+          "color": "currentColor",
+          "type": "solid",
+        },
       },
     },
     {
-      "cx": 234.66666666666666,
-      "cy": 16,
+      "cx": 228.79999999999998,
+      "cy": 24,
       "id": "point:a:1",
       "kind": "circle",
+      "metadata": {
+        "tooltip": {
+          "kind": "point",
+          "seriesId": "a",
+          "values": {
+            "x": 1,
+            "y": 2,
+          },
+        },
+      },
       "r": 2.5,
       "style": {
-        "fill": "currentColor",
+        "fill": {
+          "color": "currentColor",
+          "type": "solid",
+        },
       },
     },
     {
-      "cx": 624,
-      "cy": 176,
+      "cx": 606.4,
+      "cy": 174,
       "id": "point:a:3",
       "kind": "circle",
+      "metadata": {
+        "tooltip": {
+          "kind": "point",
+          "seriesId": "a",
+          "values": {
+            "x": 3,
+            "y": 1,
+          },
+        },
+      },
       "r": 2.5,
       "style": {
-        "fill": "currentColor",
+        "fill": {
+          "color": "currentColor",
+          "type": "solid",
+        },
       },
     },
     {
-      "d": "M 40 336 L 234.66666666666666 176 L 429.3333333333333 96 L 624 16",
+      "d": "M 40 324 L 228.79999999999998 174 L 417.59999999999997 99 L 606.4 24",
       "id": "series:b",
       "kind": "path",
       "style": {
-        "fill": "transparent",
-        "stroke": "currentColor",
+        "stroke": {
+          "color": "currentColor",
+          "type": "solid",
+        },
         "strokeWidth": 2,
       },
     },
     {
       "cx": 40,
-      "cy": 336,
+      "cy": 324,
       "id": "point:b:0",
       "kind": "circle",
+      "metadata": {
+        "tooltip": {
+          "kind": "point",
+          "seriesId": "b",
+          "values": {
+            "x": 0,
+            "y": 0,
+          },
+        },
+      },
       "r": 2.5,
       "style": {
-        "fill": "currentColor",
+        "fill": {
+          "color": "currentColor",
+          "type": "solid",
+        },
       },
     },
     {
-      "cx": 234.66666666666666,
-      "cy": 176,
+      "cx": 228.79999999999998,
+      "cy": 174,
       "id": "point:b:1",
       "kind": "circle",
+      "metadata": {
+        "tooltip": {
+          "kind": "point",
+          "seriesId": "b",
+          "values": {
+            "x": 1,
+            "y": 1,
+          },
+        },
+      },
       "r": 2.5,
       "style": {
-        "fill": "currentColor",
+        "fill": {
+          "color": "currentColor",
+          "type": "solid",
+        },
       },
     },
     {
-      "cx": 429.3333333333333,
-      "cy": 96,
+      "cx": 417.59999999999997,
+      "cy": 99,
       "id": "point:b:2",
       "kind": "circle",
+      "metadata": {
+        "tooltip": {
+          "kind": "point",
+          "seriesId": "b",
+          "values": {
+            "x": 2,
+            "y": 1.5,
+          },
+        },
+      },
       "r": 2.5,
       "style": {
-        "fill": "currentColor",
+        "fill": {
+          "color": "currentColor",
+          "type": "solid",
+        },
       },
     },
     {
-      "cx": 624,
-      "cy": 16,
+      "cx": 606.4,
+      "cy": 24,
       "id": "point:b:3",
       "kind": "circle",
+      "metadata": {
+        "tooltip": {
+          "kind": "point",
+          "seriesId": "b",
+          "values": {
+            "x": 3,
+            "y": 2,
+          },
+        },
+      },
       "r": 2.5,
       "style": {
-        "fill": "currentColor",
+        "fill": {
+          "color": "currentColor",
+          "type": "solid",
+        },
       },
     },
   ],
   "id": "root",
   "kind": "group",
+  "metadata": {
+    "hover": {
+      "plotRect": {
+        "height": 300,
+        "width": 566.4,
+        "x": 40,
+        "y": 24,
+      },
+      "scales": {
+        "x": [Function],
+        "y": [Function],
+      },
+      "series": [
+        {
+          "id": "a",
+          "sortedPoints": [
+            {
+              "x": 0,
+              "y": 1,
+            },
+            {
+              "x": 1,
+              "y": 2,
+            },
+            {
+              "x": 3,
+              "y": 1,
+            },
+          ],
+        },
+        {
+          "id": "b",
+          "sortedPoints": [
+            {
+              "x": 0,
+              "y": 0,
+            },
+            {
+              "x": 1,
+              "y": 1,
+            },
+            {
+              "x": 2,
+              "y": 1.5,
+            },
+            {
+              "x": 3,
+              "y": 2,
+            },
+          ],
+        },
+      ],
+      "xDomain": [
+        0,
+        3,
+      ],
+      "xInvert": [Function],
+      "yDomain": [
+        0,
+        2,
+      ],
+      "yInvert": [Function],
+    },
+  },
 }
 `;

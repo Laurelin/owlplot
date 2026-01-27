@@ -1,7 +1,19 @@
 import { Position, type LineChartConfig } from '../../config/types'
-import type { ChartEnvironment } from '../../env/types.ts'
+import type { ChartEnvironment } from '../../env/types'
 import type { ChartSize } from '../types'
-import { SceneNodeKind, type SceneNode, createSceneTooltip } from '../../scene/types'
+import {
+  SceneNodeKind,
+  type SceneNode,
+  createSceneTooltip,
+} from '../../scene/types'
+import {
+  DEFAULT_SOLID_CURRENT_COLOR,
+  derivePaintStylesFromColor,
+  normalizeGradientPaint,
+  TRANSPARENT_FILL,
+  type PaintStyles,
+} from '../../paint/helpers'
+import type { LineSeries } from '../../config/types'
 
 import { computeCartesianLayout } from '../cartesian2d/layout'
 import { mergePadding } from '../../config/helpers'
@@ -12,12 +24,12 @@ import { LabelOrientation } from '../cartesian2d/types/axis'
 
 /**
  * Core → Renderer Contract for Hover Metadata:
- * 
+ *
  * hover.sortedPoints:
  * - filtered (finite x/y, y !== null)
  * - sorted ascending by x
  * - immutable for renderer lifetime (frozen)
- * 
+ *
  * Renderer MUST use sortedPoints directly - NO per-hover sorting or filtering.
  * This is a one-time cost during scene computation, not per mousemove.
  */
@@ -68,6 +80,36 @@ function buildLinePathD(
 }
 
 /**
+ * Resolves paint styles for a series with overlay semantics.
+ * Config → scene is the ONLY place strings exist - normalize immediately.
+ *
+ * - Base from series.color → derivePaintStylesFromColor (or DEFAULT_SOLID_CURRENT_COLOR)
+ * - Then shallow-merge series.paint on top (overlay semantics)
+ * - Add fill default only if points are enabled (reduces "why is fill set on everything?" confusion)
+ *
+ * This helper encodes the behavior so it can't drift and tests can pin it.
+ */
+function resolveSeriesPaint(
+  series: LineSeries,
+  pointsEnabled: boolean
+): PaintStyles {
+  const basePaint = series.color
+    ? derivePaintStylesFromColor(series.color, { enableGradients: false })
+    : { stroke: DEFAULT_SOLID_CURRENT_COLOR } // Only stroke for lines; fill only if points enabled
+
+  // Add fill default only if points are enabled
+  if (pointsEnabled && !basePaint.fill) {
+    basePaint.fill = DEFAULT_SOLID_CURRENT_COLOR
+  }
+
+  const finalPaint = series.paint
+    ? { ...basePaint, ...series.paint } // overlay: paint merges on top of base (shallow merge, intentional)
+    : basePaint
+
+  return finalPaint
+}
+
+/**
  * turn an AxisLayout into scene nodes,
  * placing them relative to the plotRect
  */
@@ -109,7 +151,7 @@ export function axisToSceneNodes(
     kind: SceneNodeKind.PATH,
     id: `axis-line:${axis.orientation}`,
     d: `M ${axis.line.x1} ${axis.line.y1} L ${axis.line.x2} ${axis.line.y2}`,
-    style: { stroke: 'currentColor', strokeWidth: 1 },
+    style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
   })
 
   // ticks and tick labels
@@ -139,7 +181,7 @@ export function axisToSceneNodes(
       kind: SceneNodeKind.PATH,
       id: `axis-tick:${axis.orientation}:${i}`,
       d: `M ${tickStart[0]} ${tickStart[1]} L ${tickEnd[0]} ${tickEnd[1]}`,
-      style: { stroke: 'currentColor', strokeWidth: 1 },
+      style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
     })
 
     if (lbl) {
@@ -166,7 +208,7 @@ export function axisToSceneNodes(
           textAnchor: lbl.textAnchor,
           dominantBaseline: lbl.dominantBaseline,
           transform,
-          style: { fill: 'currentColor', fontSizePx },
+          style: { fill: DEFAULT_SOLID_CURRENT_COLOR, fontSizePx },
         })
       }
     }
@@ -184,7 +226,7 @@ export function axisToSceneNodes(
       text: al.text,
       textAnchor: al.textAnchor,
       dominantBaseline: al.dominantBaseline,
-      style: { fill: 'currentColor', fontSizePx },
+      style: { fill: DEFAULT_SOLID_CURRENT_COLOR, fontSizePx },
     })
   }
 
@@ -271,7 +313,7 @@ export function scene(
     y: 0,
     width: size.width,
     height: size.height,
-    style: { fill: 'transparent' },
+    style: { fill: { type: 'solid', color: 'transparent' } },
   })
 
   // Get X-axis domain to check for intersection
@@ -310,28 +352,71 @@ export function scene(
   }
 
   // line paths and optional points
+  const pointsEnabled = config.options?.showPoints ?? false
+
   for (const series of config.series) {
+    // Normalize at boundary: config → scene is the ONLY place strings exist
+    const paint = resolveSeriesPaint(series, pointsEnabled)
+
+    // Line path: uses paint.stroke for stroke, explicitly sets fill to none (lines don't fill unless area charts)
+    // Use thicker stroke for gradients to make them visible
+    const strokePaint = paint.stroke ?? DEFAULT_SOLID_CURRENT_COLOR
+    const isGradient = strokePaint.type === 'linear' || strokePaint.type === 'radial'
     children.push({
       kind: SceneNodeKind.PATH,
       id: `series:${series.id}`,
       d: buildLinePathD(series.points, scales.x, scales.y),
-      style: { fill: 'transparent', stroke: 'currentColor', strokeWidth: 2 },
+      style: {
+        fill: TRANSPARENT_FILL, // Explicitly set to none to prevent SVG default black fill
+        stroke: strokePaint,
+        strokeWidth: isGradient ? 4 : 2, // Thicker for gradients
+      },
     })
 
-    if (config.options?.showPoints) {
+    // Points: uses paint.fill for fill only if points are enabled, ignores stroke (unless explicitly configured)
+    // If fill is not set, use stroke color for solid paints, or extract first stop color for gradients
+    if (pointsEnabled) {
       series.points.forEach((pt, index) => {
         if (pt.y === null || !Number.isFinite(pt.y) || !Number.isFinite(pt.x))
           return
+        // Use fill if set, otherwise derive from stroke
+        let pointFill = paint.fill
+        if (!pointFill && paint.stroke) {
+          if (paint.stroke.type === 'solid') {
+            pointFill = paint.stroke
+          } else if (paint.stroke.type === 'linear' || paint.stroke.type === 'radial') {
+            // For gradients, normalize first to get sorted stops, then use first stop color
+            try {
+              const normalized = normalizeGradientPaint(paint.stroke)
+              const firstStop = normalized.stops[0]
+              if (firstStop) {
+                pointFill = { type: 'solid', color: firstStop.color }
+              }
+            } catch {
+              // If normalization fails, fall through to default
+            }
+          }
+        }
+        // Final fallback
+        pointFill = pointFill ?? DEFAULT_SOLID_CURRENT_COLOR
+
         children.push({
           kind: SceneNodeKind.CIRCLE,
           id: `point:${series.id}:${index}`,
           cx: scales.x(pt.x),
           cy: scales.y(pt.y),
           r: 2.5,
-          style: { fill: 'currentColor' },
+          style: {
+            fill: pointFill,
+            // stroke is ignored by default (only fill applies)
+          },
           metadata: {
-            tooltip: createSceneTooltip('point', { x: pt.x, y: pt.y }, { seriesId: series.id })
-          }
+            tooltip: createSceneTooltip(
+              'point',
+              { x: pt.x, y: pt.y },
+              { seriesId: series.id }
+            ),
+          },
         })
       })
     }
@@ -353,20 +438,23 @@ export function scene(
           series: config.series.map((s): HoverSeries => {
             // Filter valid points and sort by x ONCE (core guarantees sorted)
             const validPoints = s.points
-              .filter(p => p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y))
+              .filter(
+                p =>
+                  p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y)
+              )
               .map(p => ({ x: p.x, y: p.y! }))
-              .sort((a, b) => a.x - b.x)  // Sort once, not per hover
-            
+              .sort((a, b) => a.x - b.x) // Sort once, not per hover
+
             // Freeze to signal immutability and prevent accidental mutation
             const sortedPoints = Object.freeze(validPoints)
-            
+
             return {
               id: s.id,
-              sortedPoints  // Pre-sorted, pre-filtered, frozen for hover lookup
+              sortedPoints, // Pre-sorted, pre-filtered, frozen for hover lookup
             }
-          })
-        }
-      }
+          }),
+        },
+      },
     },
   }
 }

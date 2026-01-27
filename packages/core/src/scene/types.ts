@@ -1,4 +1,5 @@
 import type { TextAnchor, DominantBaseline } from '../text/types'
+import type { AnyPaint } from '../paint/types'
 
 // -----------------------------------
 // enums (never use hardcoded strings)
@@ -24,8 +25,8 @@ export type SceneNode =
   | SceneTextNode
 
 export type SceneStyle = {
-  fill?: string
-  stroke?: string
+  fill?: AnyPaint
+  stroke?: AnyPaint
   strokeWidth?: number
   opacity?: number
   fontFamily?: string

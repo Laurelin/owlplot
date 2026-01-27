@@ -190,37 +190,10 @@ export function computeAxisLayout(
   // SECOND PASS: Compute axis title layout using tick label bounds
   // Layout positions are derived from measured bounds only; no magic offsets besides documented constants.
   const axisLabelLayout: AxisLayout['axisLabelLayout'] =
-    config?.axisLabel !== undefined
+        config?.axisLabel !== undefined
       ? (() => {
           const axisTitleOrientation = config.axisLabelOrientation?.orientation
           const axisTitleAngle = config.axisLabelOrientation?.angle
-          // #region agent log
-          fetch(
-            'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'axis.ts:194',
-                message: 'computeAxisLayout received axisLabelOrientation',
-                data: {
-                  axisTitleOrientation,
-                  axisTitleAngle,
-                  orientation,
-                  hasAxisLabel: !!config.axisLabel,
-                  axisLabel: config.axisLabel,
-                  isVertical:
-                    axisTitleOrientation === LabelOrientation.VERTICAL,
-                  verticalEnum: LabelOrientation.VERTICAL,
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'C',
-              }),
-            }
-          ).catch(() => {})
-          // #endregion
 
           // Measure unrotated title bounds first
           const unrotatedBounds = measureTextFont(
@@ -232,98 +205,14 @@ export function computeAxisLayout(
 
           // Determine rotation for title
           let rotation: number | undefined = undefined
-          // #region agent log
-          const orientationForLog = axisTitleOrientation
-          fetch(
-            'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'axis.ts:207',
-                message: 'Checking orientation for rotation',
-                data: {
-                  axisTitleOrientation: orientationForLog,
-                  isVertical: orientationForLog === LabelOrientation.VERTICAL,
-                  isAngled: orientationForLog === LabelOrientation.ANGLED,
-                  verticalEnum: LabelOrientation.VERTICAL,
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'D',
-              }),
-            }
-          ).catch(() => {})
-          // #endregion
           if (axisTitleOrientation === LabelOrientation.VERTICAL) {
             // Use canonical rotation from constant (gated by orientation config)
             rotation = AXIS_TITLE_ROTATION_BY_POSITION[orientation]
-            // #region agent log
-            fetch(
-              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'axis.ts:211',
-                  message: 'Rotation determined for vertical',
-                  data: {
-                    rotation,
-                    orientation,
-                    rotationByPosition:
-                      AXIS_TITLE_ROTATION_BY_POSITION[orientation],
-                  },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'run1',
-                  hypothesisId: 'D',
-                }),
-              }
-            ).catch(() => {})
-            // #endregion
           } else if (
             axisTitleOrientation === LabelOrientation.ANGLED &&
             axisTitleAngle !== undefined
           ) {
             rotation = axisTitleAngle
-            // #region agent log
-            fetch(
-              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'axis.ts:218',
-                  message: 'Rotation determined for angled',
-                  data: { rotation: axisTitleAngle },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'run1',
-                  hypothesisId: 'D',
-                }),
-              }
-            ).catch(() => {})
-            // #endregion
-          } else {
-            // #region agent log
-            fetch(
-              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'axis.ts:222',
-                  message: 'No rotation applied',
-                  data: { axisTitleOrientation: orientationForLog, rotation },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'run1',
-                  hypothesisId: 'D',
-                }),
-              }
-            ).catch(() => {})
-            // #endregion
           }
 
           // Calculate rotated bounds if needed
@@ -385,32 +274,6 @@ export function computeAxisLayout(
             textAnchor = TextAnchor.MIDDLE
             dominantBaseline = DominantBaseline.MIDDLE
             y = (rangeMin + rangeMax) / 2 // center in axis-local coords
-            // #region agent log
-            fetch(
-              'http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'axis.ts:273',
-                  message: 'LEFT axis title position calculated',
-                  data: {
-                    x,
-                    y,
-                    titleWidth,
-                    titleHeight,
-                    rotation,
-                    maxTickLabelWidth,
-                    titleExtentLeft: x - titleWidth / 2,
-                  },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'run1',
-                  hypothesisId: 'E',
-                }),
-              }
-            ).catch(() => {})
-            // #endregion
           } else if (orientation === Position.RIGHT) {
             // Position to the right of tick labels
             // Tick labels: x = DEFAULT_TICK_LABEL_OFFSET, textAnchor = START

@@ -228,9 +228,6 @@ export function computeAdaptivePadding(
   const leftAxisTitleOrientation =
     leftAxisConfig?.axisLabelOrientation?.orientation
   const leftAxisTitleAngle = leftAxisConfig?.axisLabelOrientation?.angle
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'adaptivePadding.ts:227',message:'adaptivePadding left axis title orientation',data:{leftAxisTitleOrientation,isVertical:leftAxisTitleOrientation===LabelOrientation.VERTICAL,hasAxisLabel:!!leftAxisConfig?.axisLabel,axisLabel:leftAxisConfig?.axisLabel},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-  // #endregion
   let leftAxisTitleWidth = 0
   let leftAxisTitleHeight = 0
 
@@ -267,9 +264,6 @@ export function computeAdaptivePadding(
       leftAxisTitleWidth = unrotatedBounds.width
       leftAxisTitleHeight = unrotatedBounds.height
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'adaptivePadding.ts:264',message:'Left axis title dimensions calculated',data:{leftAxisTitleWidth,leftAxisTitleHeight,rotation,unrotatedWidth:unrotatedBounds.width,unrotatedHeight:unrotatedBounds.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
   }
 
   // left axis needs space for tick text + title
@@ -283,9 +277,6 @@ export function computeAdaptivePadding(
   const leftTitleSpace = leftAxisConfig?.axisLabel
     ? leftAxisTitleWidth + AXIS_TITLE_OFFSET
     : 0
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/d448ec8c-8a29-4eb0-9ef7-cfbc4bb143f4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'adaptivePadding.ts:277',message:'Left padding calculation',data:{leftTickLabelSpace,leftTitleSpace,leftAxisTitleWidth,AXIS_TITLE_OFFSET,calculatedLeft:leftTickLabelSpace+leftTitleSpace+extraPadding+MIN_PADDING_BUFFER,currentLeft:left},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-  // #endregion
   left = Math.max(
     left,
     leftTickLabelSpace + leftTitleSpace + extraPadding + MIN_PADDING_BUFFER

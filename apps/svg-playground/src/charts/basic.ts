@@ -1,5 +1,6 @@
 import { ChartKind } from '@owlplot/core'
 import type { ChartDemo } from '../shared/types'
+import { withDemoColor } from '../shared/demoPalette'
 
 export const basicCharts: readonly ChartDemo[] = [
   {
@@ -10,17 +11,20 @@ export const basicCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: 10 },
-            { x: 1, y: 15 },
-            { x: 2, y: 12 },
-            { x: 3, y: 18 },
-            { x: 4, y: 16 },
-            { x: 5, y: 20 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 10 },
+              { x: 1, y: 15 },
+              { x: 2, y: 12 },
+              { x: 3, y: 18 },
+              { x: 4, y: 16 },
+              { x: 5, y: 20 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: true },
     },
@@ -33,28 +37,34 @@ export const basicCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'revenue',
-          points: [
-            { x: 0, y: 100 },
-            { x: 1, y: 120 },
-            { x: 2, y: 110 },
-            { x: 3, y: 140 },
-            { x: 4, y: 130 },
-            { x: 5, y: 150 },
-          ],
-        },
-        {
-          id: 'expenses',
-          points: [
-            { x: 0, y: 80 },
-            { x: 1, y: 85 },
-            { x: 2, y: 90 },
-            { x: 3, y: 95 },
-            { x: 4, y: 100 },
-            { x: 5, y: 105 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'revenue',
+            points: [
+              { x: 0, y: 100 },
+              { x: 1, y: 120 },
+              { x: 2, y: 110 },
+              { x: 3, y: 140 },
+              { x: 4, y: 130 },
+              { x: 5, y: 150 },
+            ],
+          },
+          0
+        ),
+        withDemoColor(
+          {
+            id: 'expenses',
+            points: [
+              { x: 0, y: 80 },
+              { x: 1, y: 85 },
+              { x: 2, y: 90 },
+              { x: 3, y: 95 },
+              { x: 4, y: 100 },
+              { x: 5, y: 105 },
+            ],
+          },
+          1
+        ),
       ],
       options: { showPoints: true },
     },
@@ -67,19 +77,22 @@ export const basicCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: 50 },
-            { x: 1, y: 55 },
-            { x: 2, y: 45 },
-            { x: 3, y: 60 },
-            { x: 4, y: 50 },
-            { x: 5, y: 65 },
-            { x: 6, y: 55 },
-            { x: 7, y: 70 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 50 },
+              { x: 1, y: 55 },
+              { x: 2, y: 45 },
+              { x: 3, y: 60 },
+              { x: 4, y: 50 },
+              { x: 5, y: 65 },
+              { x: 6, y: 55 },
+              { x: 7, y: 70 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: true },
     },
@@ -92,19 +105,22 @@ export const basicCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: 50 },
-            { x: 1, y: 55 },
-            { x: 2, y: 45 },
-            { x: 3, y: 60 },
-            { x: 4, y: 50 },
-            { x: 5, y: 65 },
-            { x: 6, y: 55 },
-            { x: 7, y: 70 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 50 },
+              { x: 1, y: 55 },
+              { x: 2, y: 45 },
+              { x: 3, y: 60 },
+              { x: 4, y: 50 },
+              { x: 5, y: 65 },
+              { x: 6, y: 55 },
+              { x: 7, y: 70 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: false },
     },

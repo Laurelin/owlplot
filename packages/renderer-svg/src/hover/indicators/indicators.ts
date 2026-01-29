@@ -11,7 +11,6 @@ import {
 } from './pointEmphasis'
 import { updateXLine, hideXLine } from './xLine'
 import { updateYLine, hideYLine } from './yLine'
-import type { PointIndex } from '../types'
 import { ExtendedSVGSVGElement } from '../../shared/extendedElements'
 import { POINT_INDEX_SYMBOL } from '../../shared/symbols'
 
@@ -31,13 +30,21 @@ export function createIndicators(
 
     switch (indicatorConfig.kind) {
       case HoverIndicatorKind.POINT_EMPHASIS: {
-        const pointIndex: PointIndex | undefined = (
-          svg as ExtendedSVGSVGElement
-        )[POINT_INDEX_SYMBOL]
         indicators.push({
           id: 'point-emphasis',
+          getKey(result) {
+            if (result.kind !== 'points') return null
+            return result.points
+              .map(p => `${p.seriesId}:${p.point.x}`)
+              .sort()
+              .join('|')
+          },
           render(result, context) {
-            if (result.kind !== 'points') return null as IndicatorHandle
+            if (result.kind !== 'points') return null
+            const pointIndex = (context.svg as ExtendedSVGSVGElement)[
+              POINT_INDEX_SYMBOL
+            ]
+            if (!pointIndex) return null
             const emphasisResult = emphasizePoints(
               result.points,
               {

@@ -1,6 +1,10 @@
 import type { SceneNode } from '@owlplot/core'
 import { SceneNodeKind } from '@owlplot/core'
-import type { TooltipRenderer, TooltipContext, HoverSeriesStyle } from '../tooltip/types'
+import type {
+  TooltipRenderer,
+  TooltipContext,
+  HoverSeriesStyle,
+} from '../tooltip/types'
 import type { HoverMode } from '../hover/types'
 import type { HoverIndicatorConfig } from '../hover/indicators/types'
 
@@ -10,7 +14,11 @@ import { appendNode } from './appendNode'
 import { defaultTooltipRenderer } from '../tooltip/defaultTooltipRenderer'
 import { hideTooltip } from '../tooltip/tooltipDom'
 
-import { attachDataHover, attachGlyphHover } from '../hover/hoverManager'
+import {
+  attachDataHover,
+  attachGlyphHover,
+  detachAllHoverListeners,
+} from '../hover/hoverManager'
 import { createHoverResolver } from '../hover/resolvers'
 import { createIndicators } from '../hover/indicators/indicators'
 import { isHoverMetadata } from '../hover/types'
@@ -34,9 +42,16 @@ import { hideYLine } from '../hover/indicators/yLine'
  * Resolve scene node stroke to a single color for tooltip swatch.
  * If stroke is a gradient → use first stop color only. Do not render gradients in tooltips.
  */
-function strokeToSwatchColor(stroke: { type: string; color?: string; stops?: readonly { color: string }[] }): string | undefined {
+function strokeToSwatchColor(stroke: {
+  type: string
+  color?: string
+  stops?: readonly { color: string }[]
+}): string | undefined {
   if (stroke.type === 'solid' && stroke.color) return stroke.color
-  if ((stroke.type === 'linear' || stroke.type === 'radial') && stroke.stops?.[0])
+  if (
+    (stroke.type === 'linear' || stroke.type === 'radial') &&
+    stroke.stops?.[0]
+  )
     return stroke.stops[0].color
   return undefined
 }
@@ -45,12 +60,20 @@ function strokeToSwatchColor(stroke: { type: string; color?: string; stops?: rea
  * Walk scene and build seriesId → HoverSeriesStyle from nodes with id like "series:<id>".
  * Stroke is resolved to a single color string (solid or first stop of gradient).
  */
-function buildSeriesStylesFromScene(scene: SceneNode): Map<string, HoverSeriesStyle> {
+function buildSeriesStylesFromScene(
+  scene: SceneNode
+): Map<string, HoverSeriesStyle> {
   const map = new Map<string, HoverSeriesStyle>()
   function walk(node: SceneNode) {
     if (node.id.startsWith('series:') && node.style?.stroke) {
       const seriesId = node.id.slice(7)
-      const color = strokeToSwatchColor(node.style.stroke as { type: string; color?: string; stops?: readonly { color: string }[] })
+      const color = strokeToSwatchColor(
+        node.style.stroke as {
+          type: string
+          color?: string
+          stops?: readonly { color: string }[]
+        }
+      )
       if (color) map.set(seriesId, { stroke: color })
     }
     if (node.kind === SceneNodeKind.GROUP) {
@@ -86,6 +109,7 @@ export function renderSvgScene(
   appendNode(scene, svg)
 
   const explicitHoverMode = options?.hoverMode
+  const hasExplicitIndicator = options?.hoverIndicator !== undefined
   const hoverIndicatorConfig = options?.hoverIndicator ?? {
     kind: HoverIndicatorKind.NONE,
   }
@@ -106,10 +130,13 @@ export function renderSvgScene(
     return
   }
 
+  detachAllHoverListeners(svg)
+
   // If explicit mode provided, use it
   if (explicitHoverMode) {
-    // Default indicator based on explicit mode
+    // Default indicator based on explicit mode only when user did not pass hoverIndicator
     if (
+      !hasExplicitIndicator &&
       indicatorConfigs.length === 1 &&
       indicatorConfigs[0]!.kind === HoverIndicatorKind.NONE
     ) {
@@ -119,9 +146,24 @@ export function renderSvgScene(
         indicatorConfigs[0] = { kind: HoverIndicatorKind.X_LINE }
       }
     }
+    const explicitNeedsPointIndex = indicatorConfigs.some(
+      c => c.kind === HoverIndicatorKind.POINT_EMPHASIS
+    )
+    if (explicitNeedsPointIndex) {
+      const pointIndex = buildPointIndexFromRenderedElements(svg)
+      ;(svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] = pointIndex
+      if (process.env.NODE_ENV !== 'production' && pointIndex.size === 0) {
+        console.warn(
+          '[owlplot] Hover requested point emphasis, but no glyphs were indexed. ' +
+            'Check data-owlplot-* attributes.'
+        )
+      }
+    }
     const finalIndicators = createIndicators(indicatorConfigs, svg)
 
     if (explicitHoverMode.kind === HoverModeKind.GLYPH) {
+      const pointIndex = buildPointIndexFromRenderedElements(svg)
+      ;(svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] = pointIndex
       attachGlyphHover(svg, tooltipRenderer, hoverMetadata, finalIndicators)
       return
     }
@@ -144,8 +186,14 @@ export function renderSvgScene(
     config => config.kind === HoverIndicatorKind.POINT_EMPHASIS
   )
   if (needsPointIndex) {
-    ;(svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] =
-      buildPointIndexFromRenderedElements(svg)
+    const pointIndex = buildPointIndexFromRenderedElements(svg)
+    ;(svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] = pointIndex
+    if (process.env.NODE_ENV !== 'production' && pointIndex.size === 0) {
+      console.warn(
+        '[owlplot] Hover requested point emphasis, but no glyphs were indexed. ' +
+          'Check data-owlplot-* attributes.'
+      )
+    }
   }
 
   // Set default indicator for POINT mode fallback (POINT_EMPHASIS)
@@ -155,9 +203,14 @@ export function renderSvgScene(
     finalIndicatorConfigs[0]!.kind === HoverIndicatorKind.NONE
   ) {
     finalIndicatorConfigs = [{ kind: HoverIndicatorKind.POINT_EMPHASIS }]
-    // Build point index for default POINT_EMPHASIS indicator
-    ;(svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] =
-      buildPointIndexFromRenderedElements(svg)
+    const pointIndex = buildPointIndexFromRenderedElements(svg)
+    ;(svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] = pointIndex
+    if (process.env.NODE_ENV !== 'production' && pointIndex.size === 0) {
+      console.warn(
+        '[owlplot] Hover requested point emphasis, but no glyphs were indexed. ' +
+          'Check data-owlplot-* attributes.'
+      )
+    }
   }
   const finalIndicators = createIndicators(finalIndicatorConfigs, svg)
 

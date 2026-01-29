@@ -69,3 +69,4 @@ package-lock.json
 **/dist/
 *.tsbuildinfo
 .cursor
+apps/svg-playground/SVGDemoQualityBar.md

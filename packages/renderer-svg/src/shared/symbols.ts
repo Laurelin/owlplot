@@ -6,8 +6,12 @@ export const TOOLTIP_CONTEXT_SYMBOL = Symbol('owlplot-tooltip-context')
 export const SERIES_STYLES_SYMBOL = Symbol('owlplot-series-styles')
 
 export const POINT_INDEX_SYMBOL = Symbol('owlplot-point-index')
-export const HOVER_LINE_SYMBOL = Symbol('owlplot-hover-line')
+export const X_HOVER_LINE_SYMBOL = Symbol('owlplot-x-hover-line')
+export const Y_HOVER_LINE_SYMBOL = Symbol('owlplot-y-hover-line')
 
 export const GLYPH_HOVER_LISTENERS_SYMBOL = Symbol(
   'owlplot-glyph-hover-listeners'
+)
+export const DATA_HOVER_LISTENERS_SYMBOL = Symbol(
+  'owlplot-data-hover-listeners'
 )

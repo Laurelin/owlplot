@@ -1,11 +1,11 @@
 import { ExtendedSVGSVGElement } from '../../shared/extendedElements'
-import { HOVER_LINE_SYMBOL } from '../../shared/symbols'
+import { Y_HOVER_LINE_SYMBOL } from '../../shared/symbols'
 import { SvgAttributeName } from '../../shared/enums'
 import { SVG_NS } from '../../render/svgDom'
 
-function getOrCreateHoverYLine(svg: SVGSVGElement): SVGLineElement {
+function getOrCreateYHoverLine(svg: SVGSVGElement): SVGLineElement {
   const extendedSvg = svg as ExtendedSVGSVGElement
-  const existing = extendedSvg[HOVER_LINE_SYMBOL]
+  const existing = extendedSvg[Y_HOVER_LINE_SYMBOL]
   if (existing && svg.contains(existing)) return existing
 
   const line = document.createElementNS(SVG_NS, 'line')
@@ -16,13 +16,13 @@ function getOrCreateHoverYLine(svg: SVGSVGElement): SVGLineElement {
   line.style.display = 'none'
   svg.appendChild(line)
 
-  extendedSvg[HOVER_LINE_SYMBOL] = line
+  extendedSvg[Y_HOVER_LINE_SYMBOL] = line
   return line
 }
 
 export function hideYLine(svg: SVGSVGElement) {
   const extendedSvg = svg as ExtendedSVGSVGElement
-  const line = extendedSvg[HOVER_LINE_SYMBOL]
+  const line = extendedSvg[Y_HOVER_LINE_SYMBOL]
   if (line) line.style.display = 'none'
 }
 
@@ -32,7 +32,7 @@ export function updateYLine(
   plotRect: { x: number; y: number; width: number; height: number },
   style?: { stroke?: string; strokeWidth?: number; strokeDasharray?: string }
 ) {
-  const line = getOrCreateHoverYLine(svg)
+  const line = getOrCreateYHoverLine(svg)
 
   if (style) {
     if (style.stroke) line.style.stroke = style.stroke

@@ -17,8 +17,16 @@ export interface HoverIndicator {
   render(
     result: HoverResolutionResult,
     context: HoverIndicatorContext
-  ): IndicatorHandle
+  ): IndicatorHandle | null
   restore(handle: IndicatorHandle): void
+  /**
+   * Optional: fingerprint for result equivalence. When present and nextKey === previousKey,
+   * lifecycle skips restore + re-render for this indicator (avoids thrashing e.g. point emphasis animation).
+   */
+  getKey?(
+    result: HoverResolutionResult,
+    context: HoverIndicatorContext
+  ): string | null
 }
 
 // Indicator configuration (user-facing)

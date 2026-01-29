@@ -1,6 +1,7 @@
 import { ChartKind } from '@owlplot/core'
 import type { ChartDemo } from '../shared/types'
 import { PRECOMPUTED_DATASETS } from '../shared/dataGenerators'
+import { withDemoColor } from '../shared/demoPalette'
 
 export const dataCharts: readonly ChartDemo[] = [
   {
@@ -11,18 +12,21 @@ export const dataCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: 10 },
-            { x: 1, y: 15 },
-            { x: 2, y: null },
-            { x: 3, y: 20 },
-            { x: 4, y: null },
-            { x: 5, y: 25 },
-            { x: 6, y: 30 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 10 },
+              { x: 1, y: 15 },
+              { x: 2, y: null },
+              { x: 3, y: 20 },
+              { x: 4, y: null },
+              { x: 5, y: 25 },
+              { x: 6, y: 30 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: true },
     },
@@ -35,15 +39,18 @@ export const dataCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: 10 },
-            { x: 5, y: 25 },
-            { x: 10, y: 15 },
-            { x: 15, y: 30 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 10 },
+              { x: 5, y: 25 },
+              { x: 10, y: 15 },
+              { x: 15, y: 30 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: true },
     },
@@ -56,10 +63,10 @@ export const dataCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: PRECOMPUTED_DATASETS.dense,
-        },
+        withDemoColor(
+          { id: 'series1', points: PRECOMPUTED_DATASETS.dense },
+          0
+        ),
       ],
       options: { showPoints: false },
     },
@@ -72,17 +79,20 @@ export const dataCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: 1000000 },
-            { x: 1, y: 1500000 },
-            { x: 2, y: 1200000 },
-            { x: 3, y: 1800000 },
-            { x: 4, y: 2000000 },
-            { x: 5, y: 2200000 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 1000000 },
+              { x: 1, y: 1500000 },
+              { x: 2, y: 1200000 },
+              { x: 3, y: 1800000 },
+              { x: 4, y: 2000000 },
+              { x: 5, y: 2200000 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: true },
     },
@@ -95,17 +105,20 @@ export const dataCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: -10 },
-            { x: 1, y: -5 },
-            { x: 2, y: 5 },
-            { x: 3, y: 10 },
-            { x: 4, y: 15 },
-            { x: 5, y: 20 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: -10 },
+              { x: 1, y: -5 },
+              { x: 2, y: 5 },
+              { x: 3, y: 10 },
+              { x: 4, y: 15 },
+              { x: 5, y: 20 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: true },
     },
@@ -118,17 +131,20 @@ export const dataCharts: readonly ChartDemo[] = [
     config: {
       kind: ChartKind.LINE,
       series: [
-        {
-          id: 'series1',
-          points: [
-            { x: 0, y: -20 },
-            { x: 1, y: -10 },
-            { x: 2, y: 0 },
-            { x: 3, y: 10 },
-            { x: 4, y: 20 },
-            { x: 5, y: 15 },
-          ],
-        },
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: -20 },
+              { x: 1, y: -10 },
+              { x: 2, y: 0 },
+              { x: 3, y: 10 },
+              { x: 4, y: 20 },
+              { x: 5, y: 15 },
+            ],
+          },
+          0
+        ),
       ],
       options: { showPoints: true },
     },

@@ -362,13 +362,16 @@ export function scene(
                 angle: config.options.yAxisRight.labelOrientation.angle,
               }
             : undefined,
-          axisLabelOrientation: config.options.yAxisRight.labelOrientation
-            ? {
-                orientation: config.options.yAxisRight.labelOrientation
-                  .orientation as LabelOrientation | undefined,
-                angle: config.options.yAxisRight.labelOrientation.angle,
-              }
-            : undefined,
+          axisLabelOrientation:
+            config.options.yAxisRight.labelOrientation
+              ? {
+                  orientation: config.options.yAxisRight.labelOrientation
+                    .orientation as LabelOrientation | undefined,
+                  angle: config.options.yAxisRight.labelOrientation.angle,
+                }
+              : config.options.yAxisRight.axisLabel
+                ? { orientation: LabelOrientation.VERTICAL }
+                : undefined,
           showTicks: resolved.ticks,
           showTickLabels: resolved.tickLabels,
           showAxis: resolved.axisLine,

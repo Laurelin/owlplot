@@ -1,7 +1,4 @@
-import {
-  computeChartScene,
-  approximateMeasureText,
-} from '@owlplot/core'
+import { computeChartScene, approximateMeasureText } from '@owlplot/core'
 import { renderSvgScene } from '@owlplot/renderer-svg'
 import type { ChartDemo } from './types'
 
@@ -11,10 +8,7 @@ export const DEFAULT_CHART_SIZE = {
   height: 300,
 } as const
 
-export function renderChartInto(
-  container: HTMLElement,
-  demo: ChartDemo
-): void {
+export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.setAttribute('width', String(DEFAULT_CHART_SIZE.width))
   svg.setAttribute('height', String(DEFAULT_CHART_SIZE.height))

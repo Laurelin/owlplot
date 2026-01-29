@@ -1,35 +1,30 @@
 import { ChartKind } from '@owlplot/core'
+import { HoverModeKind, HoverIndicatorKind } from '@owlplot/renderer-svg'
 import type { ChartDemo } from '../shared/types'
 import { PRECOMPUTED_DATASETS } from '../shared/dataGenerators'
 import { customTooltipRenderer } from '../shared/tooltips'
-
-// Use string literals that match the enum values
-// These match HoverModeKind and HoverIndicatorKind from @owlplot/renderer-svg
-const HoverModeKind = {
-  POINT: 'point' as const,
-  X_AXIS: 'x-axis' as const,
-}
-
-const HoverIndicatorKind = {
-  NONE: 'none' as const,
-  X_LINE: 'x-line' as const,
-  POINT_EMPHASIS: 'point-emphasis' as const,
-}
+import { withDemoColor } from '../shared/demoPalette'
 
 const hoverData = {
   kind: ChartKind.LINE,
   series: [
-    {
-      id: 'temperature',
-      points: PRECOMPUTED_DATASETS.temperature,
-    },
-    {
-      id: 'humidity',
-      points: PRECOMPUTED_DATASETS.humidity,
-    },
+    withDemoColor(
+      {
+        id: 'temperature',
+        points: [...PRECOMPUTED_DATASETS.temperature],
+      },
+      0
+    ),
+    withDemoColor(
+      {
+        id: 'humidity',
+        points: [...PRECOMPUTED_DATASETS.humidity],
+      },
+      1
+    ),
   ],
   options: { showPoints: true },
-} as const
+}
 
 export const hoverCharts: readonly ChartDemo[] = [
   {
@@ -51,6 +46,10 @@ export const hoverCharts: readonly ChartDemo[] = [
     renderOptions: {
       hoverMode: { kind: HoverModeKind.X_AXIS },
       hoverIndicator: { kind: HoverIndicatorKind.X_LINE },
+      tooltipContext: {
+        xFormatter: (x: number | string) => `Month ${x}`,
+        xUnit: '°C',
+      },
     },
   },
   {
@@ -87,8 +86,73 @@ export const hoverCharts: readonly ChartDemo[] = [
     config: hoverData,
     renderOptions: {
       hoverMode: { kind: HoverModeKind.X_AXIS },
-      hoverIndicator: { kind: HoverIndicatorKind.X_LINE },
+      hoverIndicator: [
+        { kind: HoverIndicatorKind.X_LINE },
+        { kind: HoverIndicatorKind.POINT_EMPHASIS },
+      ],
       tooltip: customTooltipRenderer,
+    },
+  },
+  {
+    id: 'y-axis-hover-y-line',
+    title: 'Y-Axis Hover + Y-Line',
+    description:
+      'Horizontal slice: hover shows y value and horizontal line (single series)',
+    purpose: 'interaction-model',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'value',
+            points: [
+              { x: 0, y: 20 },
+              { x: 1, y: 35 },
+              { x: 2, y: 25 },
+              { x: 3, y: 50 },
+              { x: 4, y: 40 },
+              { x: 5, y: 60 },
+            ],
+          },
+          0
+        ),
+      ],
+      options: { showPoints: true },
+    },
+    renderOptions: {
+      hoverMode: { kind: HoverModeKind.Y_AXIS },
+      hoverIndicator: { kind: HoverIndicatorKind.Y_LINE },
+    },
+  },
+  {
+    id: 'glyph-hover',
+    title: 'Glyph Hover',
+    description:
+      'Hover on point markers (glyphs); event delegation, no x-axis slice',
+    purpose: 'interaction-model',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 10 },
+              { x: 1, y: 25 },
+              { x: 2, y: 15 },
+              { x: 3, y: 30 },
+              { x: 4, y: 20 },
+              { x: 5, y: 35 },
+            ],
+          },
+          0
+        ),
+      ],
+      options: { showPoints: true },
+    },
+    renderOptions: {
+      hoverMode: { kind: HoverModeKind.GLYPH },
+      hoverIndicator: [{ kind: HoverIndicatorKind.POINT_EMPHASIS }],
     },
   },
 ] as const

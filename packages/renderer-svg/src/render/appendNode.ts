@@ -4,10 +4,13 @@ import { createSvgElement } from './svgDom'
 import { setStyle } from './setStyle'
 import { ExtendedSVGElement } from '../shared/extendedElements'
 import { TOOLTIP_DATUM_SYMBOL } from '../shared/symbols'
+import { SvgAttributeName } from '../shared/enums'
 import {
-  SvgAttributeName,
-  DataAttributeName,
-} from '../shared/enums'
+  DATA_SERIES_ID,
+  DATA_POINT_INDEX,
+  DATA_X,
+  DATA_Y,
+} from '../shared/dataAttributes'
 
 export function appendNode(
   node: SceneNode,
@@ -47,21 +50,21 @@ export function appendNode(
       el.setAttribute(SvgAttributeName.CY, String(node.cy))
       el.setAttribute(SvgAttributeName.R, String(node.r))
 
-      // Stamp domain coordinates as data attributes (future-proof for non-linear scales)
+      // Stamp domain coordinates from canonical datum.points (required for hover + point index)
       if (node.metadata?.tooltip) {
         const datum = node.metadata.tooltip
         if (datum.kind === TooltipKind.POINT && datum.seriesId) {
           const circleEl = el as SVGCircleElement
-          circleEl.dataset[DataAttributeName.OWLPLOT_SERIES_ID] = datum.seriesId
-          if (typeof datum.values.x === 'number') {
-            circleEl.dataset[DataAttributeName.OWLPLOT_X] = String(
-              datum.values.x
-            )
+          circleEl.setAttribute(DATA_SERIES_ID, datum.seriesId)
+          const primaryPoint = datum.points[0]
+          if (primaryPoint) {
+            circleEl.setAttribute(DATA_X, String(primaryPoint.x))
+            circleEl.setAttribute(DATA_Y, String(primaryPoint.y))
           }
-          if (typeof datum.values.y === 'number') {
-            circleEl.dataset[DataAttributeName.OWLPLOT_Y] = String(
-              datum.values.y
-            )
+          // point:seriesId:index → extract index for DATA_POINT_INDEX
+          const pointIndexMatch = node.id.match(/^point:[^:]+:(\d+)$/)
+          if (pointIndexMatch?.[1] != null) {
+            circleEl.setAttribute(DATA_POINT_INDEX, pointIndexMatch[1])
           }
         }
       }

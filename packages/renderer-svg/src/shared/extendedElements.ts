@@ -1,5 +1,9 @@
 import type { TooltipDatum } from '@owlplot/core'
-import type { TooltipRenderer, TooltipContext, HoverSeriesStyle } from '../tooltip/types'
+import type {
+  TooltipRenderer,
+  TooltipContext,
+  HoverSeriesStyle,
+} from '../tooltip/types'
 
 // Type definitions to avoid circular dependencies
 export type HoverPointRef = {
@@ -15,6 +19,11 @@ export type GlyphHoverListenerRef = {
   pointerleave: () => void
 }
 
+export type DataHoverListenerRef = {
+  pointermove: (event: PointerEvent) => void
+  pointerleave: () => void
+}
+
 import {
   TOOLTIP_CONTAINER_SYMBOL,
   TOOLTIP_ELEMENT_SYMBOL,
@@ -23,8 +32,10 @@ import {
   TOOLTIP_CONTEXT_SYMBOL,
   SERIES_STYLES_SYMBOL,
   POINT_INDEX_SYMBOL,
-  HOVER_LINE_SYMBOL,
+  X_HOVER_LINE_SYMBOL,
+  Y_HOVER_LINE_SYMBOL,
   GLYPH_HOVER_LISTENERS_SYMBOL,
+  DATA_HOVER_LISTENERS_SYMBOL,
 } from './symbols'
 
 export interface ExtendedSVGElement extends SVGElement {
@@ -39,7 +50,9 @@ export interface ExtendedSVGSVGElement extends SVGSVGElement {
   [SERIES_STYLES_SYMBOL]?: Map<string, HoverSeriesStyle>
 
   [POINT_INDEX_SYMBOL]?: Map<string, HoverPointRef[]>
-  [HOVER_LINE_SYMBOL]?: SVGLineElement
+  [X_HOVER_LINE_SYMBOL]?: SVGLineElement
+  [Y_HOVER_LINE_SYMBOL]?: SVGLineElement
 
   [GLYPH_HOVER_LISTENERS_SYMBOL]?: GlyphHoverListenerRef
+  [DATA_HOVER_LISTENERS_SYMBOL]?: DataHoverListenerRef
 }

@@ -1,13 +1,14 @@
 import type { HoverResolutionResult } from '../types'
 import type { ExtendedSVGElement } from '../../shared/extendedElements'
 import { TOOLTIP_DATUM_SYMBOL } from '../../shared/symbols'
-import { DataAttributeName } from '../../shared/enums'
+import { DATA_X, DATA_Y } from '../../shared/dataAttributes'
+
+// invariant: a glyph is only hoverable if it carries full domain metadata
 
 /**
  * Resolve glyph hover from an event target element.
  * GLYPH mode uses event delegation (not data-driven resolvers).
- * Reads domain coordinates from data attributes first, falls back to tooltip datum if available.
- * Returns 'none' if no domain coords available (scales may not be invertible).
+ * Requires data-owlplot-x and data-owlplot-y; no inference from tooltip datum.
  */
 export function resolveGlyphFromElement(
   element: Element | null,
@@ -15,41 +16,31 @@ export function resolveGlyphFromElement(
 ): HoverResolutionResult {
   if (!element) return { kind: 'none' }
 
+  if (!element.hasAttribute(DATA_X) || !element.hasAttribute(DATA_Y)) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[owlplot] Glyph hover: element missing data-owlplot-x or data-owlplot-y, cannot resolve'
+      )
+    }
+    return { kind: 'none' }
+  }
+
   const extendedEl = element as ExtendedSVGElement
   const tooltipDatum = extendedEl[TOOLTIP_DATUM_SYMBOL]
   if (!tooltipDatum) return { kind: 'none' }
 
-  // Extract domain coordinates from data attributes first
-  const domainXStr = element.getAttribute(`data-${DataAttributeName.OWLPLOT_X}`)
-  const domainYStr = element.getAttribute(`data-${DataAttributeName.OWLPLOT_Y}`)
+  const domainXStr = element.getAttribute(DATA_X)
+  const domainYStr = element.getAttribute(DATA_Y)
+  const domainX = domainXStr != null ? parseFloat(domainXStr) : NaN
+  const domainY = domainYStr != null ? parseFloat(domainYStr) : NaN
 
-  let domainX: number | null = null
-  let domainY: number | null = null
-
-  if (domainXStr && domainYStr) {
-    domainX = parseFloat(domainXStr)
-    domainY = parseFloat(domainYStr)
-  } else if (tooltipDatum.values.x && tooltipDatum.values.y) {
-    // Fallback: check if tooltip datum already includes domain coords
-    const x = tooltipDatum.values.x
-    const y = tooltipDatum.values.y
-    if (typeof x === 'number' && typeof y === 'number') {
-      domainX = x
-      domainY = y
-    }
-  }
-
-  // If no domain coords available, return none (do NOT convert via scales)
-  // Scales may not be invertible (band scales, clamped transforms)
   if (
-    domainX === null ||
-    domainY === null ||
     !Number.isFinite(domainX) ||
     !Number.isFinite(domainY)
   ) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn(
-        '[owlplot] Glyph hover: no domain coordinates available, cannot resolve hover'
+        '[owlplot] Glyph hover: invalid domain coordinates, cannot resolve hover'
       )
     }
     return { kind: 'none' }

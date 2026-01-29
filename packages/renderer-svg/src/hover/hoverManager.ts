@@ -12,13 +12,22 @@ import type { TooltipRenderer } from '../tooltip/types'
 import { getMouseSvgCoordinates } from '../shared/svgCoordinates'
 import { hideTooltip, showTooltipFromResult } from '../tooltip/tooltipDom'
 import { resolveGlyphFromElement } from './resolvers/glyphResolver'
-import { DataAttributeName } from '../shared/enums'
+import {
+  findGlyphAtPoint,
+  buildPointIndexFromRenderedElements,
+} from './pointIndex'
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
-import { GLYPH_HOVER_LISTENERS_SYMBOL } from '../shared/symbols'
+import {
+  GLYPH_HOVER_LISTENERS_SYMBOL,
+  DATA_HOVER_LISTENERS_SYMBOL,
+  POINT_INDEX_SYMBOL,
+} from '../shared/symbols'
 
 /**
  * Apply hover result: renders indicators and shows tooltip.
  * Owns lifecycle - prevents indicator leaks with O(1) lookup.
+ * When an indicator has getKey and nextKey === previousKey, skips restore + re-render
+ * so equivalent hover results (e.g. same x-slice) don't thrash animations.
  */
 function applyHoverResult(
   result: HoverResolutionResult,
@@ -28,31 +37,41 @@ function applyHoverResult(
   svg: SVGSVGElement,
   tooltipRenderer: TooltipRenderer | null,
   metadata: HoverMetadata,
-  previousHandles: Map<string, IndicatorHandle>
+  previousHandles: Map<string, IndicatorHandle>,
+  previousKeys: Map<string, string>
 ): void {
-  // Build O(1) lookup map (prevents O(n²) find() calls)
-  const indicatorsById = new Map(indicators.map(i => [i.id, i]))
-
-  // Always restore previous indicators (O(1) lookup)
-  for (const [id, handle] of previousHandles) {
-    indicatorsById.get(id)?.restore(handle)
-  }
-  previousHandles.clear()
-
   if (result.kind === 'none') {
+    const indicatorsById = new Map(indicators.map(i => [i.id, i]))
+    for (const [id, handle] of previousHandles) {
+      indicatorsById.get(id)?.restore(handle)
+    }
+    previousHandles.clear()
+    previousKeys.clear()
     hideTooltip(svg)
     return
   }
 
-  // Render new indicators (if any)
   if (result.kind === 'points') {
     for (const indicator of indicators) {
+      const nextKey = indicator.getKey?.(result, context) ?? null
+      const prevKey = previousKeys.get(indicator.id)
+      if (nextKey != null && nextKey === prevKey) {
+        continue
+      }
+      const prevHandle = previousHandles.get(indicator.id)
+      if (prevHandle) {
+        indicator.restore(prevHandle)
+        previousHandles.delete(indicator.id)
+        previousKeys.delete(indicator.id)
+      }
       const handle = indicator.render(result, context)
-      previousHandles.set(indicator.id, handle) // id is required, no collision
+      if (handle != null) {
+        previousHandles.set(indicator.id, handle)
+        previousKeys.set(indicator.id, nextKey ?? '')
+      }
     }
   }
 
-  // Show tooltip via adapter (only if tooltipRenderer is provided)
   if (tooltipRenderer) {
     showTooltipFromResult(result, event, svg, tooltipRenderer)
   }
@@ -87,6 +106,7 @@ export function attachDataHover(
 ): void {
   let framePending = false
   const previousHandles = new Map<string, IndicatorHandle>()
+  const previousKeys = new Map<string, string>()
 
   const context: HoverIndicatorContext = {
     svg,
@@ -115,7 +135,8 @@ export function attachDataHover(
         svg,
         tooltipRenderer,
         metadata,
-        previousHandles
+        previousHandles,
+        previousKeys
       )
       return
     }
@@ -130,7 +151,8 @@ export function attachDataHover(
         svg,
         tooltipRenderer,
         metadata,
-        previousHandles
+        previousHandles,
+        previousKeys
       )
       return
     }
@@ -151,7 +173,8 @@ export function attachDataHover(
       svg,
       tooltipRenderer,
       metadata,
-      previousHandles
+      previousHandles,
+      previousKeys
     )
   }
 
@@ -164,18 +187,47 @@ export function attachDataHover(
       svg,
       tooltipRenderer,
       metadata,
-      previousHandles
+      previousHandles,
+      previousKeys
     )
   }
 
   svg.addEventListener('pointermove', handlePointerMove)
   svg.addEventListener('pointerleave', handlePointerLeave)
+
+  const extendedSvg = svg as ExtendedSVGSVGElement
+  extendedSvg[DATA_HOVER_LISTENERS_SYMBOL] = {
+    pointermove: handlePointerMove,
+    pointerleave: handlePointerLeave,
+  }
+}
+
+/**
+ * Remove all hover listeners (glyph and data-driven) from the SVG.
+ * Call before attaching new hover so only one set of listeners is active.
+ */
+export function detachAllHoverListeners(svg: SVGSVGElement): void {
+  const extendedSvg = svg as ExtendedSVGSVGElement
+
+  const glyphRefs = extendedSvg[GLYPH_HOVER_LISTENERS_SYMBOL]
+  if (glyphRefs) {
+    svg.removeEventListener('pointermove', glyphRefs.pointermove)
+    svg.removeEventListener('pointerleave', glyphRefs.pointerleave)
+    delete extendedSvg[GLYPH_HOVER_LISTENERS_SYMBOL]
+  }
+
+  const dataRefs = extendedSvg[DATA_HOVER_LISTENERS_SYMBOL]
+  if (dataRefs) {
+    svg.removeEventListener('pointermove', dataRefs.pointermove)
+    svg.removeEventListener('pointerleave', dataRefs.pointerleave)
+    delete extendedSvg[DATA_HOVER_LISTENERS_SYMBOL]
+  }
 }
 
 /**
  * Attach glyph-based hover (GLYPH mode).
- * Uses event delegation with pointer events.
- * Returns true if glyph elements with tooltip data were found.
+ * Uses data-driven spatial hit testing: pointer coords + findGlyphAtPoint.
+ * Returns true if a point index with glyphs was found or built.
  */
 export function attachGlyphHover(
   svg: SVGSVGElement,
@@ -183,7 +235,14 @@ export function attachGlyphHover(
   metadata: HoverMetadata,
   indicators: HoverIndicator[]
 ): boolean {
+  const extendedSvg = svg as ExtendedSVGSVGElement
+  const pointIndex =
+    extendedSvg[POINT_INDEX_SYMBOL] ?? buildPointIndexFromRenderedElements(svg)
+  if (pointIndex.size === 0) return false
+  extendedSvg[POINT_INDEX_SYMBOL] = pointIndex
+
   const previousHandles = new Map<string, IndicatorHandle>()
+  const previousKeys = new Map<string, string>()
 
   const context: HoverIndicatorContext = {
     svg,
@@ -191,20 +250,9 @@ export function attachGlyphHover(
     plotRect: metadata.plotRect,
   }
 
-  // Build selector from enum-backed attribute name
-  const selector = `[data-${DataAttributeName.OWLPLOT_SERIES_ID}]`
-
-  // Check if any glyph elements exist
-  const hasGlyphElements = svg.querySelectorAll(selector).length > 0
-
-  if (!hasGlyphElements) {
-    return false
-  }
-
   const handlePointerMove = (event: PointerEvent) => {
-    // Guard against nested SVGs
-    const glyph = (event.target as Element | null)?.closest(selector)
-    if (!glyph || !svg.contains(glyph)) {
+    const coords = getMouseSvgCoordinates(svg, event)
+    if (!coords) {
       applyHoverResult(
         { kind: 'none' },
         indicators,
@@ -213,15 +261,29 @@ export function attachGlyphHover(
         svg,
         tooltipRenderer,
         metadata,
-        previousHandles
+        previousHandles,
+        previousKeys
       )
       return
     }
 
-    // Resolve glyph hover
-    const result = resolveGlyphFromElement(glyph, metadata)
+    const hit = findGlyphAtPoint(pointIndex, coords.x, coords.y)
+    if (!hit) {
+      applyHoverResult(
+        { kind: 'none' },
+        indicators,
+        context,
+        event,
+        svg,
+        tooltipRenderer,
+        metadata,
+        previousHandles,
+        previousKeys
+      )
+      return
+    }
 
-    // Apply result
+    const result = resolveGlyphFromElement(hit.element, metadata)
     applyHoverResult(
       result,
       indicators,
@@ -230,7 +292,8 @@ export function attachGlyphHover(
       svg,
       tooltipRenderer,
       metadata,
-      previousHandles
+      previousHandles,
+      previousKeys
     )
   }
 
@@ -243,15 +306,14 @@ export function attachGlyphHover(
       svg,
       tooltipRenderer,
       metadata,
-      previousHandles
+      previousHandles,
+      previousKeys
     )
   }
 
   svg.addEventListener('pointermove', handlePointerMove)
   svg.addEventListener('pointerleave', handlePointerLeave)
 
-  // Store handlers if requested (for cleanup)
-  const extendedSvg = svg as ExtendedSVGSVGElement
   extendedSvg[GLYPH_HOVER_LISTENERS_SYMBOL] = {
     pointermove: handlePointerMove,
     pointerleave: handlePointerLeave,

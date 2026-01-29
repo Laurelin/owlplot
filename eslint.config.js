@@ -31,5 +31,19 @@ export default tseslint.config(
       '**/*.config.{js,ts}',
       'vitest.config.ts',
     ],
+  },
+  // Hover: use getAttribute(DATA_*) from shared/dataAttributes; no .dataset (camelCase breaks selectors)
+  {
+    files: ['packages/renderer-svg/src/hover/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[property.name='dataset']",
+          message:
+            'Use getAttribute(DATA_*) from shared/dataAttributes instead of .dataset in hover.',
+        },
+      ],
+    },
   }
 )

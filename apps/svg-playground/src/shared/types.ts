@@ -1,12 +1,14 @@
 import type { ChartConfig } from '@owlplot/core'
 import type {
   TooltipRenderer,
+  TooltipContext,
   HoverMode,
   HoverIndicatorConfig,
 } from '@owlplot/renderer-svg'
 
 export type RenderOptions = {
   readonly tooltip?: TooltipRenderer | null
+  readonly tooltipContext?: TooltipContext
   readonly hoverMode?: HoverMode
   readonly hoverIndicator?: HoverIndicatorConfig | HoverIndicatorConfig[]
 }

@@ -76,51 +76,56 @@ export function computeAdaptivePadding(
 
   // --- horizontal axes (bottom & top)
 
-  // measure bottom axis tick labels
-  const bottomAxisTickValues = linearTickValues(
-    xDomain[0],
-    xDomain[1],
-    xTickCount
-  )
+  // measure bottom axis tick labels (only if visible)
   let maxBottomTickLabelHeight = 0
   let maxBottomTickLabelWidth = 0
-  const bottomLabelOrientation = bottomAxisConfig?.labelOrientation?.orientation
-  const bottomLabelAngle = bottomAxisConfig?.labelOrientation?.angle
+  const showBottomTickLabels = bottomAxisConfig?.showTickLabels !== false
 
-  for (const v of bottomAxisTickValues) {
-    let { width: w, height: h } = measureTextFont(
-      measureText,
-      String(v),
-      axisTickFont,
-      DEFAULT_TICK_FONT
+  if (showBottomTickLabels) {
+    const bottomAxisTickValues = linearTickValues(
+      xDomain[0],
+      xDomain[1],
+      xTickCount
     )
+    const bottomLabelOrientation = bottomAxisConfig?.labelOrientation?.orientation
+    const bottomLabelAngle = bottomAxisConfig?.labelOrientation?.angle
 
-    // Adjust dimensions for rotated labels
-    if (bottomLabelOrientation === LabelOrientation.VERTICAL) {
-      // Vertical labels: swap width and height
-      ;[w, h] = [h, w]
-    } else if (
-      bottomLabelOrientation === LabelOrientation.ANGLED &&
-      bottomLabelAngle !== undefined
-    ) {
-      // Angled labels: calculate bounding box
-      const bounds = getRotatedTextBounds(w, h, bottomLabelAngle)
-      w = bounds.width
-      h = bounds.height
+    for (const v of bottomAxisTickValues) {
+      let { width: w, height: h } = measureTextFont(
+        measureText,
+        String(v),
+        axisTickFont,
+        DEFAULT_TICK_FONT
+      )
+
+      // Adjust dimensions for rotated labels
+      if (bottomLabelOrientation === LabelOrientation.VERTICAL) {
+        // Vertical labels: swap width and height
+        ;[w, h] = [h, w]
+      } else if (
+        bottomLabelOrientation === LabelOrientation.ANGLED &&
+        bottomLabelAngle !== undefined
+      ) {
+        // Angled labels: calculate bounding box
+        const bounds = getRotatedTextBounds(w, h, bottomLabelAngle)
+        w = bounds.width
+        h = bounds.height
+      }
+
+      maxBottomTickLabelWidth = Math.max(maxBottomTickLabelWidth, w)
+      maxBottomTickLabelHeight = Math.max(maxBottomTickLabelHeight, h)
     }
-
-    maxBottomTickLabelWidth = Math.max(maxBottomTickLabelWidth, w)
-    maxBottomTickLabelHeight = Math.max(maxBottomTickLabelHeight, h)
   }
 
-  // measure bottom axis title (with rotation support)
+  // measure bottom axis title (with rotation support, only if visible)
   const bottomAxisTitleOrientation =
     bottomAxisConfig?.axisLabelOrientation?.orientation
   const bottomAxisTitleAngle = bottomAxisConfig?.axisLabelOrientation?.angle
   let bottomAxisTitleHeight = 0
   let bottomAxisTitleWidth = 0
+  const showBottomAxis = bottomAxisConfig?.showAxis !== false
 
-  if (bottomAxisConfig?.axisLabel) {
+  if (bottomAxisConfig?.axisLabel && showBottomAxis) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
       measureText,
@@ -188,50 +193,56 @@ export function computeAdaptivePadding(
 
   // --- vertical axes (left & right)
 
-  const leftAxisTickValues = linearTickValues(
-    yDomain[0],
-    yDomain[1],
-    yTickCount
-  )
+  // measure left axis tick labels (only if visible)
   let maxLeftTickLabelWidth = 0
   let maxLeftTickLabelHeight = 0
-  const leftLabelOrientation = leftAxisConfig?.labelOrientation?.orientation
-  const leftLabelAngle = leftAxisConfig?.labelOrientation?.angle
+  const showLeftTickLabels = leftAxisConfig?.showTickLabels !== false
 
-  for (const v of leftAxisTickValues) {
-    let { width: w, height: h } = measureTextFont(
-      measureText,
-      String(v),
-      axisTickFont,
-      DEFAULT_TICK_FONT
+  if (showLeftTickLabels) {
+    const leftAxisTickValues = linearTickValues(
+      yDomain[0],
+      yDomain[1],
+      yTickCount
     )
+    const leftLabelOrientation = leftAxisConfig?.labelOrientation?.orientation
+    const leftLabelAngle = leftAxisConfig?.labelOrientation?.angle
 
-    // Adjust dimensions for rotated labels
-    if (leftLabelOrientation === LabelOrientation.VERTICAL) {
-      // Vertical labels: swap width and height
-      ;[w, h] = [h, w]
-    } else if (
-      leftLabelOrientation === LabelOrientation.ANGLED &&
-      leftLabelAngle !== undefined
-    ) {
-      // Angled labels: calculate bounding box
-      const bounds = getRotatedTextBounds(w, h, leftLabelAngle)
-      w = bounds.width
-      h = bounds.height
+    for (const v of leftAxisTickValues) {
+      let { width: w, height: h } = measureTextFont(
+        measureText,
+        String(v),
+        axisTickFont,
+        DEFAULT_TICK_FONT
+      )
+
+      // Adjust dimensions for rotated labels
+      if (leftLabelOrientation === LabelOrientation.VERTICAL) {
+        // Vertical labels: swap width and height
+        ;[w, h] = [h, w]
+      } else if (
+        leftLabelOrientation === LabelOrientation.ANGLED &&
+        leftLabelAngle !== undefined
+      ) {
+        // Angled labels: calculate bounding box
+        const bounds = getRotatedTextBounds(w, h, leftLabelAngle)
+        w = bounds.width
+        h = bounds.height
+      }
+
+      maxLeftTickLabelWidth = Math.max(maxLeftTickLabelWidth, w)
+      maxLeftTickLabelHeight = Math.max(maxLeftTickLabelHeight, h)
     }
-
-    maxLeftTickLabelWidth = Math.max(maxLeftTickLabelWidth, w)
-    maxLeftTickLabelHeight = Math.max(maxLeftTickLabelHeight, h)
   }
 
-  // measure left axis title (with rotation support)
+  // measure left axis title (with rotation support, only if visible)
   const leftAxisTitleOrientation =
     leftAxisConfig?.axisLabelOrientation?.orientation
   const leftAxisTitleAngle = leftAxisConfig?.axisLabelOrientation?.angle
   let leftAxisTitleWidth = 0
   let leftAxisTitleHeight = 0
+  const showLeftAxis = leftAxisConfig?.showAxis !== false
 
-  if (leftAxisConfig?.axisLabel) {
+  if (leftAxisConfig?.axisLabel && showLeftAxis) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
       measureText,
@@ -283,50 +294,55 @@ export function computeAdaptivePadding(
   )
 
   // right axis needs space (use right axis config if provided, else left)
-  const rightAxisTickValues = rightAxisConfig
-    ? linearTickValues(
-        yDomain[0],
-        yDomain[1],
-        rightAxisConfig.tickCount ?? yTickCount
-      )
-    : leftAxisTickValues
   let maxRightTickLabelWidth = 0
   let maxRightTickLabelHeight = 0
-  const rightLabelOrientation = rightAxisConfig?.labelOrientation?.orientation
-  const rightLabelAngle = rightAxisConfig?.labelOrientation?.angle
+  const showRightTickLabels = rightAxisConfig?.showTickLabels !== false
 
-  for (const v of rightAxisTickValues) {
-    let { width: w, height: h } = measureTextFont(
-      measureText,
-      String(v),
-      axisTickFont,
-      DEFAULT_TICK_FONT
-    )
+  if (showRightTickLabels) {
+    const rightAxisTickValues = rightAxisConfig
+      ? linearTickValues(
+          yDomain[0],
+          yDomain[1],
+          rightAxisConfig.tickCount ?? yTickCount
+        )
+      : linearTickValues(yDomain[0], yDomain[1], yTickCount)
+    const rightLabelOrientation = rightAxisConfig?.labelOrientation?.orientation
+    const rightLabelAngle = rightAxisConfig?.labelOrientation?.angle
 
-    // Adjust dimensions for rotated labels
-    if (rightLabelOrientation === LabelOrientation.VERTICAL) {
-      ;[w, h] = [h, w]
-    } else if (
-      rightLabelOrientation === LabelOrientation.ANGLED &&
-      rightLabelAngle !== undefined
-    ) {
-      const bounds = getRotatedTextBounds(w, h, rightLabelAngle)
-      w = bounds.width
-      h = bounds.height
+    for (const v of rightAxisTickValues) {
+      let { width: w, height: h } = measureTextFont(
+        measureText,
+        String(v),
+        axisTickFont,
+        DEFAULT_TICK_FONT
+      )
+
+      // Adjust dimensions for rotated labels
+      if (rightLabelOrientation === LabelOrientation.VERTICAL) {
+        ;[w, h] = [h, w]
+      } else if (
+        rightLabelOrientation === LabelOrientation.ANGLED &&
+        rightLabelAngle !== undefined
+      ) {
+        const bounds = getRotatedTextBounds(w, h, rightLabelAngle)
+        w = bounds.width
+        h = bounds.height
+      }
+
+      maxRightTickLabelWidth = Math.max(maxRightTickLabelWidth, w)
+      maxRightTickLabelHeight = Math.max(maxRightTickLabelHeight, h)
     }
-
-    maxRightTickLabelWidth = Math.max(maxRightTickLabelWidth, w)
-    maxRightTickLabelHeight = Math.max(maxRightTickLabelHeight, h)
   }
 
-  // measure right axis title (with rotation support)
+  // measure right axis title (with rotation support, only if visible)
   const rightAxisTitleOrientation =
     rightAxisConfig?.axisLabelOrientation?.orientation
   const rightAxisTitleAngle = rightAxisConfig?.axisLabelOrientation?.angle
   let rightAxisTitleWidth = 0
   let rightAxisTitleHeight = 0
+  const showRightAxis = rightAxisConfig?.showAxis !== false
 
-  if (rightAxisConfig?.axisLabel) {
+  if (rightAxisConfig?.axisLabel && showRightAxis) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
       measureText,
@@ -359,8 +375,8 @@ export function computeAdaptivePadding(
       rightAxisTitleWidth = unrotatedBounds.width
       rightAxisTitleHeight = unrotatedBounds.height
     }
-  } else {
-    // Fallback to left axis title width if no right axis title
+  } else if (!showRightAxis || !rightAxisConfig?.axisLabel) {
+    // Fallback to left axis title width if no right axis title or axis is hidden
     rightAxisTitleWidth = leftAxisTitleWidth
   }
 

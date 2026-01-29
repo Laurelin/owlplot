@@ -1,5 +1,5 @@
 import type { SceneNode } from '@owlplot/core'
-import { SceneNodeKind } from '@owlplot/core'
+import { SceneNodeKind, TooltipKind } from '@owlplot/core'
 import { createSvgElement } from './svgDom'
 import { setStyle } from './setStyle'
 import { ExtendedSVGElement } from '../shared/extendedElements'
@@ -7,7 +7,6 @@ import { TOOLTIP_DATUM_SYMBOL } from '../shared/symbols'
 import {
   SvgAttributeName,
   DataAttributeName,
-  TooltipKind,
 } from '../shared/enums'
 
 export function appendNode(

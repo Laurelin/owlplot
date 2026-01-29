@@ -51,6 +51,9 @@ export interface AxisConfig {
   axisLabel?: string
   labelOrientation?: LabelOrientationConfig // for tick labels
   axisLabelOrientation?: LabelOrientationConfig // for axis title
+  showTicks?: boolean
+  showTickLabels?: boolean
+  showAxis?: boolean
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { TooltipDatum } from '@owlplot/core'
-import type { TooltipRenderer } from '../tooltip/types'
+import type { TooltipRenderer, TooltipContext, HoverSeriesStyle } from '../tooltip/types'
 
 // Type definitions to avoid circular dependencies
 export type HoverPointRef = {
@@ -20,6 +20,8 @@ import {
   TOOLTIP_ELEMENT_SYMBOL,
   TOOLTIP_RENDERER_SYMBOL,
   TOOLTIP_DATUM_SYMBOL,
+  TOOLTIP_CONTEXT_SYMBOL,
+  SERIES_STYLES_SYMBOL,
   POINT_INDEX_SYMBOL,
   HOVER_LINE_SYMBOL,
   GLYPH_HOVER_LISTENERS_SYMBOL,
@@ -33,6 +35,8 @@ export interface ExtendedSVGSVGElement extends SVGSVGElement {
   [TOOLTIP_CONTAINER_SYMBOL]?: HTMLElement
   [TOOLTIP_ELEMENT_SYMBOL]?: HTMLElement
   [TOOLTIP_RENDERER_SYMBOL]?: TooltipRenderer
+  [TOOLTIP_CONTEXT_SYMBOL]?: TooltipContext
+  [SERIES_STYLES_SYMBOL]?: Map<string, HoverSeriesStyle>
 
   [POINT_INDEX_SYMBOL]?: Map<string, HoverPointRef[]>
   [HOVER_LINE_SYMBOL]?: SVGLineElement

@@ -6,35 +6,36 @@ export const customTooltipRenderer: TooltipRenderer = {
     const root = document.createElement('div')
     root.classList.add('tooltip-root')
 
-    const xValue = datum.x !== undefined ? formatValue(datum.x) : 'N/A'
-    const xRow = document.createElement('div')
-    xRow.classList.add('tooltip-row')
-    xRow.innerHTML = `<div class="tooltip-label">X: ${xValue}</div>`
-    root.appendChild(xRow)
+    if (datum.points && datum.points.length > 0) {
+      datum.points.forEach((point, i) => {
+        const block = document.createElement('div')
+        block.classList.add('tooltip-series-block')
 
-    if (datum.series && datum.series.length > 0) {
-      datum.series.forEach((s, i) => {
-        const row = document.createElement('div')
-        row.classList.add('tooltip-row')
+        const header = document.createElement('div')
+        header.classList.add('tooltip-series-header')
+        header.textContent = point.seriesId
 
+        const valueRow = document.createElement('div')
+        valueRow.classList.add('tooltip-row')
         const swatch = document.createElement('span')
         swatch.classList.add('tooltip-swatch')
         swatch.setAttribute('data-series-index', String(i))
-
-        const label = document.createElement('span')
-        label.classList.add('tooltip-label')
-        label.textContent = `${s.seriesId}:`
-
         const value = document.createElement('span')
         value.classList.add('tooltip-value')
-        value.textContent = s.y !== undefined ? formatValue(s.y) : 'N/A'
+        value.textContent = formatValue(point.y)
+        valueRow.appendChild(swatch)
+        valueRow.appendChild(value)
 
-        row.appendChild(swatch)
-        row.appendChild(label)
-        row.appendChild(value)
-        root.appendChild(row)
+        block.appendChild(header)
+        block.appendChild(valueRow)
+        root.appendChild(block)
       })
     }
+
+    const xRow = document.createElement('div')
+    xRow.classList.add('tooltip-x-context')
+    xRow.textContent = `x = ${formatValue(datum.x)}`
+    root.appendChild(xRow)
 
     return root
   },

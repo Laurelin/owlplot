@@ -27,6 +27,12 @@ export type Padding = {
   left: number
 }
 
+export type AxisVisibility = {
+  ticks?: boolean // default: true
+  tickLabels?: boolean // default: true
+  axisLine?: boolean // default: true
+}
+
 export type Cartesian2DOptions = {
   xLabel?: string
   yLabel?: string
@@ -53,6 +59,7 @@ export type Cartesian2DOptions = {
       orientation?: 'horizontal' | 'vertical' | 'angled'
       angle?: number // for angled labels, in degrees
     }
+    axisVisibility?: Partial<AxisVisibility>
   }
 
   /** label orientation for X-axis */
@@ -81,6 +88,21 @@ export type Cartesian2DOptions = {
   yAxisLabelOrientation?: {
     orientation?: 'horizontal' | 'vertical' | 'angled'
     angle?: number // for angled labels, in degrees
+  }
+
+  /** Axis visibility configuration
+   * 
+   * Global defaults apply to all axes unless overridden by per-axis config.
+   * Right Y-axis uses yAxisRight.axisVisibility (does NOT fall back to global y config).
+   */
+  axisVisibility?: {
+    /** Global defaults for all axes */
+    ticks?: boolean
+    tickLabels?: boolean
+    axisLine?: boolean
+    /** Per-axis overrides */
+    x?: Partial<AxisVisibility>
+    y?: Partial<AxisVisibility>
   }
 }
 

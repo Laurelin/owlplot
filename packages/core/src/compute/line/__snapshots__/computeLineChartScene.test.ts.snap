@@ -333,6 +333,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "id": "series:a",
       "kind": "path",
       "style": {
+        "fill": {
+          "color": "none",
+          "type": "solid",
+        },
         "stroke": {
           "color": "currentColor",
           "type": "solid",
@@ -348,11 +352,19 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "metadata": {
         "tooltip": {
           "kind": "point",
+          "points": [
+            {
+              "seriesId": "a",
+              "x": 0,
+              "y": 1,
+            },
+          ],
           "seriesId": "a",
           "values": {
+            "a": 1,
             "x": 0,
-            "y": 1,
           },
+          "x": 0,
         },
       },
       "r": 2.5,
@@ -371,11 +383,19 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "metadata": {
         "tooltip": {
           "kind": "point",
+          "points": [
+            {
+              "seriesId": "a",
+              "x": 1,
+              "y": 2,
+            },
+          ],
           "seriesId": "a",
           "values": {
+            "a": 2,
             "x": 1,
-            "y": 2,
           },
+          "x": 1,
         },
       },
       "r": 2.5,
@@ -394,11 +414,19 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "metadata": {
         "tooltip": {
           "kind": "point",
+          "points": [
+            {
+              "seriesId": "a",
+              "x": 3,
+              "y": 1,
+            },
+          ],
           "seriesId": "a",
           "values": {
+            "a": 1,
             "x": 3,
-            "y": 1,
           },
+          "x": 3,
         },
       },
       "r": 2.5,
@@ -414,6 +442,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "id": "series:b",
       "kind": "path",
       "style": {
+        "fill": {
+          "color": "none",
+          "type": "solid",
+        },
         "stroke": {
           "color": "currentColor",
           "type": "solid",
@@ -429,11 +461,19 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "metadata": {
         "tooltip": {
           "kind": "point",
+          "points": [
+            {
+              "seriesId": "b",
+              "x": 0,
+              "y": 0,
+            },
+          ],
           "seriesId": "b",
           "values": {
+            "b": 0,
             "x": 0,
-            "y": 0,
           },
+          "x": 0,
         },
       },
       "r": 2.5,
@@ -452,11 +492,19 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "metadata": {
         "tooltip": {
           "kind": "point",
+          "points": [
+            {
+              "seriesId": "b",
+              "x": 1,
+              "y": 1,
+            },
+          ],
           "seriesId": "b",
           "values": {
+            "b": 1,
             "x": 1,
-            "y": 1,
           },
+          "x": 1,
         },
       },
       "r": 2.5,
@@ -475,11 +523,19 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "metadata": {
         "tooltip": {
           "kind": "point",
+          "points": [
+            {
+              "seriesId": "b",
+              "x": 2,
+              "y": 1.5,
+            },
+          ],
           "seriesId": "b",
           "values": {
+            "b": 1.5,
             "x": 2,
-            "y": 1.5,
           },
+          "x": 2,
         },
       },
       "r": 2.5,
@@ -498,11 +554,19 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "metadata": {
         "tooltip": {
           "kind": "point",
+          "points": [
+            {
+              "seriesId": "b",
+              "x": 3,
+              "y": 2,
+            },
+          ],
           "seriesId": "b",
           "values": {
+            "b": 2,
             "x": 3,
-            "y": 2,
           },
+          "x": 3,
         },
       },
       "r": 2.5,

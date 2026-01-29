@@ -24,6 +24,10 @@ owlplot exists to make charts that are:
 🚧 integrations (react/vue) coming soon  
 🚧 docs/examples expanding
 
+### Tooltips
+
+Owlplot treats x as semantic only when explicitly signaled (string domain, formatter, unit, or scale type). Positional x values are intentionally omitted from default tooltips.
+
 ## quickstart (dev)
 
 clone + install:

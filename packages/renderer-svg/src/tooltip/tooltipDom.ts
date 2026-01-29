@@ -1,13 +1,15 @@
 import type { TooltipDatum } from '@owlplot/core'
+import { TooltipKind } from '@owlplot/core'
 import type { TooltipRenderer } from './types'
 import type { HoverResolutionResult } from '../hover/types'
-import { TooltipKind } from '../shared/enums'
 import { calculateTooltipPosition } from './tooltipPosition'
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
 import {
   TOOLTIP_CONTAINER_SYMBOL,
   TOOLTIP_ELEMENT_SYMBOL,
   TOOLTIP_RENDERER_SYMBOL,
+  TOOLTIP_CONTEXT_SYMBOL,
+  SERIES_STYLES_SYMBOL,
 } from '../shared/symbols'
 import { ContainerId } from '../shared/enums'
 
@@ -21,23 +23,30 @@ function toTooltipDatum(result: HoverResolutionResult): TooltipDatum | null {
   const primaryPoint = result.points[result.primaryIndex]
   if (!primaryPoint) return null
 
+  // Strict derivation: only y values per series, x added once, no arbitrary keys
   const values: Record<string, unknown> = {}
   for (const { seriesId, point } of result.points) {
     values[seriesId] = point.y
   }
+  values.x = primaryPoint.point.x
 
-  // Determine tooltip kind based on number of points
-  // X_AXIS/Y_AXIS typically have multiple points (one per series)
-  // POINT/GLYPH typically have one point
+  // TEMPORARY: Determine tooltip kind based on number of points.
+  // Long-term: kind should come from resolution mode, not point count.
   const kind = result.points.length > 1 ? TooltipKind.X_AXIS : TooltipKind.POINT
 
-  // Include x coordinate in values for all modes (user wants x value in tooltip)
-  values.x = primaryPoint.point.x
+  // Convert points to TooltipPoint format (actual data being displayed)
+  const points = result.points.map(({ seriesId, point }) => ({
+    seriesId,
+    x: point.x,
+    y: point.y,
+  }))
 
   return {
     kind,
     values,
     seriesId: primaryPoint.seriesId,
+    points,
+    x: primaryPoint.point.x,
   }
 }
 
@@ -78,14 +87,18 @@ export function showTooltip(
   svg: SVGSVGElement,
   renderer: TooltipRenderer
 ) {
-  if (!Object.keys(datum.values).length && !datum.label && !datum.seriesId)
-    return
+  // Tooltip existence = points canonical; everything else (header, x, label) is optional.
+  if (!datum.points?.length) return
 
   hideTooltip(svg)
 
-  const container = getOrCreateTooltipContainer(svg)
-  const tooltipEl = renderer.render(datum)
   const extendedSvg = svg as ExtendedSVGSVGElement
+  const options = {
+    context: extendedSvg[TOOLTIP_CONTEXT_SYMBOL],
+    seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
+  }
+  const container = getOrCreateTooltipContainer(svg)
+  const tooltipEl = renderer.render(datum, options)
 
   container.innerHTML = ''
   container.appendChild(tooltipEl)

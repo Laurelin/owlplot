@@ -1,8 +1,9 @@
-import { Position, type LineChartConfig } from '../../config/types'
+import { Position, type LineChartConfig, type AxisVisibility } from '../../config/types'
 import type { ChartEnvironment } from '../../env/types'
 import type { ChartSize } from '../types'
 import {
   SceneNodeKind,
+  TooltipKind,
   type SceneNode,
   createSceneTooltip,
 } from '../../scene/types'
@@ -37,6 +38,21 @@ import { LabelOrientation } from '../cartesian2d/types/axis'
 export type HoverSeries = {
   id: string
   sortedPoints: ReadonlyArray<{ x: number; y: number }>
+}
+
+/**
+ * Resolve axis visibility with precedence: axis-specific overrides global defaults.
+ * Returns Required<AxisVisibility> to ensure all flags are explicitly boolean.
+ */
+function resolveAxisVisibility(
+  axis: Partial<AxisVisibility> | undefined,
+  global: AxisVisibility
+): Required<AxisVisibility> {
+  return {
+    ticks: axis?.ticks ?? global.ticks ?? true,
+    tickLabels: axis?.tickLabels ?? global.tickLabels ?? true,
+    axisLine: axis?.axisLine ?? global.axisLine ?? true,
+  }
 }
 
 /**
@@ -120,8 +136,14 @@ export function axisToSceneNodes(
   tickFont?: string,
   labelFont?: string,
   isYAxis = false,
-  hideLabelAtIntersection = false
+  hideLabelAtIntersection = false,
+  axisConfig?: AxisConfig
 ): SceneNode[] {
+  // Normalize visibility flags (default: true)
+  const showTicks = axisConfig?.showTicks !== false
+  const showTickLabels = axisConfig?.showTickLabels !== false
+  const showAxis = axisConfig?.showAxis !== false
+
   const isHorizontal =
     axis.orientation === Position.BOTTOM || axis.orientation === Position.TOP
 
@@ -148,44 +170,48 @@ export function axisToSceneNodes(
   const children: SceneNode[] = []
 
   // axis line
-  children.push({
-    kind: SceneNodeKind.PATH,
-    id: `axis-line:${axis.orientation}`,
-    d: `M ${axis.line.x1} ${axis.line.y1} L ${axis.line.x2} ${axis.line.y2}`,
-    style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
-  })
+  if (showAxis) {
+    children.push({
+      kind: SceneNodeKind.PATH,
+      id: `axis-line:${axis.orientation}`,
+      d: `M ${axis.line.x1} ${axis.line.y1} L ${axis.line.x2} ${axis.line.y2}`,
+      style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
+    })
+  }
 
   // ticks and tick labels
   axis.ticks.forEach((tick, i) => {
     const lbl = axis.labelLayouts[i]
 
     // tick mark
-    let tickStart: [number, number]
-    let tickEnd: [number, number]
+    if (showTicks) {
+      let tickStart: [number, number]
+      let tickEnd: [number, number]
 
-    if (isHorizontal) {
-      // bottom or top axis
-      tickStart = [tick.position, axis.line.y1]
-      tickEnd = [
-        tick.position,
-        axis.orientation === Position.BOTTOM
-          ? axis.line.y1 + axis.tickSize
-          : axis.line.y1 - axis.tickSize,
-      ]
-    } else {
-      // left or right axis
-      tickStart = [axis.line.x1, tick.position]
-      tickEnd = [axis.line.x1 - axis.tickSize, tick.position]
+      if (isHorizontal) {
+        // bottom or top axis
+        tickStart = [tick.position, axis.line.y1]
+        tickEnd = [
+          tick.position,
+          axis.orientation === Position.BOTTOM
+            ? axis.line.y1 + axis.tickSize
+            : axis.line.y1 - axis.tickSize,
+        ]
+      } else {
+        // left or right axis
+        tickStart = [axis.line.x1, tick.position]
+        tickEnd = [axis.line.x1 - axis.tickSize, tick.position]
+      }
+
+      children.push({
+        kind: SceneNodeKind.PATH,
+        id: `axis-tick:${axis.orientation}:${i}`,
+        d: `M ${tickStart[0]} ${tickStart[1]} L ${tickEnd[0]} ${tickEnd[1]}`,
+        style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
+      })
     }
 
-    children.push({
-      kind: SceneNodeKind.PATH,
-      id: `axis-tick:${axis.orientation}:${i}`,
-      d: `M ${tickStart[0]} ${tickStart[1]} L ${tickEnd[0]} ${tickEnd[1]}`,
-      style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
-    })
-
-    if (lbl) {
+    if (lbl && showTickLabels) {
       // Skip label at intersection (Y-axis at value 0 when X-axis also has 0)
       // For vertical axes, intersection is at the bottom (y1 for reversed range)
       const isAtIntersection =
@@ -261,6 +287,17 @@ export function scene(
     config.options?.yAxisLabelOrientation ??
     (config.options?.yLabel ? { orientation: LabelOrientation.VERTICAL } : undefined)
 
+  // Normalize axis visibility options
+  const axisVis = config.options?.axisVisibility
+  const globalVisibility: AxisVisibility = {
+    ticks: axisVis?.ticks ?? true,
+    tickLabels: axisVis?.tickLabels ?? true,
+    axisLine: axisVis?.axisLine ?? true,
+  }
+
+  const resolvedX = resolveAxisVisibility(axisVis?.x, globalVisibility)
+  const resolvedY = resolveAxisVisibility(axisVis?.y, globalVisibility)
+
   const bottomAxisConfig: AxisConfig = {
     tickCount: config.options?.xTickCount,
     axisLabel: config.options?.xLabel,
@@ -280,6 +317,9 @@ export function scene(
           angle: xAxisTitleOrientation.angle,
         }
       : undefined,
+    showTicks: resolvedX.ticks,
+    showTickLabels: resolvedX.tickLabels,
+    showAxis: resolvedX.axisLine,
   }
 
   const leftAxisConfig: AxisConfig = {
@@ -301,27 +341,39 @@ export function scene(
           angle: yAxisTitleOrientation.angle,
         }
       : undefined,
+    showTicks: resolvedY.ticks,
+    showTickLabels: resolvedY.tickLabels,
+    showAxis: resolvedY.axisLine,
   }
 
   const rightAxisConfig: AxisConfig | undefined = config.options?.yAxisRight
-    ? {
-        tickCount: config.options.yAxisRight.tickCount,
-        axisLabel: config.options.yAxisRight.axisLabel,
-        labelOrientation: config.options.yAxisRight.labelOrientation
-          ? {
-              orientation: config.options.yAxisRight.labelOrientation
-                .orientation as LabelOrientation | undefined,
-              angle: config.options.yAxisRight.labelOrientation.angle,
-            }
-          : undefined,
-        axisLabelOrientation: config.options.yAxisRight.labelOrientation
-          ? {
-              orientation: config.options.yAxisRight.labelOrientation
-                .orientation as LabelOrientation | undefined,
-              angle: config.options.yAxisRight.labelOrientation.angle,
-            }
-          : undefined,
-      }
+    ? (() => {
+        const resolved = resolveAxisVisibility(
+          config.options.yAxisRight.axisVisibility,
+          globalVisibility
+        )
+        return {
+          tickCount: config.options.yAxisRight.tickCount,
+          axisLabel: config.options.yAxisRight.axisLabel,
+          labelOrientation: config.options.yAxisRight.labelOrientation
+            ? {
+                orientation: config.options.yAxisRight.labelOrientation
+                  .orientation as LabelOrientation | undefined,
+                angle: config.options.yAxisRight.labelOrientation.angle,
+              }
+            : undefined,
+          axisLabelOrientation: config.options.yAxisRight.labelOrientation
+            ? {
+                orientation: config.options.yAxisRight.labelOrientation
+                  .orientation as LabelOrientation | undefined,
+                angle: config.options.yAxisRight.labelOrientation.angle,
+              }
+            : undefined,
+          showTicks: resolved.ticks,
+          showTickLabels: resolved.tickLabels,
+          showAxis: resolved.axisLine,
+        }
+      })()
     : undefined
 
   const { plotRect, scales, axes, xDomain, yDomain } = computeCartesianLayout(
@@ -363,7 +415,9 @@ export function scene(
       plotRect,
       config.options?.axisTickFont,
       config.options?.axisLabelFont,
-      false // isYAxis
+      false, // isYAxis
+      xAxisHasZero, // hideLabelAtIntersection
+      bottomAxisConfig // axisConfig
     ),
     ...axisToSceneNodes(
       axes.y,
@@ -371,7 +425,8 @@ export function scene(
       config.options?.axisTickFont,
       config.options?.axisLabelFont,
       true, // isYAxis
-      xAxisHasZero // hideLabelAtIntersection
+      xAxisHasZero, // hideLabelAtIntersection
+      leftAxisConfig // axisConfig
     )
   )
   if (axes.yRight) {
@@ -382,7 +437,8 @@ export function scene(
         config.options?.axisTickFont,
         config.options?.axisLabelFont,
         true, // isYAxis
-        xAxisHasZero // hideLabelAtIntersection
+        xAxisHasZero, // hideLabelAtIntersection
+        rightAxisConfig // axisConfig
       )
     )
   }
@@ -448,9 +504,9 @@ export function scene(
           },
           metadata: {
             tooltip: createSceneTooltip(
-              'point',
-              { x: pt.x, y: pt.y },
-              { seriesId: series.id }
+              TooltipKind.POINT,
+              [{ seriesId: series.id, x: pt.x, y: pt.y }],
+              {}
             ),
           },
         })

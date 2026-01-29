@@ -1,5 +1,6 @@
 import type { SceneNode } from '@owlplot/core'
-import type { TooltipRenderer } from '../tooltip/types'
+import { SceneNodeKind } from '@owlplot/core'
+import type { TooltipRenderer, TooltipContext, HoverSeriesStyle } from '../tooltip/types'
 import type { HoverMode } from '../hover/types'
 import type { HoverIndicatorConfig } from '../hover/indicators/types'
 
@@ -16,7 +17,11 @@ import { isHoverMetadata } from '../hover/types'
 import { buildPointIndexFromRenderedElements } from '../hover/pointIndex'
 
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
-import { POINT_INDEX_SYMBOL } from '../shared/symbols'
+import {
+  POINT_INDEX_SYMBOL,
+  TOOLTIP_CONTEXT_SYMBOL,
+  SERIES_STYLES_SYMBOL,
+} from '../shared/symbols'
 import {
   SceneMetadataKey,
   HoverModeKind,
@@ -25,11 +30,43 @@ import {
 import { hideXLine } from '../hover/indicators/xLine'
 import { hideYLine } from '../hover/indicators/yLine'
 
+/**
+ * Resolve scene node stroke to a single color for tooltip swatch.
+ * If stroke is a gradient → use first stop color only. Do not render gradients in tooltips.
+ */
+function strokeToSwatchColor(stroke: { type: string; color?: string; stops?: readonly { color: string }[] }): string | undefined {
+  if (stroke.type === 'solid' && stroke.color) return stroke.color
+  if ((stroke.type === 'linear' || stroke.type === 'radial') && stroke.stops?.[0])
+    return stroke.stops[0].color
+  return undefined
+}
+
+/**
+ * Walk scene and build seriesId → HoverSeriesStyle from nodes with id like "series:<id>".
+ * Stroke is resolved to a single color string (solid or first stop of gradient).
+ */
+function buildSeriesStylesFromScene(scene: SceneNode): Map<string, HoverSeriesStyle> {
+  const map = new Map<string, HoverSeriesStyle>()
+  function walk(node: SceneNode) {
+    if (node.id.startsWith('series:') && node.style?.stroke) {
+      const seriesId = node.id.slice(7)
+      const color = strokeToSwatchColor(node.style.stroke as { type: string; color?: string; stops?: readonly { color: string }[] })
+      if (color) map.set(seriesId, { stroke: color })
+    }
+    if (node.kind === SceneNodeKind.GROUP) {
+      node.children.forEach(walk)
+    }
+  }
+  walk(scene)
+  return map
+}
+
 export function renderSvgScene(
   scene: SceneNode,
   svg: SVGSVGElement,
   options?: {
     tooltip?: TooltipRenderer | null // null to disable tooltips
+    tooltipContext?: TooltipContext
     hoverMode?: HoverMode
     hoverIndicator?: HoverIndicatorConfig | HoverIndicatorConfig[]
   }
@@ -38,6 +75,12 @@ export function renderSvgScene(
   hideTooltip(svg)
   hideXLine(svg)
   hideYLine(svg)
+
+  const extendedSvg = svg as ExtendedSVGSVGElement
+  if (options?.tooltipContext != null) {
+    extendedSvg[TOOLTIP_CONTEXT_SYMBOL] = options.tooltipContext
+  }
+  extendedSvg[SERIES_STYLES_SYMBOL] = buildSeriesStylesFromScene(scene)
 
   clearSvg(svg)
   appendNode(scene, svg)

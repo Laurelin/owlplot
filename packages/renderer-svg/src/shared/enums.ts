@@ -1,8 +1,3 @@
-export enum TooltipKind {
-  X_AXIS = 'x-axis',
-  POINT = 'point',
-}
-
 export enum HoverModeKind {
   GLYPH = 'glyph',
   POINT = 'point',

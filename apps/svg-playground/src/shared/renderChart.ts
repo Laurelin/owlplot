@@ -29,6 +29,11 @@ export function renderChartInto(
     }
   )
 
-  renderSvgScene(result.scene, svg, demo.renderOptions)
+  renderSvgScene(result.scene, svg, {
+    tooltip: demo.renderOptions?.tooltip,
+    tooltipContext: demo.renderOptions?.tooltipContext,
+    hoverMode: demo.renderOptions?.hoverMode,
+    hoverIndicator: demo.renderOptions?.hoverIndicator,
+  })
   container.appendChild(svg)
 }

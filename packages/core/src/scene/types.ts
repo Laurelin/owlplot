@@ -13,6 +13,13 @@ export enum SceneNodeKind {
   TEXT = 'text',
 }
 
+export enum TooltipKind {
+  POINT = 'point',
+  X_AXIS = 'x-axis',
+  Y_AXIS = 'y-axis',
+  GLYPH = 'glyph',
+}
+
 // -----------------------------------
 // scene graph node types
 // -----------------------------------
@@ -34,11 +41,28 @@ export type SceneStyle = {
   fontWeight?: number | string
 }
 
+export type TooltipPoint = {
+  seriesId: string
+  x: number
+  y: number
+}
+
 export type TooltipDatum = {
-  kind: string
+  kind: TooltipKind
   seriesId?: string
+  /** DERIVED: Legacy-compat shape. Derived from points: { [seriesId]: y, x: x } */
   values: Record<string, unknown>
   label?: string
+  /**
+   * CANONICAL: The actual data points being displayed (x, y coordinates per series).
+   * All other fields (values, x, seriesId) are derived from this.
+   * 
+   * Identity constraint: seriesId exists ONLY in points[0].seriesId (for single-series tooltips).
+   * No other identity channel exists. Do not re-add seriesId elsewhere "for convenience".
+   */
+  points: TooltipPoint[]
+  /** DERIVED: Convenience accessor for points[0]?.x */
+  x: number
 }
 
 export type SceneBaseNode = {
@@ -91,14 +115,39 @@ export type SceneTextNode = SceneBaseNode & {
 // helper for building tooltip metadata
 // -----------------------------------
 
+/**
+ * Create tooltip datum from canonical point data.
+ * 
+ * @param kind - Tooltip kind (discriminated enum, not string)
+ * @param points - CANONICAL: Array of data points (one per series)
+ * @param options - Optional label
+ * @returns TooltipDatum with derived values and x fields
+ */
 export function createSceneTooltip(
-  kind: string,
-  values: Record<string, unknown>,
-  options?: { seriesId?: string; label?: string }
+  kind: TooltipKind,
+  points: TooltipPoint[],
+  options?: { label?: string }
 ): TooltipDatum {
+  if (points.length === 0) {
+    throw new Error('createSceneTooltip: points array cannot be empty')
+  }
+
+  const primaryPoint = points[0]!
+  const x = primaryPoint.x
+
+  // Strict derivation: only y values per series, x added once, no arbitrary keys
+  const values: Record<string, unknown> = {}
+  for (const point of points) {
+    values[point.seriesId] = point.y
+  }
+  values.x = x
+
   return {
     kind,
+    seriesId: primaryPoint.seriesId,
     values,
     ...options,
+    points,
+    x,
   }
 }

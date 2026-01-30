@@ -134,10 +134,25 @@ export function renderSvgScene(
 
   clearSvg(svg)
   const hoverMeta = scene.metadata?.[SceneMetadataKey.HOVER] as
-    | { scales: { x: (v: number) => number; y: (v: number) => number } }
+    | {
+        scales:
+          | { x: (v: number) => number; y: (v: number) => number }
+          | {
+              x: (v: number) => number
+              yLeft: (v: number) => number
+              yRight: (v: number) => number
+            }
+        series: Array<{ id: string; yAxis: 'left' | 'right' }>
+      }
     | undefined
+  const seriesYAxis =
+    hoverMeta?.series != null
+      ? Object.fromEntries(hoverMeta.series.map(s => [s.id, s.yAxis]))
+      : undefined
   const appendContext: AppendNodeContext | undefined =
-    hoverMeta?.scales != null ? { scales: hoverMeta.scales } : undefined
+    hoverMeta?.scales != null
+      ? { scales: hoverMeta.scales, seriesYAxis: seriesYAxis ?? {} }
+      : undefined
   appendNode(scene, svg, undefined, appendContext)
 
   const explicitHoverMode = options?.hoverMode

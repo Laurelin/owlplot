@@ -3,6 +3,8 @@ import { binarySearchNearestByX } from '../../shared/binarySearchNearestByX'
 import { DATA_HOVER_LAYER, DATA_SERIES_ID } from '../../shared/dataAttributes'
 import { SvgAttributeName } from '../../shared/enums'
 import type { HoverSeriesStyle } from '../../tooltip/types'
+import { isDualScale } from '../../render/appendNode'
+import type { HoverScales } from '../../render/appendNode'
 
 export type EmphasizedPoint = {
   element: SVGElement
@@ -14,8 +16,10 @@ export type EmphasizedPoint = {
  * Emphasis composes with existing placement transform (e.g. path translate(cx,cy)).
  */
 export type PointEmphasisContext = {
-  scales: { x: (v: number) => number; y: (v: number) => number }
+  scales: HoverScales
   pointIndex: PointIndex
+  /** Which Y axis each series uses. Present from hover metadata; optional in tests. */
+  seriesYAxis?: Record<string, 'left' | 'right'>
 }
 
 /** User override for overlay emphasis (precedence: user > series-derived > fallback). */
@@ -31,10 +35,12 @@ export type PointEmphasisOverlayOptions = {
 
 /** Context for overlay emphasis (no glyphs): scales, svg, series-derived data, optional user override. */
 export type PointEmphasisOverlayContext = {
-  scales: { x: (v: number) => number; y: (v: number) => number }
+  scales: HoverScales
   svg: SVGSVGElement
   seriesStyles?: Map<string, HoverSeriesStyle>
   emphasisOptions?: PointEmphasisOverlayOptions
+  /** Which Y axis each series uses. Present from hover metadata; optional in tests. */
+  seriesYAxis?: Record<string, 'left' | 'right'>
 }
 
 /** Result of point emphasis: dom transform or overlay with opaque restore. */
@@ -66,6 +72,15 @@ export function emphasizePoints(
   const emphasized: EmphasizedPoint[] = []
   let allFound = true
 
+  const seriesYAxis = context.seriesYAxis ?? {}
+  const getYScale = (seriesId: string): ((v: number) => number) => {
+    const side = seriesYAxis[seriesId] ?? 'left'
+    if (isDualScale(context.scales)) {
+      return side === 'right' ? context.scales.yRight : context.scales.yLeft
+    }
+    return context.scales.y
+  }
+
   for (const { seriesId, point } of nearestPoints) {
     const refs = context.pointIndex.get(seriesId)
     if (!refs || refs.length === 0) {
@@ -81,7 +96,7 @@ export function emphasizePoints(
 
     const element = nearestRef.element
     const cx = context.scales.x(nearestRef.x)
-    const cy = context.scales.y(nearestRef.y)
+    const cy = getYScale(seriesId)(nearestRef.y)
     const prevTransform = element.getAttribute(SvgAttributeName.TRANSFORM) ?? null
     // If element already has a placement transform (e.g. path with translate(cx,cy)),
     // only append scale(k) so it scales in place. Otherwise apply full scale-around-center.
@@ -121,10 +136,19 @@ export function drawPointEmphasisOverlay(
     'http://www.w3.org/2000/svg',
     'g'
   )
+  const seriesYAxis = context.seriesYAxis ?? {}
+  const getYScale = (seriesId: string): ((v: number) => number) => {
+    const side = seriesYAxis[seriesId] ?? 'left'
+    if (isDualScale(context.scales)) {
+      return side === 'right' ? context.scales.yRight : context.scales.yLeft
+    }
+    return context.scales.y
+  }
+
   g.setAttribute(DATA_HOVER_LAYER, 'point-emphasis')
   for (const { seriesId, point } of nearestPoints) {
     const cx = context.scales.x(point.x)
-    const cy = context.scales.y(point.y)
+    const cy = getYScale(seriesId)(point.y)
     const fill =
       context.emphasisOptions?.style?.fill ??
       context.seriesStyles?.get(seriesId)?.stroke ??

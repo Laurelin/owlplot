@@ -25,7 +25,10 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
 
   renderSvgScene(result.scene, svg, {
     tooltip: demo.renderOptions?.tooltip,
-    tooltipContext: demo.renderOptions?.tooltipContext,
+    tooltipContext: {
+      ...demo.renderOptions?.tooltipContext,
+      tooltipFormat: demo.config.options?.tooltipFormat,
+    },
     hoverMode: demo.renderOptions?.hoverMode,
     hoverIndicator: demo.renderOptions?.hoverIndicator,
   })

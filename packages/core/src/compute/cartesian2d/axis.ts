@@ -1,4 +1,5 @@
 import { Position } from '../../config/types'
+import { formatNumber, type NumberFormat } from '../../format/number'
 import { measureTextFont } from '../../text/helpers'
 import {
   DominantBaseline,
@@ -23,7 +24,10 @@ export const AXIS_TITLE_OFFSET = 4 // spacing between tick labels and axis title
 // Canonical vertical rotation per position (gated by axisLabelOrientation config)
 // Only encodes rotation IF vertical orientation is requested
 // Exported for use in adaptivePadding to ensure consistency
-export const AXIS_TITLE_ROTATION_BY_POSITION: Record<Position, number | undefined> = {
+export const AXIS_TITLE_ROTATION_BY_POSITION: Record<
+  Position,
+  number | undefined
+> = {
   [Position.LEFT]: -90, // IF vertical: top→bottom (inverted from bottom→top)
   [Position.RIGHT]: 90, // IF vertical: bottom→top (implemented but less tested)
   [Position.BOTTOM]: undefined, // horizontal default (wired + tested)
@@ -49,6 +53,8 @@ export function linearTickValues(
 export interface AxisConfig {
   tickCount?: number
   axisLabel?: string
+  /** undefined = AUTO (decimals from step); null = raw; otherwise explicit mode. */
+  axisTickFormat?: NumberFormat | null
   labelOrientation?: LabelOrientationConfig // for tick labels
   axisLabelOrientation?: LabelOrientationConfig // for axis title
   showTicks?: boolean
@@ -84,11 +90,25 @@ export function computeAxisLayout(
     rangeMin +
     ((v - domainMin) / (domainMax - domainMin)) * (rangeMax - rangeMin)
 
-  const ticks: AxisTick[] = values.map(value => ({
-    value,
-    position: project(value),
-    label: value.toString(),
-  }))
+  // Precedence: axisTickFormat === null → raw; undefined → AUTO; else explicit. formatNumber(undefined) = AUTO.
+  const tickStep = values.length >= 2 ? Math.abs(values[1]! - values[0]!) : 0
+  const effectiveFormat: NumberFormat | undefined =
+    config?.axisTickFormat === null
+      ? { mode: 'raw' }
+      : (config?.axisTickFormat ?? undefined)
+
+  let prevLabel: string | undefined
+  const ticks: AxisTick[] = values.map(value => {
+    const label = formatNumber(value, effectiveFormat, { tickStep })
+    // Skip duplicate label in layout so spacing math stays honest (optional, rare in AUTO)
+    const showLabel = prevLabel !== label
+    prevLabel = label
+    return {
+      value,
+      position: project(value),
+      label: showLabel ? label : '',
+    }
+  })
 
   const labelOrientation = config?.labelOrientation?.orientation
   const labelAngle = config?.labelOrientation?.angle
@@ -193,7 +213,7 @@ export function computeAxisLayout(
   // SECOND PASS: Compute axis title layout using tick label bounds
   // Layout positions are derived from measured bounds only; no magic offsets besides documented constants.
   const axisLabelLayout: AxisLayout['axisLabelLayout'] =
-        config?.axisLabel !== undefined
+    config?.axisLabel !== undefined
       ? (() => {
           const axisTitleOrientation = config.axisLabelOrientation?.orientation
           const axisTitleAngle = config.axisLabelOrientation?.angle

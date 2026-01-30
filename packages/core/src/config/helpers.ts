@@ -34,7 +34,7 @@ export function resolvePointConfig(
   const shape =
     typeof merged.shape === 'string'
       ? normalizePointShapeString(merged.shape)
-      : merged.shape ?? DEFAULT_POINT_SHAPE
+      : (merged.shape ?? DEFAULT_POINT_SHAPE)
   return {
     shape,
     size: merged.size ?? DEFAULT_POINT_SIZE,
@@ -42,9 +42,7 @@ export function resolvePointConfig(
 }
 
 /** Convert string shorthand to PointShape (config → scene boundary). */
-function normalizePointShapeString(
-  s: string
-): PointShape {
+function normalizePointShapeString(s: string): PointShape {
   switch (s) {
     case 'circle':
       return { kind: 'circle' }

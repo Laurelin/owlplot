@@ -13,14 +13,48 @@ import {
 } from '../shared/dataAttributes'
 import { buildTrianglePath, buildDiamondPath } from './pointShapePaths'
 
-/** Render context: scales required for ScenePointNode (domain → pixel). */
+type Scale = (v: number) => number
+
+/** Single-scale: one y. Dual-scale: yLeft and yRight. No mixing. */
+export type HoverScales =
+  | { x: Scale; y: Scale }
+  | { x: Scale; yLeft: Scale; yRight: Scale }
+
+export function isDualScale(
+  scales: HoverScales
+): scales is { x: Scale; yLeft: Scale; yRight: Scale } {
+  return 'yLeft' in scales
+}
+
+/** Render context: scales + series→axis map. Scale resolution by seriesId only. */
 export type AppendNodeContext = {
-  scales: { x: (v: number) => number; y: (v: number) => number }
+  scales: HoverScales
+  seriesYAxis: Record<string, 'left' | 'right'>
+}
+
+function getYScaleForSeries(
+  seriesId: string,
+  ctx: AppendNodeContext
+): (v: number) => number {
+  const side = ctx.seriesYAxis[seriesId] ?? 'left'
+  if (isDualScale(ctx.scales)) {
+    return side === 'right' ? ctx.scales.yRight : ctx.scales.yLeft
+  }
+  return ctx.scales.y
 }
 
 function stampPointDataAttributes(
   el: SVGElement,
-  node: { id: string; metadata?: { tooltip?: { kind: TooltipKind; seriesId?: string; points: { x: number; y: number }[] } } }
+  node: {
+    id: string
+    metadata?: {
+      tooltip?: {
+        kind: TooltipKind
+        seriesId?: string
+        points: { x: number; y: number }[]
+      }
+    }
+  }
 ): void {
   if (!node.metadata?.tooltip) return
   const datum = node.metadata.tooltip
@@ -50,7 +84,8 @@ export function appendNode(
       el = createSvgElement('g')
       if (node.transform)
         el.setAttribute(SvgAttributeName.TRANSFORM, node.transform)
-      const rootSvg = svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
+      const rootSvg =
+        svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
       node.children.forEach((child: SceneNode) =>
         appendNode(child, el!, rootSvg, context)
       )
@@ -78,14 +113,22 @@ export function appendNode(
       break
     }
     case SceneNodeKind.POINT: {
-      if (!context?.scales) {
+      if (!context?.scales || !context.seriesYAxis) {
         if (process.env.NODE_ENV !== 'production') {
-          console.warn('[owlplot] ScenePointNode requires render context with scales; skipping point.')
+          console.warn(
+            '[owlplot] ScenePointNode requires render context with scales and seriesYAxis; skipping point.'
+          )
         }
         break
       }
+      const seriesId = (node as unknown as { seriesId: string }).seriesId
+      if (seriesId == null && process.env.NODE_ENV !== 'production') {
+        console.warn('[owlplot] ScenePointNode requires seriesId; skipping point.')
+        break
+      }
       const cx = context.scales.x(node.x)
-      const cy = context.scales.y(node.y)
+      const yScale = getYScaleForSeries(seriesId, context)
+      const cy = yScale(node.y)
       const size = node.point.size
       const shape = node.point.shape
 
@@ -122,7 +165,10 @@ export function appendNode(
         el.setAttribute(SvgAttributeName.Y, String(cy))
         el.setAttribute(SvgAttributeName.TEXT_ANCHOR, 'middle')
         el.setAttribute(SvgAttributeName.DOMINANT_BASELINE, 'central')
-        el.setAttribute(SvgAttributeName.FONT_SIZE, String(Math.round(size * 2)))
+        el.setAttribute(
+          SvgAttributeName.FONT_SIZE,
+          String(Math.round(size * 2))
+        )
         el.textContent = shape.value
       } else {
         el = createSvgElement('circle')
@@ -155,8 +201,7 @@ export function appendNode(
   if (!el) return
   el.setAttribute(SvgAttributeName.ID, node.id)
   // Get root SVG for gradient defs (if parent is SVG, use it; otherwise use passed svg)
-  const rootSvg =
-    svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
+  const rootSvg = svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
   setStyle(el, node.style, rootSvg)
 
   // Store tooltip datum on element if present

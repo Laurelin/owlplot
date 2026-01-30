@@ -1,4 +1,5 @@
 import type { MeasureText } from '../../text/types'
+import { formatNumber, type NumberFormat } from '../../format/number'
 import { measureTextFont } from '../../text/helpers'
 import {
   linearTickValues,
@@ -11,6 +12,19 @@ import {
 } from './axis'
 import { LabelOrientation } from './types/axis'
 import { Position } from '../../config/types'
+
+/** Same formatting as axis: null → raw, undefined → AUTO, else explicit. */
+function formatTickLabel(
+  value: number,
+  config: AxisConfig | undefined,
+  tickStep: number
+): string {
+  const effectiveFormat: NumberFormat | undefined =
+    config?.axisTickFormat === null
+      ? { mode: 'raw' }
+      : (config?.axisTickFormat ?? undefined)
+  return formatNumber(value, effectiveFormat, { tickStep })
+}
 
 /**
  * Calculate bounding box dimensions for rotated text
@@ -64,9 +78,11 @@ export function computeAdaptivePadding(
     axisTickFont?: string
     axisLabelFont?: string
     extraPadding?: number
+    /** When dual-scale, right axis uses this domain for tick values (and thus padding). */
+    yDomainRight?: [number, number]
   } = {}
 ): AdaptivePadding {
-  const { axisTickFont, axisLabelFont, extraPadding = 0 } = options
+  const { axisTickFont, axisLabelFont, extraPadding = 0, yDomainRight } = options
 
   // start with zero
   let top = 0
@@ -87,13 +103,19 @@ export function computeAdaptivePadding(
       xDomain[1],
       xTickCount
     )
-    const bottomLabelOrientation = bottomAxisConfig?.labelOrientation?.orientation
+    const bottomTickStep =
+      bottomAxisTickValues.length >= 2
+        ? Math.abs(bottomAxisTickValues[1]! - bottomAxisTickValues[0]!)
+        : 0
+    const bottomLabelOrientation =
+      bottomAxisConfig?.labelOrientation?.orientation
     const bottomLabelAngle = bottomAxisConfig?.labelOrientation?.angle
 
     for (const v of bottomAxisTickValues) {
+      const label = formatTickLabel(v, bottomAxisConfig, bottomTickStep)
       let { width: w, height: h } = measureTextFont(
         measureText,
-        String(v),
+        label,
         axisTickFont,
         DEFAULT_TICK_FONT
       )
@@ -204,13 +226,18 @@ export function computeAdaptivePadding(
       yDomain[1],
       yTickCount
     )
+    const leftTickStep =
+      leftAxisTickValues.length >= 2
+        ? Math.abs(leftAxisTickValues[1]! - leftAxisTickValues[0]!)
+        : 0
     const leftLabelOrientation = leftAxisConfig?.labelOrientation?.orientation
     const leftLabelAngle = leftAxisConfig?.labelOrientation?.angle
 
     for (const v of leftAxisTickValues) {
+      const label = formatTickLabel(v, leftAxisConfig, leftTickStep)
       let { width: w, height: h } = measureTextFont(
         measureText,
-        String(v),
+        label,
         axisTickFont,
         DEFAULT_TICK_FONT
       )
@@ -277,21 +304,18 @@ export function computeAdaptivePadding(
     }
   }
 
-  // left axis needs space for tick text + title
-  // With textAnchor END: x = -offset, text ends at x and extends left by width
-  // Tick label space: offset + width
-  const leftTickLabelSpace =
-    DEFAULT_TICK_LABEL_OFFSET + maxLeftTickLabelWidth
-
-  // Title space: positioned to left of tick labels with offset
-  // Title with MIDDLE textAnchor: center at left edge of ticks - offset - half title width
-  const leftTitleSpace = leftAxisConfig?.axisLabel
-    ? leftAxisTitleWidth + AXIS_TITLE_OFFSET
-    : 0
-  left = Math.max(
-    left,
-    leftTickLabelSpace + leftTitleSpace + extraPadding + MIN_PADDING_BUFFER
-  )
+  // left axis needs space for tick text + title (only when left axis is present; right-only has no left axis)
+  if (leftAxisConfig) {
+    const leftTickLabelSpace =
+      DEFAULT_TICK_LABEL_OFFSET + maxLeftTickLabelWidth
+    const leftTitleSpace = leftAxisConfig.axisLabel
+      ? leftAxisTitleWidth + AXIS_TITLE_OFFSET
+      : 0
+    left = Math.max(
+      left,
+      leftTickLabelSpace + leftTitleSpace + extraPadding + MIN_PADDING_BUFFER
+    )
+  }
 
   // right axis needs space (use right axis config if provided, else left)
   let maxRightTickLabelWidth = 0
@@ -299,20 +323,30 @@ export function computeAdaptivePadding(
   const showRightTickLabels = rightAxisConfig?.showTickLabels !== false
 
   if (showRightTickLabels) {
+    const rightYDomain = yDomainRight ?? yDomain
     const rightAxisTickValues = rightAxisConfig
       ? linearTickValues(
-          yDomain[0],
-          yDomain[1],
+          rightYDomain[0],
+          rightYDomain[1],
           rightAxisConfig.tickCount ?? yTickCount
         )
-      : linearTickValues(yDomain[0], yDomain[1], yTickCount)
+      : linearTickValues(rightYDomain[0], rightYDomain[1], yTickCount)
+    const rightTickStep =
+      rightAxisTickValues.length >= 2
+        ? Math.abs(rightAxisTickValues[1]! - rightAxisTickValues[0]!)
+        : 0
     const rightLabelOrientation = rightAxisConfig?.labelOrientation?.orientation
     const rightLabelAngle = rightAxisConfig?.labelOrientation?.angle
 
     for (const v of rightAxisTickValues) {
+      const label = formatTickLabel(
+        v,
+        rightAxisConfig ?? leftAxisConfig,
+        rightTickStep
+      )
       let { width: w, height: h } = measureTextFont(
         measureText,
-        String(v),
+        label,
         axisTickFont,
         DEFAULT_TICK_FONT
       )
@@ -383,8 +417,7 @@ export function computeAdaptivePadding(
   // right axis needs space for tick text + title
   // With textAnchor START: x = offset, text starts at x and extends right by width
   // Tick label space: offset + width
-  const rightTickLabelSpace =
-    DEFAULT_TICK_LABEL_OFFSET + maxRightTickLabelWidth
+  const rightTickLabelSpace = DEFAULT_TICK_LABEL_OFFSET + maxRightTickLabelWidth
 
   // Title space: positioned to right of tick labels with offset
   // Title with MIDDLE textAnchor: center at right edge of ticks + offset + half title width

@@ -26,8 +26,16 @@ export function createPointResolver(): HoverResolver {
       // Invert mouse coords to domain for binary search
       const domainX = metadata.xInvert(mouseSvgX)
 
+      const isDual = 'yLeft' in scales
+      const getYScale = (s: (typeof series)[0]): ((v: number) => number) => {
+        if (isDual) return s.yAxis === 'right' ? scales.yRight : scales.yLeft
+        return scales.y
+      }
+
       for (const s of series) {
         if (!s.sortedPoints || s.sortedPoints.length === 0) continue
+
+        const yScale = getYScale(s)
 
         // Binary search nearest index by x (in domain space)
         const nearestByX = binarySearchNearestByX(s.sortedPoints, domainX)
@@ -46,7 +54,7 @@ export function createPointResolver(): HoverResolver {
 
           // Screen-space euclidean distance
           const candidateSvgX = scales.x(candidate.x)
-          const candidateSvgY = scales.y(candidate.y)
+          const candidateSvgY = yScale(candidate.y)
           const dx = candidateSvgX - mouseSvgX
           const dy = candidateSvgY - mouseSvgY
           const distance = Math.sqrt(dx * dx + dy * dy)

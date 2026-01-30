@@ -1,6 +1,7 @@
 export * from './compute/computeChartScene'
 export * from './config/types'
 export * from './env/types'
+export * from './format/number'
 export * from './scene/types'
 export * from './text/helpers'
 export type { HoverSeries } from './compute/line/scene'

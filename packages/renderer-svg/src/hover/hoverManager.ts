@@ -111,12 +111,16 @@ export function attachDataHover(
   const previousKeys = new Map<string, string>()
 
   const extendedSvg = svg as ExtendedSVGSVGElement
+  const seriesYAxis = Object.fromEntries(
+    metadata.series.map(s => [s.id, s.yAxis])
+  ) as Record<string, 'left' | 'right'>
   const context: HoverIndicatorContext = {
     svg,
     scales: metadata.scales,
     plotRect: metadata.plotRect,
     seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
     seriesPointShapes: extendedSvg[SERIES_POINT_SHAPES_SYMBOL],
+    seriesYAxis,
   }
 
   const handlePointerMove = (event: PointerEvent) => {
@@ -248,12 +252,16 @@ export function attachGlyphHover(
   const previousHandles = new Map<string, IndicatorHandle>()
   const previousKeys = new Map<string, string>()
 
+  const seriesYAxis = Object.fromEntries(
+    metadata.series.map(s => [s.id, s.yAxis])
+  ) as Record<string, 'left' | 'right'>
   const context: HoverIndicatorContext = {
     svg,
     scales: metadata.scales,
     plotRect: metadata.plotRect,
     seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
     seriesPointShapes: extendedSvg[SERIES_POINT_SHAPES_SYMBOL],
+    seriesYAxis,
   }
 
   const handlePointerMove = (event: PointerEvent) => {

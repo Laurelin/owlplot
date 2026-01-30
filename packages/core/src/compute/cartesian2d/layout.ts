@@ -13,14 +13,22 @@ export type CartesianLayoutResult = {
     y: (value: number) => number
     xInvert: (px: number) => number
     yInvert: (py: number) => number
+    /** Present when dual-scale (two Y domains). Use per-series for path/points. */
+    yLeft?: (value: number) => number
+    yRight?: (value: number) => number
+    yInvertLeft?: (py: number) => number
+    yInvertRight?: (py: number) => number
   }
   axes: {
     x: AxisLayout
-    y: AxisLayout
+    y?: AxisLayout
     yRight?: AxisLayout
   }
   xDomain: [number, number]
   yDomain: [number, number]
+  /** Present when dual-scale. yDomain remains left domain for backward compat. */
+  yDomainLeft?: [number, number]
+  yDomainRight?: [number, number]
 }
 
 export function computeCartesianLayout(
@@ -30,66 +38,131 @@ export function computeCartesianLayout(
   options: {
     padding: { top: number; right: number; bottom: number; left: number }
     xAxis?: AxisConfig
-    yAxis?: AxisConfig
+    /** When null, no left Y axis (right-only mode). When undefined, use left axis. */
+    yAxis?: AxisConfig | null
     yAxisRight?: AxisConfig
+    /** Explicit right Y domain (dual-scale). If absent, derived from series with yAxis: 'right'. */
+    yAxisRightDomain?: [number, number]
     enableAdaptivePadding?: boolean
     axisTickFont?: string
     axisLabelFont?: string
   }
 ): CartesianLayoutResult {
-  // 1) figure domain extents
+  // 1) X domain and partition series by Y axis
   let xMin = Infinity,
-    xMax = -Infinity,
-    yMin = Infinity,
-    yMax = -Infinity
-
+    xMax = -Infinity
   for (const s of series) {
     for (const p of s.points) {
       if (p.y === null) continue
       if (p.x < xMin) xMin = p.x
       if (p.x > xMax) xMax = p.x
-      if (p.y < yMin) yMin = p.y
-      if (p.y > yMax) yMax = p.y
     }
   }
-
-  // degenerate domain protection
   if (xMin === Infinity || xMax === -Infinity) {
     xMin = 0
     xMax = 1
   }
-  if (yMin === Infinity || yMax === -Infinity) {
-    yMin = 0
-    yMax = 1
-  }
   if (xMin === xMax) xMax = xMin + 1
-  if (yMin === yMax) yMax = yMin + 1
 
-  // 2) compute adaptive padding if enabled
+  const leftSeries = series.filter(s => s.yAxis !== 'right')
+  const rightSeries = series.filter(s => s.yAxis === 'right')
+  const isDualScale =
+    rightSeries.length > 0 || options.yAxisRightDomain !== undefined
+
+  // 2) Resolved Y scales (scale config: domain per side)
+  let yMin: number
+  let yMax: number
+  let yMinLeft: number
+  let yMaxLeft: number
+  let yMinRight: number
+  let yMaxRight: number
+
+  if (isDualScale) {
+    yMinLeft = Infinity
+    yMaxLeft = -Infinity
+    for (const s of leftSeries) {
+      for (const p of s.points) {
+        if (p.y === null) continue
+        if (p.y < yMinLeft) yMinLeft = p.y
+        if (p.y > yMaxLeft) yMaxLeft = p.y
+      }
+    }
+    if (yMinLeft === Infinity || yMaxLeft === -Infinity) {
+      yMinLeft = 0
+      yMaxLeft = 1
+    }
+    if (yMinLeft === yMaxLeft) yMaxLeft = yMinLeft + 1
+
+    if (options.yAxisRightDomain !== undefined) {
+      ;[yMinRight, yMaxRight] = options.yAxisRightDomain
+      if (yMinRight === yMaxRight) yMaxRight = yMinRight + 1
+    } else {
+      yMinRight = Infinity
+      yMaxRight = -Infinity
+      for (const s of rightSeries) {
+        for (const p of s.points) {
+          if (p.y === null) continue
+          if (p.y < yMinRight) yMinRight = p.y
+          if (p.y > yMaxRight) yMaxRight = p.y
+        }
+      }
+      if (yMinRight === Infinity || yMaxRight === -Infinity) {
+        yMinRight = 0
+        yMaxRight = 1
+      }
+      if (yMinRight === yMaxRight) yMaxRight = yMinRight + 1
+    }
+    yMin = yMinLeft
+    yMax = yMaxLeft
+  } else {
+    yMin = Infinity
+    yMax = -Infinity
+    for (const s of series) {
+      for (const p of s.points) {
+        if (p.y === null) continue
+        if (p.y < yMin) yMin = p.y
+        if (p.y > yMax) yMax = p.y
+      }
+    }
+    if (yMin === Infinity || yMax === -Infinity) {
+      yMin = 0
+      yMax = 1
+    }
+    if (yMin === yMax) yMax = yMin + 1
+    yMinLeft = yMin
+    yMaxLeft = yMax
+    yMinRight = yMin
+    yMaxRight = yMax
+  }
+
+  // 3) compute adaptive padding if enabled
   const userPadding = options.padding
   let finalPadding = userPadding
 
   if (options.enableAdaptivePadding !== false) {
     const xTickCount = options.xAxis?.tickCount
-    const yTickCount = options.yAxis?.tickCount
+    const yTickCount =
+      options.yAxis !== null && options.yAxis !== undefined
+        ? options.yAxis.tickCount
+        : options.yAxisRight?.tickCount
     const adaptivePadding = computeAdaptivePadding(
       size.width,
       size.height,
       [xMin, xMax],
-      [yMin, yMax],
+      [yMinLeft, yMaxLeft],
       measureText,
       options.xAxis,
-      options.yAxis,
+      options.yAxis ?? undefined,
       options.yAxisRight,
       xTickCount ?? 5,
       yTickCount ?? 5,
       {
         axisTickFont: options.axisTickFont,
         axisLabelFont: options.axisLabelFont,
+        yDomainRight: isDualScale ? [yMinRight, yMaxRight] : undefined,
       }
     )
 
-    // merge user padding with adaptive padding (max of each side)
     finalPadding = {
       top: Math.max(userPadding.top, adaptivePadding.top),
       right: Math.max(userPadding.right, adaptivePadding.right),
@@ -98,7 +171,7 @@ export function computeCartesianLayout(
     }
   }
 
-  // 3) compute plot rect from final padding
+  // 4) compute plot rect from final padding
   const { top, right, bottom, left } = finalPadding
   const plotRect: PlotRect = {
     x: left,
@@ -107,7 +180,7 @@ export function computeCartesianLayout(
     height: Math.max(0, size.height - top - bottom),
   }
 
-  // 4) build scale functions
+  // 5) build scale functions
   const xScale = (v: number): number =>
     plotRect.x + ((v - xMin) / (xMax - xMin)) * plotRect.width
 
@@ -116,7 +189,16 @@ export function computeCartesianLayout(
     plotRect.height -
     ((v - yMin) / (yMax - yMin)) * plotRect.height
 
-  // 5) build scale inversion functions (for axis-aligned hover)
+  const yScaleLeft = (v: number): number =>
+    plotRect.y +
+    plotRect.height -
+    ((v - yMinLeft) / (yMaxLeft - yMinLeft)) * plotRect.height
+
+  const yScaleRight = (v: number): number =>
+    plotRect.y +
+    plotRect.height -
+    ((v - yMinRight) / (yMaxRight - yMinRight)) * plotRect.height
+
   const xInvert = (px: number): number => {
     const relativeX = (px - plotRect.x) / plotRect.width
     return xMin + relativeX * (xMax - xMin)
@@ -125,6 +207,16 @@ export function computeCartesianLayout(
   const yInvert = (py: number): number => {
     const relativeY = (plotRect.height - (py - plotRect.y)) / plotRect.height
     return yMin + relativeY * (yMax - yMin)
+  }
+
+  const yInvertLeft = (py: number): number => {
+    const relativeY = (plotRect.height - (py - plotRect.y)) / plotRect.height
+    return yMinLeft + relativeY * (yMaxLeft - yMinLeft)
+  }
+
+  const yInvertRight = (py: number): number => {
+    const relativeY = (plotRect.height - (py - plotRect.y)) / plotRect.height
+    return yMinRight + relativeY * (yMaxRight - yMinRight)
   }
 
   // 6) axis layouts (local axis coords)
@@ -140,23 +232,26 @@ export function computeCartesianLayout(
     }
   )
 
-  const yAxis: AxisLayout = computeAxisLayout(
-    Position.LEFT,
-    [yMin, yMax],
-    [plotRect.height, 0], // reversed: bottom to top for standard Y-axis
-    measureText,
-    options.yAxis,
-    {
-      axisTickFont: options.axisTickFont,
-      axisLabelFont: options.axisLabelFont,
-    }
-  )
+  const yAxis: AxisLayout | undefined =
+    options.yAxis !== null && options.yAxis !== undefined
+      ? computeAxisLayout(
+          Position.LEFT,
+          [yMinLeft, yMaxLeft],
+          [plotRect.height, 0],
+          measureText,
+          options.yAxis,
+          {
+            axisTickFont: options.axisTickFont,
+            axisLabelFont: options.axisLabelFont,
+          }
+        )
+      : undefined
 
   const yAxisRight: AxisLayout | undefined = options.yAxisRight
     ? computeAxisLayout(
         Position.RIGHT,
-        [yMin, yMax],
-        [plotRect.height, 0], // reversed: bottom to top for standard Y-axis
+        [yMinRight, yMaxRight],
+        [plotRect.height, 0],
         measureText,
         options.yAxisRight,
         {
@@ -166,11 +261,34 @@ export function computeCartesianLayout(
       )
     : undefined
 
+  const axes: CartesianLayoutResult['axes'] = {
+    x: xAxis,
+    ...(yAxis !== undefined && { y: yAxis }),
+    ...(yAxisRight !== undefined && { yRight: yAxisRight }),
+  }
+
+  const scales: CartesianLayoutResult['scales'] = {
+    x: xScale,
+    y: yScale,
+    xInvert,
+    yInvert,
+    ...(isDualScale && {
+      yLeft: yScaleLeft,
+      yRight: yScaleRight,
+      yInvertLeft,
+      yInvertRight,
+    }),
+  }
+
   return {
     plotRect,
-    scales: { x: xScale, y: yScale, xInvert, yInvert },
-    axes: { x: xAxis, y: yAxis, yRight: yAxisRight },
+    scales,
+    axes,
     xDomain: [xMin, xMax],
-    yDomain: [yMin, yMax],
+    yDomain: [yMinLeft, yMaxLeft],
+    ...(isDualScale && {
+      yDomainLeft: [yMinLeft, yMaxLeft] as [number, number],
+      yDomainRight: [yMinRight, yMaxRight] as [number, number],
+    }),
   }
 }

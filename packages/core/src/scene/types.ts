@@ -59,7 +59,7 @@ export type TooltipDatum = {
   /**
    * CANONICAL: The actual data points being displayed (x, y coordinates per series).
    * All other fields (values, x, seriesId) are derived from this.
-   * 
+   *
    * Identity constraint: seriesId exists ONLY in points[0].seriesId (for single-series tooltips).
    * No other identity channel exists. Do not re-add seriesId elsewhere "for convenience".
    */
@@ -108,6 +108,8 @@ export type SceneCircleNode = SceneBaseNode & {
 /** Point mark: domain position + shape intent only. Renderer realizes geometry. */
 export type ScenePointNode = SceneBaseNode & {
   kind: SceneNodeKind.POINT
+  /** Series this point belongs to (semantic; used for scale resolution in dual-scale). */
+  seriesId: string
   /** Domain x (data space). */
   x: number
   /** Domain y (data space). */
@@ -131,7 +133,7 @@ export type SceneTextNode = SceneBaseNode & {
 
 /**
  * Create tooltip datum from canonical point data.
- * 
+ *
  * @param kind - Tooltip kind (discriminated enum, not string)
  * @param points - CANONICAL: Array of data points (one per series)
  * @param options - Optional label

@@ -2,16 +2,19 @@ import { HoverIndicatorKind, AnimationEasing } from '../../shared/enums'
 import type { HoverResolutionResult } from '../types'
 import type { HoverSeriesStyle } from '../../tooltip/types'
 import type { PointShape } from '@owlplot/core'
+import type { HoverScales } from '../../render/appendNode'
 
 // Indicator context - geometry only, no axis semantics; series data for emphasis styling
 export type HoverIndicatorContext = {
   svg: SVGSVGElement
-  scales: { x: (v: number) => number; y: (v: number) => number }
+  scales: HoverScales
   plotRect: { x: number; y: number; width: number; height: number }
   /** Series stroke/fill for overlay emphasis (from SERIES_STYLES_SYMBOL). */
   seriesStyles?: Map<string, HoverSeriesStyle>
   /** Series point shape for overlay default shape (from SERIES_POINT_SHAPES_SYMBOL). */
   seriesPointShapes?: Map<string, PointShape>
+  /** Which Y axis each series uses (for correct scale per point). Present from hover metadata; optional in tests. */
+  seriesYAxis?: Record<string, 'left' | 'right'>
 }
 
 // Indicator handle - opaque type for cleanup

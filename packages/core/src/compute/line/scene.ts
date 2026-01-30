@@ -1,4 +1,8 @@
-import { Position, type LineChartConfig, type AxisVisibility } from '../../config/types'
+import {
+  Position,
+  type LineChartConfig,
+  type AxisVisibility,
+} from '../../config/types'
 import { resolvePointConfig } from '../../config/helpers'
 import type { ChartEnvironment } from '../../env/types'
 import type { ChartSize } from '../types'
@@ -24,7 +28,6 @@ import type { AxisConfig } from '../cartesian2d/axis'
 import { DEFAULT_TICK_FONT, DEFAULT_LABEL_FONT } from '../cartesian2d/axis'
 import { LabelOrientation } from '../cartesian2d/types/axis'
 
-
 /**
  * Core → Renderer Contract for Hover Metadata:
  *
@@ -38,6 +41,8 @@ import { LabelOrientation } from '../cartesian2d/types/axis'
  */
 export type HoverSeries = {
   id: string
+  /** Which Y axis (scale) this series uses. Always present (single-scale: 'left'). */
+  yAxis: 'left' | 'right'
   sortedPoints: ReadonlyArray<{ x: number; y: number }>
 }
 
@@ -221,7 +226,7 @@ export function axisToSceneNodes(
         Math.abs(tick.value) < 1e-10 &&
         Math.abs(tick.position - axis.line.y1) < 1e-10
 
-      if (!isAtIntersection) {
+      if (!isAtIntersection && lbl.text !== '') {
         const transform =
           lbl.rotation !== undefined
             ? `rotate(${lbl.rotation} ${lbl.x} ${lbl.y})`
@@ -282,11 +287,14 @@ export function scene(
   const padding = mergePadding(config.options?.padding)
 
   // Config normalization: set UX-friendly defaults (compute layer remains explicit + dumb)
-  const xAxisTitleOrientation = config.options?.xAxisLabelOrientation ?? undefined
+  const xAxisTitleOrientation =
+    config.options?.xAxisLabelOrientation ?? undefined
   // Default y-axis title to vertical orientation if not specified
   const yAxisTitleOrientation =
     config.options?.yAxisLabelOrientation ??
-    (config.options?.yLabel ? { orientation: LabelOrientation.VERTICAL } : undefined)
+    (config.options?.yLabel
+      ? { orientation: LabelOrientation.VERTICAL }
+      : undefined)
 
   // Normalize axis visibility options
   const axisVis = config.options?.axisVisibility
@@ -302,6 +310,7 @@ export function scene(
   const bottomAxisConfig: AxisConfig = {
     tickCount: config.options?.xTickCount,
     axisLabel: config.options?.xLabel,
+    axisTickFormat: config.options?.axisTickFormat,
     labelOrientation: config.options?.xLabelOrientation
       ? {
           orientation: config.options.xLabelOrientation.orientation as
@@ -326,6 +335,7 @@ export function scene(
   const leftAxisConfig: AxisConfig = {
     tickCount: config.options?.yTickCount,
     axisLabel: config.options?.yLabel,
+    axisTickFormat: config.options?.axisTickFormat,
     labelOrientation: config.options?.yLabelOrientation
       ? {
           orientation: config.options.yLabelOrientation.orientation as
@@ -356,6 +366,10 @@ export function scene(
         return {
           tickCount: config.options.yAxisRight.tickCount,
           axisLabel: config.options.yAxisRight.axisLabel,
+          axisTickFormat:
+            config.options.yAxisRight.axisTickFormat !== undefined
+              ? config.options.yAxisRight.axisTickFormat
+              : config.options?.axisTickFormat,
           labelOrientation: config.options.yAxisRight.labelOrientation
             ? {
                 orientation: config.options.yAxisRight.labelOrientation
@@ -363,16 +377,15 @@ export function scene(
                 angle: config.options.yAxisRight.labelOrientation.angle,
               }
             : undefined,
-          axisLabelOrientation:
-            config.options.yAxisRight.labelOrientation
-              ? {
-                  orientation: config.options.yAxisRight.labelOrientation
-                    .orientation as LabelOrientation | undefined,
-                  angle: config.options.yAxisRight.labelOrientation.angle,
-                }
-              : config.options.yAxisRight.axisLabel
-                ? { orientation: LabelOrientation.VERTICAL }
-                : undefined,
+          axisLabelOrientation: config.options.yAxisRight.labelOrientation
+            ? {
+                orientation: config.options.yAxisRight.labelOrientation
+                  .orientation as LabelOrientation | undefined,
+                angle: config.options.yAxisRight.labelOrientation.angle,
+              }
+            : config.options.yAxisRight.axisLabel
+              ? { orientation: LabelOrientation.VERTICAL }
+              : undefined,
           showTicks: resolved.ticks,
           showTickLabels: resolved.tickLabels,
           showAxis: resolved.axisLine,
@@ -380,20 +393,25 @@ export function scene(
       })()
     : undefined
 
-  const { plotRect, scales, axes, xDomain, yDomain } = computeCartesianLayout(
-    config.series,
-    size,
-    env.measureText,
-    {
+  const isRightOnly =
+    config.options?.yAxis?.position === 'right' && config.options?.yAxisRight
+  const layoutYAxis: AxisConfig | null = isRightOnly ? null : leftAxisConfig
+
+  const { plotRect, scales, axes, xDomain, yDomain, yDomainLeft, yDomainRight } =
+    computeCartesianLayout(config.series, size, env.measureText, {
       padding,
       xAxis: bottomAxisConfig,
-      yAxis: leftAxisConfig,
+      yAxis: layoutYAxis,
       yAxisRight: rightAxisConfig,
+      yAxisRightDomain: config.options?.yAxisRight?.domain,
       enableAdaptivePadding: config.options?.enableAdaptivePadding ?? true,
       axisTickFont: config.options?.axisTickFont,
       axisLabelFont: config.options?.axisLabelFont,
-    }
-  )
+    })
+
+  const isDualScale = scales.yLeft !== undefined && scales.yRight !== undefined
+  const getYScale = (series: LineSeries): (v: number) => number =>
+    isDualScale && series.yAxis === 'right' ? scales.yRight! : scales.y
 
   const children: SceneNode[] = []
 
@@ -422,17 +440,21 @@ export function scene(
       false, // isYAxis
       xAxisHasZero, // hideLabelAtIntersection
       bottomAxisConfig // axisConfig
-    ),
-    ...axisToSceneNodes(
-      axes.y,
-      plotRect,
-      config.options?.axisTickFont,
-      config.options?.axisLabelFont,
-      true, // isYAxis
-      xAxisHasZero, // hideLabelAtIntersection
-      leftAxisConfig // axisConfig
     )
   )
+  if (axes.y !== undefined) {
+    children.push(
+      ...axisToSceneNodes(
+        axes.y,
+        plotRect,
+        config.options?.axisTickFont,
+        config.options?.axisLabelFont,
+        true, // isYAxis
+        xAxisHasZero, // hideLabelAtIntersection
+        leftAxisConfig // axisConfig
+      )
+    )
+  }
   if (axes.yRight) {
     children.push(
       ...axisToSceneNodes(
@@ -453,15 +475,17 @@ export function scene(
   for (const series of config.series) {
     // Normalize at boundary: config → scene is the ONLY place strings exist
     const paint = resolveSeriesPaint(series, pointsEnabled)
+    const yScaleForSeries = getYScale(series)
 
     // Line path: uses paint.stroke for stroke, explicitly sets fill to none (lines don't fill unless area charts)
     // Use thicker stroke for gradients to make them visible
     const strokePaint = paint.stroke ?? DEFAULT_SOLID_CURRENT_COLOR
-    const isGradient = strokePaint.type === 'linear' || strokePaint.type === 'radial'
+    const isGradient =
+      strokePaint.type === 'linear' || strokePaint.type === 'radial'
     children.push({
       kind: SceneNodeKind.PATH,
       id: `series:${series.id}`,
-      d: buildLinePathD(series.points, scales.x, scales.y),
+      d: buildLinePathD(series.points, scales.x, yScaleForSeries),
       style: {
         fill: TRANSPARENT_FILL, // Explicitly set to none to prevent SVG default black fill
         stroke: strokePaint,
@@ -482,7 +506,10 @@ export function scene(
         if (!pointFill && paint.stroke) {
           if (paint.stroke.type === 'solid') {
             pointFill = paint.stroke
-          } else if (paint.stroke.type === 'linear' || paint.stroke.type === 'radial') {
+          } else if (
+            paint.stroke.type === 'linear' ||
+            paint.stroke.type === 'radial'
+          ) {
             try {
               const normalized = normalizeGradientPaint(paint.stroke)
               const firstStop = normalized.stops[0]
@@ -499,6 +526,7 @@ export function scene(
         children.push({
           kind: SceneNodeKind.POINT,
           id: `point:${series.id}:${index}`,
+          seriesId: series.id,
           x: pt.x,
           y: pt.y,
           point: { shape: pointConfig.shape, size: pointConfig.size },
@@ -515,39 +543,54 @@ export function scene(
     }
   }
 
+  const seriesPayload = config.series.map((s): HoverSeries => {
+    const validPoints = s.points
+      .filter(
+        p =>
+          p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y)
+      )
+      .map(p => ({ x: p.x, y: p.y! }))
+      .sort((a, b) => a.x - b.x)
+    const sortedPoints = Object.freeze(validPoints)
+    return {
+      id: s.id,
+      yAxis: isDualScale ? (s.yAxis ?? 'left') : 'left',
+      sortedPoints,
+    }
+  })
+
+  const hover = isDualScale
+    ? {
+        xInvert: scales.xInvert,
+        scales: {
+          x: scales.x,
+          yLeft: scales.yLeft!,
+          yRight: scales.yRight!,
+        },
+        yInvertLeft: scales.yInvertLeft!,
+        yInvertRight: scales.yInvertRight!,
+        yDomainLeft: yDomainLeft!,
+        yDomainRight: yDomainRight!,
+        plotRect,
+        xDomain,
+        series: seriesPayload,
+      }
+    : {
+        xInvert: scales.xInvert,
+        yInvert: scales.yInvert,
+        scales: { x: scales.x, y: scales.y },
+        plotRect,
+        xDomain,
+        yDomain,
+        series: seriesPayload,
+      }
+
   return {
     scene: {
       kind: SceneNodeKind.GROUP,
       id: 'root',
       children,
-      metadata: {
-        hover: {
-          xInvert: scales.xInvert,
-          yInvert: scales.yInvert,
-          scales: { x: scales.x, y: scales.y },
-          plotRect,
-          xDomain,
-          yDomain,
-          series: config.series.map((s): HoverSeries => {
-            // Filter valid points and sort by x ONCE (core guarantees sorted)
-            const validPoints = s.points
-              .filter(
-                p =>
-                  p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y)
-              )
-              .map(p => ({ x: p.x, y: p.y! }))
-              .sort((a, b) => a.x - b.x) // Sort once, not per hover
-
-            // Freeze to signal immutability and prevent accidental mutation
-            const sortedPoints = Object.freeze(validPoints)
-
-            return {
-              id: s.id,
-              sortedPoints, // Pre-sorted, pre-filtered, frozen for hover lookup
-            }
-          }),
-        },
-      },
+      metadata: { hover },
     },
   }
 }

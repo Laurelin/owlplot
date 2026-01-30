@@ -56,6 +56,7 @@ export function createIndicators(
                 {
                   scales: context.scales,
                   pointIndex,
+                  seriesYAxis: context.seriesYAxis,
                 },
                 context.svg,
                 scaleFactor,
@@ -69,6 +70,7 @@ export function createIndicators(
                 scales: context.scales,
                 svg: context.svg,
                 seriesStyles: context.seriesStyles,
+                seriesYAxis: context.seriesYAxis,
                 emphasisOptions: {
                   style: indicatorConfig.style,
                   size: indicatorConfig.size ?? indicatorConfig.radius,
@@ -123,7 +125,14 @@ export function createIndicators(
               hideYLine(svgRef)
               return null as IndicatorHandle
             }
-            const svgY = context.scales.y(primaryPoint.point.y)
+            const side = context.seriesYAxis?.[primaryPoint.seriesId] ?? 'left'
+            const yScale =
+              'yLeft' in context.scales
+                ? side === 'right'
+                  ? context.scales.yRight
+                  : context.scales.yLeft
+                : context.scales.y
+            const svgY = yScale(primaryPoint.point.y)
             updateYLine(svgRef, svgY, context.plotRect, indicatorConfig.style)
             return { type: 'y-line' } as IndicatorHandle
           },

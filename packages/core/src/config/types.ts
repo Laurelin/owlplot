@@ -49,6 +49,8 @@ export type LineSeries = {
   paint?: PaintStyles // Advanced: full paint control
   /** Point mark shape and size (circumradius). Default shape circle, size 2.5. */
   point?: PointConfig
+  /** Which Y axis (scale) this series uses. Default 'left'. Used for dual-scale (e.g. °C left, °F right). */
+  yAxis?: 'left' | 'right'
 }
 
 export type Padding = {
@@ -64,9 +66,13 @@ export type AxisVisibility = {
   axisLine?: boolean // default: true
 }
 
+import type { NumberFormat } from '../format/number'
+
 export type Cartesian2DOptions = {
   xLabel?: string
   yLabel?: string
+  /** Primary Y-axis position. When 'right' and yAxisRight is set, only the right axis is shown (one scale). Default 'left'. */
+  yAxis?: { position?: 'left' | 'right' }
   showGrid?: boolean
   showPoints?: boolean
   /** Global default for point shape/size; series can override. */
@@ -77,6 +83,16 @@ export type Cartesian2DOptions = {
   xTickCount?: number
   yTickCount?: number
 
+  /**
+   * Axis tick label formatting. undefined = AUTO (decimals from tick step); null = raw; otherwise explicit mode.
+   */
+  axisTickFormat?: NumberFormat | null
+
+  /**
+   * Tooltip number formatting. Default { mode: 'raw' }. Only apply formatting if user configures it.
+   */
+  tooltipFormat?: NumberFormat
+
   /** fonts for axes text */
   axisTickFont?: string // e.g. "12px sans-serif"
   axisLabelFont?: string // e.g. "14px sans-serif"
@@ -84,10 +100,14 @@ export type Cartesian2DOptions = {
   /** enable adaptive padding based on label extents (default: true) */
   enableAdaptivePadding?: boolean
 
-  /** right Y-axis configuration */
+  /** right Y-axis configuration (secondary/mirror or dual-scale) */
   yAxisRight?: {
     tickCount?: number
     axisLabel?: string
+    /** Explicit domain for right scale (dual-scale). If absent, derived from series with yAxis: 'right'. */
+    domain?: [number, number]
+    /** Override global axisTickFormat for this axis. */
+    axisTickFormat?: NumberFormat | null
     labelOrientation?: {
       orientation?: 'horizontal' | 'vertical' | 'angled'
       angle?: number // for angled labels, in degrees
@@ -114,7 +134,7 @@ export type Cartesian2DOptions = {
   }
 
   /** axis title orientation for Y-axis (separate from tick label orientation)
-   * 
+   *
    * Note: Axis label orientation is absolute, not auto-derived from axis side.
    * Users must explicitly configure vertical orientation; it is not implicit based on axis position.
    */
@@ -124,7 +144,7 @@ export type Cartesian2DOptions = {
   }
 
   /** Axis visibility configuration
-   * 
+   *
    * Global defaults apply to all axes unless overridden by per-axis config.
    * Right Y-axis uses yAxisRight.axisVisibility (does NOT fall back to global y config).
    */

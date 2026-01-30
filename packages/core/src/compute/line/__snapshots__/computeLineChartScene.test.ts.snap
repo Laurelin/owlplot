@@ -371,6 +371,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         },
         "size": 2.5,
       },
+      "seriesId": "a",
       "style": {
         "fill": {
           "color": "currentColor",
@@ -407,6 +408,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         },
         "size": 2.5,
       },
+      "seriesId": "a",
       "style": {
         "fill": {
           "color": "currentColor",
@@ -443,6 +445,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         },
         "size": 2.5,
       },
+      "seriesId": "a",
       "style": {
         "fill": {
           "color": "currentColor",
@@ -495,6 +498,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         },
         "size": 2.5,
       },
+      "seriesId": "b",
       "style": {
         "fill": {
           "color": "currentColor",
@@ -531,6 +535,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         },
         "size": 2.5,
       },
+      "seriesId": "b",
       "style": {
         "fill": {
           "color": "currentColor",
@@ -567,6 +572,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         },
         "size": 2.5,
       },
+      "seriesId": "b",
       "style": {
         "fill": {
           "color": "currentColor",
@@ -603,6 +609,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         },
         "size": 2.5,
       },
+      "seriesId": "b",
       "style": {
         "fill": {
           "color": "currentColor",
@@ -644,6 +651,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
               "y": 1,
             },
           ],
+          "yAxis": "left",
         },
         {
           "id": "b",
@@ -665,6 +673,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
               "y": 2,
             },
           ],
+          "yAxis": "left",
         },
       ],
       "xDomain": [

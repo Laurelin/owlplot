@@ -1,4 +1,5 @@
 import { ChartKind } from '@owlplot/core'
+import { HoverModeKind, HoverIndicatorKind } from '@owlplot/renderer-svg'
 import type { ChartDemo } from '../shared/types'
 import { withDemoColor } from '../shared/demoPalette'
 
@@ -85,8 +86,41 @@ export const axisCharts: readonly ChartDemo[] = [
     },
   },
   {
+    id: 'right-only-y-axis',
+    title: 'Right-only Y Axis',
+    description:
+      'Primary Y-axis on the right only (one scale, one domain). No left axis.',
+    purpose: 'api-example',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 15 },
+              { x: 1, y: 18 },
+              { x: 2, y: 22 },
+              { x: 3, y: 20 },
+              { x: 4, y: 25 },
+            ],
+          },
+          0
+        ),
+      ],
+      options: {
+        showPoints: true,
+        yAxis: { position: 'right' },
+        yAxisRight: {
+          axisLabel: 'Right Y',
+          tickCount: 5,
+        },
+      },
+    },
+  },
+  {
     id: 'dual-y-axes',
-    title: 'Right-side Y Axis (same scale)',
+    title: 'Left + Right Y Axes (same scale)',
     description:
       'Optional right Y-axis with its own label (same scale as left). Both axes share one scale.',
     purpose: 'api-example',
@@ -114,6 +148,65 @@ export const axisCharts: readonly ChartDemo[] = [
           axisLabel: 'Right Y',
           tickCount: 5,
         },
+      },
+    },
+  },
+  {
+    id: 'dual-scale-y-axes',
+    title: 'Dual-scale Y Axes (independent series)',
+    description:
+      'Two Y axes with different scales and domains. Left: temperature (°C). Right: humidity (%). Each series bound to one axis; lines diverge.',
+    purpose: 'api-example',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'temperature',
+            yAxis: 'left',
+            points: [
+              { x: 0, y: 22 },
+              { x: 1, y: 28 },
+              { x: 2, y: 35 },
+              { x: 3, y: 42 },
+              { x: 4, y: 38 },
+              { x: 5, y: 25 },
+            ],
+          },
+          0
+        ),
+        withDemoColor(
+          {
+            id: 'humidity',
+            yAxis: 'right',
+            points: [
+              { x: 0, y: 80 },
+              { x: 1, y: 65 },
+              { x: 2, y: 55 },
+              { x: 3, y: 45 },
+              { x: 4, y: 60 },
+              { x: 5, y: 75 },
+            ],
+          },
+          1
+        ),
+      ],
+      options: {
+        showPoints: true,
+        yLabel: '°C',
+        yAxisRight: {
+          axisLabel: '%',
+          domain: [0, 100],
+          tickCount: 5,
+        },
+      },
+    },
+    renderOptions: {
+      hoverMode: { kind: HoverModeKind.X_AXIS },
+      hoverIndicator: {
+        kind: HoverIndicatorKind.POINT_EMPHASIS,
+        radius: 5,
+        animation: { durationMs: 120, easing: 'ease-out' },
       },
     },
   },

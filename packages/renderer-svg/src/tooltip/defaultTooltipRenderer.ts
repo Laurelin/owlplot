@@ -2,6 +2,8 @@ import type { TooltipRenderer, TooltipContext } from './types'
 import { formatValue } from '../shared/formatValue'
 import { CssClassName } from '../shared/enums'
 
+const DEFAULT_TOOLTIP_FORMAT = { mode: 'raw' as const }
+
 /**
  * internal layout concept (not exported):
  * - header (optional): single dominant line; used for semantic x when signaled.
@@ -85,7 +87,9 @@ export const defaultTooltipRenderer: TooltipRenderer = {
       if (typeof datum.x === 'string') {
         headerEl.textContent = context?.xFormatter?.(datum.x) ?? datum.x
       } else {
-        const formatted = context?.xFormatter?.(datum.x) ?? formatValue(datum.x)
+        const formatted =
+          context?.xFormatter?.(datum.x) ??
+          formatValue(datum.x, context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT)
         headerEl.textContent = context?.xUnit
           ? `${formatted} ${context.xUnit}`
           : formatted
@@ -137,7 +141,10 @@ export const defaultTooltipRenderer: TooltipRenderer = {
       const valueEl = document.createElement('div')
       valueEl.className = CssClassName.OWLPLOT_TOOLTIP_VALUE
       Object.assign(valueEl.style, styleValue)
-      valueEl.textContent = formatValue(point.y)
+      valueEl.textContent = formatValue(
+        point.y,
+        context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT
+      )
       row.appendChild(valueEl)
 
       el.appendChild(row)

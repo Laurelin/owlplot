@@ -1,4 +1,4 @@
-import type { TooltipDatum } from '@owlplot/core'
+import type { TooltipDatum, NumberFormat } from '@owlplot/core'
 
 /**
  * Reserved escape-hatch shape (do not implement prematurely; renderer-only, never in TooltipDatum):
@@ -6,11 +6,13 @@ import type { TooltipDatum } from '@owlplot/core'
  * All optional; no defaults that reintroduce noise.
  */
 
-/** Renderer-provided context for x presentation (formatter, unit, scale type). Not part of TooltipDatum. */
+/** Renderer-provided context for x presentation (formatter, unit, scale type) and tooltip number format. Not part of TooltipDatum. */
 export type TooltipContext = {
   xFormatter?: (x: number | string) => string
   xUnit?: string
   xScaleType?: 'linear' | 'time' | 'log'
+  /** Tooltip number formatting. Default { mode: 'raw' }. Only apply if user configures. */
+  tooltipFormat?: NumberFormat
 }
 
 /** Derived from scene node style (stroke resolved to color for swatch). Not in TooltipDatum. */

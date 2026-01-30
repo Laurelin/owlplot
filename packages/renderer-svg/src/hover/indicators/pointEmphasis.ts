@@ -1,43 +1,57 @@
 import type { PointIndex } from '../types'
 import { binarySearchNearestByX } from '../../shared/binarySearchNearestByX'
-import {
-  SvgAttributeName,
-  AnimationAttributeName,
-  AnimationEasing,
-} from '../../shared/enums'
-import { SVG_NS } from '../../render/svgDom'
+import { DATA_HOVER_LAYER, DATA_SERIES_ID } from '../../shared/dataAttributes'
+import { SvgAttributeName } from '../../shared/enums'
+import type { HoverSeriesStyle } from '../../tooltip/types'
 
-export type EmphasizedPoint = { element: SVGElement; originalRadius: number }
-
-/**
- * Context for point emphasis - enforces invariant: scales are mandatory, pointIndex is required.
- * Indicators receive only geometry (scales), not axis semantics.
- */
-export type PointEmphasisContext = {
-  scales: {
-    x: (v: number) => number
-    y: (v: number) => number
-  }
-  pointIndex: PointIndex
+export type EmphasizedPoint = {
+  element: SVGElement
+  previousTransform: string | null
 }
 
 /**
- * Result of point emphasis - discriminated union for type-safe branching.
- * Either ALL points use DOM path OR ALL points use overlay path (never mix).
+ * Context for point emphasis - scales and pointIndex required.
+ * Emphasis composes with existing placement transform (e.g. path translate(cx,cy)).
  */
+export type PointEmphasisContext = {
+  scales: { x: (v: number) => number; y: (v: number) => number }
+  pointIndex: PointIndex
+}
+
+/** User override for overlay emphasis (precedence: user > series-derived > fallback). */
+export type PointEmphasisOverlayOptions = {
+  style?: {
+    fill?: string
+    stroke?: string
+    strokeWidth?: number
+    opacity?: number
+  }
+  size?: number
+}
+
+/** Context for overlay emphasis (no glyphs): scales, svg, series-derived data, optional user override. */
+export type PointEmphasisOverlayContext = {
+  scales: { x: (v: number) => number; y: (v: number) => number }
+  svg: SVGSVGElement
+  seriesStyles?: Map<string, HoverSeriesStyle>
+  emphasisOptions?: PointEmphasisOverlayOptions
+}
+
+/** Result of point emphasis: dom transform or overlay with opaque restore. */
 export type PointEmphasisResult =
-  | { mode: 'overlay'; overlayGroup: SVGGElement }
-  | { mode: 'dom'; emphasizedCircles: EmphasizedPoint[] }
+  | { mode: 'dom'; emphasizedPoints: EmphasizedPoint[] }
+  | { mode: 'overlay'; restore: () => void }
 
-// invariant: point emphasis only operates on real rendered glyphs
-// if we cannot mutate existing glyph DOM, we do nothing
-
+/**
+ * Apply transform-based scale around glyph center. Composes with existing transform.
+ * Store previous transform; restore exactly on cleanup.
+ */
 export function emphasizePoints(
   nearestPoints: Array<{ seriesId: string; point: { x: number; y: number } }>,
   context: PointEmphasisContext,
-  svg: SVGSVGElement,
-  radius: number,
-  animation?: { durationMs?: number; easing?: AnimationEasing }
+  _svg: SVGSVGElement,
+  scaleFactor: number,
+  _animation?: { durationMs?: number; easing?: string } // reserved for future transform animation
 ): PointEmphasisResult | null {
   if (!context.pointIndex || context.pointIndex.size === 0) {
     if (process.env.NODE_ENV !== 'production') {
@@ -50,82 +64,111 @@ export function emphasizePoints(
   }
 
   const emphasized: EmphasizedPoint[] = []
-  let allFoundViaDom = true
+  let allFound = true
 
   for (const { seriesId, point } of nearestPoints) {
     const refs = context.pointIndex.get(seriesId)
     if (!refs || refs.length === 0) {
-      allFoundViaDom = false
+      allFound = false
       break
     }
 
     const nearestRef = binarySearchNearestByX(refs, point.x)
     if (!nearestRef) {
-      allFoundViaDom = false
+      allFound = false
       break
     }
 
-    const circle = nearestRef.element
-    emphasized.push({
-      element: circle,
-      originalRadius: nearestRef.originalRadius,
-    })
-
-    if (animation?.durationMs) {
-      circle
-        .querySelectorAll(
-          `animate[${AnimationAttributeName.ATTRIBUTE_NAME}="${SvgAttributeName.R}"]`
-        )
-        .forEach((n: Element) => n.remove())
-
-      const animate = document.createElementNS(SVG_NS, 'animate')
-      animate.setAttribute(
-        AnimationAttributeName.ATTRIBUTE_NAME,
-        SvgAttributeName.R
-      )
-      animate.setAttribute(
-        AnimationAttributeName.FROM,
-        String(nearestRef.originalRadius)
-      )
-      animate.setAttribute(AnimationAttributeName.TO, String(radius))
-      animate.setAttribute(
-        AnimationAttributeName.DUR,
-        `${animation.durationMs}ms`
-      )
-      animate.setAttribute(AnimationAttributeName.FILL, 'freeze')
-      circle.appendChild(animate)
-      animate.beginElement()
-    } else {
-      circle.setAttribute(SvgAttributeName.R, String(radius))
-    }
+    const element = nearestRef.element
+    const cx = context.scales.x(nearestRef.x)
+    const cy = context.scales.y(nearestRef.y)
+    const prevTransform = element.getAttribute(SvgAttributeName.TRANSFORM) ?? null
+    // If element already has a placement transform (e.g. path with translate(cx,cy)),
+    // only append scale(k) so it scales in place. Otherwise apply full scale-around-center.
+    const hasPlacement = prevTransform != null && prevTransform !== ''
+    const newTransform =
+      hasPlacement
+        ? `${prevTransform} scale(${scaleFactor})`
+        : `translate(${cx},${cy}) scale(${scaleFactor}) translate(${-cx},${-cy})`
+    element.setAttribute(SvgAttributeName.TRANSFORM, newTransform)
+    emphasized.push({ element, previousTransform: prevTransform })
   }
 
   if (nearestPoints.length === 0) {
-    return { mode: 'dom', emphasizedCircles: [] }
+    return { mode: 'dom', emphasizedPoints: [] }
   }
 
-  if (allFoundViaDom && emphasized.length === nearestPoints.length) {
-    return { mode: 'dom', emphasizedCircles: emphasized }
+  if (allFound && emphasized.length === nearestPoints.length) {
+    return { mode: 'dom', emphasizedPoints: emphasized }
   }
 
-  // Cannot mutate real glyphs (some point lookups failed); do nothing (no overlay)
   return null
+}
+
+/**
+ * Draw ephemeral overlay marks when no glyphs exist. Returns opaque restore handle only;
+ * raw svg nodes are not exposed outside the indicator. Current implementation uses circles;
+ * types do not preclude other shapes later.
+ * Precedence: user style > series-derived (seriesStyles) > fallback (currentColor, 0.6).
+ */
+export function drawPointEmphasisOverlay(
+  nearestPoints: Array<{ seriesId: string; point: { x: number; y: number } }>,
+  context: PointEmphasisOverlayContext,
+  radiusOrSize: number
+): PointEmphasisResult {
+  const size = context.emphasisOptions?.size ?? radiusOrSize
+  const g = context.svg.ownerDocument.createElementNS(
+    'http://www.w3.org/2000/svg',
+    'g'
+  )
+  g.setAttribute(DATA_HOVER_LAYER, 'point-emphasis')
+  for (const { seriesId, point } of nearestPoints) {
+    const cx = context.scales.x(point.x)
+    const cy = context.scales.y(point.y)
+    const fill =
+      context.emphasisOptions?.style?.fill ??
+      context.seriesStyles?.get(seriesId)?.stroke ??
+      'currentColor'
+    const opacity =
+      context.emphasisOptions?.style?.opacity ?? 0.6
+    const circle = context.svg.ownerDocument.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'circle'
+    )
+    circle.setAttribute('cx', String(cx))
+    circle.setAttribute('cy', String(cy))
+    circle.setAttribute('r', String(size))
+    circle.setAttribute('fill', fill)
+    circle.setAttribute('opacity', String(opacity))
+    circle.setAttribute(DATA_SERIES_ID, seriesId)
+    if (context.emphasisOptions?.style?.stroke != null) {
+      circle.setAttribute('stroke', context.emphasisOptions.style.stroke)
+    }
+    if (context.emphasisOptions?.style?.strokeWidth != null) {
+      circle.setAttribute(
+        'stroke-width',
+        String(context.emphasisOptions.style.strokeWidth)
+      )
+    }
+    g.appendChild(circle)
+  }
+  context.svg.appendChild(g)
+  return {
+    mode: 'overlay',
+    restore: () => g.remove(),
+  }
 }
 
 export function restorePointEmphasis(result: PointEmphasisResult): void {
   if (result.mode === 'overlay') {
-    // Remove entire overlay group - single authoritative cleanup path
-    result.overlayGroup.remove()
-  } else {
-    // Restore original radius on existing circles
-    for (const { element, originalRadius } of result.emphasizedCircles) {
-      const circle = element as SVGCircleElement
-      circle
-        .querySelectorAll(
-          `animate[${AnimationAttributeName.ATTRIBUTE_NAME}="${SvgAttributeName.R}"]`
-        )
-        .forEach(n => n.remove())
-      circle.setAttribute(SvgAttributeName.R, String(originalRadius))
+    result.restore()
+    return
+  }
+  for (const { element, previousTransform } of result.emphasizedPoints) {
+    if (previousTransform != null) {
+      element.setAttribute(SvgAttributeName.TRANSFORM, previousTransform)
+    } else {
+      element.removeAttribute(SvgAttributeName.TRANSFORM)
     }
   }
 }

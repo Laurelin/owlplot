@@ -4,6 +4,7 @@ export const TOOLTIP_RENDERER_SYMBOL = Symbol('owlplot-tooltip-renderer')
 export const TOOLTIP_DATUM_SYMBOL = Symbol('owlplot-tooltip-datum')
 export const TOOLTIP_CONTEXT_SYMBOL = Symbol('owlplot-tooltip-context')
 export const SERIES_STYLES_SYMBOL = Symbol('owlplot-series-styles')
+export const SERIES_POINT_SHAPES_SYMBOL = Symbol('owlplot-series-point-shapes')
 
 export const POINT_INDEX_SYMBOL = Symbol('owlplot-point-index')
 export const X_HOVER_LINE_SYMBOL = Symbol('owlplot-x-hover-line')

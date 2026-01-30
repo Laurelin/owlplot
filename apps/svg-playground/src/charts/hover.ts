@@ -155,4 +155,82 @@ export const hoverCharts: readonly ChartDemo[] = [
       hoverIndicator: [{ kind: HoverIndicatorKind.POINT_EMPHASIS }],
     },
   },
+  {
+    id: 'line-only-point-emphasis',
+    title: 'Line Only, Point Emphasis on Hover',
+    description:
+      'No point markers; on hover a dot appears at the nearest data point (series color by default)',
+    purpose: 'interaction-model',
+    config: {
+      ...hoverData,
+      options: { showPoints: false },
+    },
+    renderOptions: {
+      hoverMode: { kind: HoverModeKind.X_AXIS },
+      hoverIndicator: { kind: HoverIndicatorKind.POINT_EMPHASIS, radius: 5 },
+    },
+  },
+  {
+    id: 'line-only-point-emphasis-override',
+    title: 'Line Only, Point Emphasis with Style Override',
+    description:
+      'Same as above but user override: purple fill, 0.8 opacity (user override > series color)',
+    purpose: 'interaction-model',
+    config: {
+      ...hoverData,
+      options: { showPoints: false },
+    },
+    renderOptions: {
+      hoverMode: { kind: HoverModeKind.X_AXIS },
+      hoverIndicator: {
+        kind: HoverIndicatorKind.POINT_EMPHASIS,
+        radius: 5,
+        style: { fill: '#7c3aed', opacity: 0.8 },
+      },
+    },
+  },
+  {
+    id: 'point-shapes',
+    title: 'Point Shapes',
+    description:
+      'Point shape is mark identity; hover emphasis scales the same shape (circle, square, triangle)',
+    purpose: 'interaction-model',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'circles',
+            points: [...PRECOMPUTED_DATASETS.temperature],
+            point: { shape: { kind: 'circle' }, size: 3 },
+          },
+          0
+        ),
+        withDemoColor(
+          {
+            id: 'squares',
+            points: [...PRECOMPUTED_DATASETS.humidity],
+            point: { shape: { kind: 'square' }, size: 3 },
+          },
+          1
+        ),
+        withDemoColor(
+          {
+            id: 'triangles',
+            points: PRECOMPUTED_DATASETS.temperature.map((p, i) => ({
+              x: p.x,
+              y: (p.y ?? 0) + (PRECOMPUTED_DATASETS.humidity[i]?.y ?? 0) / 2,
+            })),
+            point: { shape: { kind: 'triangle' }, size: 4 },
+          },
+          2
+        ),
+      ],
+      options: { showPoints: true },
+    },
+    renderOptions: {
+      hoverMode: { kind: HoverModeKind.POINT },
+      hoverIndicator: { kind: HoverIndicatorKind.POINT_EMPHASIS, radius: 5 },
+    },
+  },
 ] as const

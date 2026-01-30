@@ -13,11 +13,42 @@ export type DataPoint = { x: number; y: number | null }
 
 import type { PaintStyles } from '../paint/types'
 
+// -----------------------------------
+// Point shape (define once; config, scene, renderer use same type)
+// Circumradius rule: size = distance from center to farthest vertex/point.
+// -----------------------------------
+
+/** Built-in point shapes (circumradius = size). */
+export type BuiltInPointShape =
+  | { kind: 'circle' }
+  | { kind: 'square' }
+  | { kind: 'triangle' }
+  | { kind: 'diamond' }
+
+/** Registry-based custom shape (SSR-friendly; renderer resolves name). */
+export type SymbolPointShape = { kind: 'symbol'; name: string }
+
+/** Emoji as text mark (font-size / metrics; not path geometry). */
+export type EmojiPointShape = { kind: 'emoji'; value: string }
+
+export type PointShape = BuiltInPointShape | SymbolPointShape | EmojiPointShape
+
+/** String shorthand for built-in shapes (normalized at config→scene boundary). */
+export type PointShapeShorthand = 'circle' | 'square' | 'triangle' | 'diamond'
+
+/** Point config: shape intent + size (circumradius). Default size 2.5. */
+export type PointConfig = {
+  shape?: PointShape | PointShapeShorthand
+  size?: number
+}
+
 export type LineSeries = {
   id: string
   points: DataPoint[]
   color?: string // Simple: base color string
   paint?: PaintStyles // Advanced: full paint control
+  /** Point mark shape and size (circumradius). Default shape circle, size 2.5. */
+  point?: PointConfig
 }
 
 export type Padding = {
@@ -38,6 +69,8 @@ export type Cartesian2DOptions = {
   yLabel?: string
   showGrid?: boolean
   showPoints?: boolean
+  /** Global default for point shape/size; series can override. */
+  point?: PointConfig
   padding?: Partial<Padding>
 
   /** optional tick count */

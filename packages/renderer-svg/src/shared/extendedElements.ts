@@ -6,12 +6,12 @@ import type {
 } from '../tooltip/types'
 
 // Type definitions to avoid circular dependencies
+/** Semantic only: which element represents which data point (domain x, y). */
 export type HoverPointRef = {
-  element: SVGCircleElement
+  element: SVGElement
   seriesId: string
   x: number
   y: number
-  originalRadius: number // Store at index build time to prevent restore drift
 }
 
 export type GlyphHoverListenerRef = {
@@ -24,6 +24,7 @@ export type DataHoverListenerRef = {
   pointerleave: () => void
 }
 
+import type { PointShape } from '@owlplot/core'
 import {
   TOOLTIP_CONTAINER_SYMBOL,
   TOOLTIP_ELEMENT_SYMBOL,
@@ -31,6 +32,7 @@ import {
   TOOLTIP_DATUM_SYMBOL,
   TOOLTIP_CONTEXT_SYMBOL,
   SERIES_STYLES_SYMBOL,
+  SERIES_POINT_SHAPES_SYMBOL,
   POINT_INDEX_SYMBOL,
   X_HOVER_LINE_SYMBOL,
   Y_HOVER_LINE_SYMBOL,
@@ -48,6 +50,7 @@ export interface ExtendedSVGSVGElement extends SVGSVGElement {
   [TOOLTIP_RENDERER_SYMBOL]?: TooltipRenderer
   [TOOLTIP_CONTEXT_SYMBOL]?: TooltipContext
   [SERIES_STYLES_SYMBOL]?: Map<string, HoverSeriesStyle>
+  [SERIES_POINT_SHAPES_SYMBOL]?: Map<string, PointShape>
 
   [POINT_INDEX_SYMBOL]?: Map<string, HoverPointRef[]>
   [X_HOVER_LINE_SYMBOL]?: SVGLineElement

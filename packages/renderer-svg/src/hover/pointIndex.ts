@@ -7,24 +7,21 @@ import type { PointIndex } from './types'
 export type { HoverPointRef }
 
 /**
- * Build point index from rendered circle elements.
- * Empty index means no glyphs were rendered (e.g. chart with no point marks), not "glyphs missing."
+ * Build point index from any rendered point glyph (circle, rect, path, text).
+ * Index is semantic only: element, seriesId, domain x, y.
+ * Empty index means no glyphs were rendered, not "glyphs missing."
  */
 export function buildPointIndexFromRenderedElements(
   svg: SVGSVGElement
 ): PointIndex {
   const index = new Map<string, HoverPointRef[]>()
-  const circles = svg.querySelectorAll(`circle[${DATA_SERIES_ID}]`)
+  const elements = svg.querySelectorAll(`[${DATA_SERIES_ID}]`)
   let skipped = 0
 
-  circles.forEach(circle => {
-    const el = circle as SVGCircleElement
+  elements.forEach(el => {
     const seriesId = el.getAttribute(DATA_SERIES_ID)
-    const domainX = parseFloat(el.getAttribute(DATA_X) || '')
-    const domainY = parseFloat(el.getAttribute(DATA_Y) || '')
-    const originalRadius = parseFloat(
-      el.getAttribute(SvgAttributeName.R) || '2.5'
-    )
+    const domainX = parseFloat(el.getAttribute(DATA_X) ?? '')
+    const domainY = parseFloat(el.getAttribute(DATA_Y) ?? '')
 
     if (
       seriesId == null ||
@@ -38,11 +35,10 @@ export function buildPointIndexFromRenderedElements(
 
     const seriesRefs = index.get(seriesId) ?? []
     seriesRefs.push({
-      element: el,
+      element: el as SVGElement,
       seriesId,
       x: domainX,
       y: domainY,
-      originalRadius, // Store at index build time to prevent restore drift
     })
     index.set(seriesId, seriesRefs)
   })
@@ -53,8 +49,7 @@ export function buildPointIndexFromRenderedElements(
     index.size === 0
   ) {
     console.warn(
-      `[owlplot] Point index: ${skipped} circle(s) had ${DATA_SERIES_ID} but missing or invalid ${DATA_X}/${DATA_Y}; none indexed. ` +
-        'Check that circle elements get data-owlplot-x and data-owlplot-y (e.g. from datum.points[0]).'
+      `[owlplot] Point index: ${skipped} element(s) had ${DATA_SERIES_ID} but missing or invalid ${DATA_X}/${DATA_Y}; none indexed.`
     )
   }
 
@@ -65,10 +60,48 @@ export function buildPointIndexFromRenderedElements(
 /** Hit slop in SVG units so small glyphs are easier to hover; default 4px. */
 const HIT_SLOP_PX = 4
 
+/** Get SVG-space center and hit radius for a point glyph element. */
+function getGlyphCenterAndHitRadius(
+  el: SVGElement
+): { cx: number; cy: number; hitRadius: number } | null {
+  const tag = el.tagName.toLowerCase()
+  if (tag === 'circle') {
+    const cx = parseFloat(el.getAttribute(SvgAttributeName.CX) ?? '')
+    const cy = parseFloat(el.getAttribute(SvgAttributeName.CY) ?? '')
+    const r = parseFloat(el.getAttribute(SvgAttributeName.R) ?? '')
+    if (Number.isNaN(cx) || Number.isNaN(cy) || Number.isNaN(r)) return null
+    return { cx, cy, hitRadius: r + HIT_SLOP_PX }
+  }
+  if (tag === 'rect') {
+    const x = parseFloat(el.getAttribute(SvgAttributeName.X) ?? '0')
+    const y = parseFloat(el.getAttribute(SvgAttributeName.Y) ?? '0')
+    const w = parseFloat(el.getAttribute('width') ?? '0')
+    const h = parseFloat(el.getAttribute('height') ?? '0')
+    const cx = x + w / 2
+    const cy = y + h / 2
+    // Point rects are squares: circumradius = half diagonal = width / sqrt(2)
+    const circumradius = w / Math.SQRT2
+    const hitRadius = circumradius + HIT_SLOP_PX
+    return { cx, cy, hitRadius }
+  }
+  // path, text: use getBBox; hit radius = half diagonal (covers shape, consistent with circumradius idea)
+  try {
+    const bbox = (el as SVGGraphicsElement).getBBox()
+    const cx = bbox.x + bbox.width / 2
+    const cy = bbox.y + bbox.height / 2
+    const halfDiagonal = Math.sqrt(
+      (bbox.width / 2) ** 2 + (bbox.height / 2) ** 2
+    )
+    const hitRadius = halfDiagonal + HIT_SLOP_PX
+    return { cx, cy, hitRadius }
+  } catch {
+    return null
+  }
+}
+
 /**
- * Find the glyph (indexed circle) that contains the given point in SVG coordinates.
- * Uses spatial hit testing: distance from point to circle center <= r + HIT_SLOP_PX.
- * If multiple circles contain the point, returns the one whose center is closest.
+ * Find the glyph that contains the given point in SVG coordinates.
+ * Geometry is derived from the element at hit time (circle cx/cy/r, rect center, or getBBox).
  */
 export function findGlyphAtPoint(
   pointIndex: PointIndex,
@@ -80,19 +113,12 @@ export function findGlyphAtPoint(
 
   for (const refs of pointIndex.values()) {
     for (const ref of refs) {
-      const cx = parseFloat(
-        ref.element.getAttribute(SvgAttributeName.CX) ?? ''
-      )
-      const cy = parseFloat(
-        ref.element.getAttribute(SvgAttributeName.CY) ?? ''
-      )
-      const r = parseFloat(ref.element.getAttribute(SvgAttributeName.R) ?? '')
-      if (Number.isNaN(cx) || Number.isNaN(cy) || Number.isNaN(r)) continue
-
+      const center = getGlyphCenterAndHitRadius(ref.element)
+      if (!center) continue
+      const { cx, cy, hitRadius } = center
       const dx = mouseSvgX - cx
       const dy = mouseSvgY - cy
       const dist = Math.sqrt(dx * dx + dy * dy)
-      const hitRadius = r + HIT_SLOP_PX
       if (dist <= hitRadius && dist < closestDist) {
         closest = ref
         closestDist = dist

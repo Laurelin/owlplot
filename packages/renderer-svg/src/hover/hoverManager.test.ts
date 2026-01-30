@@ -61,10 +61,14 @@ describe('hover manager', () => {
         svg
       )
       attachGlyphHover(svg, null, metadata, indicators)
-      expect((svg as ExtendedSVGSVGElement)[GLYPH_HOVER_LISTENERS_SYMBOL]).toBeDefined()
+      expect(
+        (svg as ExtendedSVGSVGElement)[GLYPH_HOVER_LISTENERS_SYMBOL]
+      ).toBeDefined()
 
       detachAllHoverListeners(svg)
-      expect((svg as ExtendedSVGSVGElement)[GLYPH_HOVER_LISTENERS_SYMBOL]).toBeUndefined()
+      expect(
+        (svg as ExtendedSVGSVGElement)[GLYPH_HOVER_LISTENERS_SYMBOL]
+      ).toBeUndefined()
     })
 
     it('clears data hover listeners when present', () => {
@@ -77,10 +81,14 @@ describe('hover manager', () => {
         svg
       )
       attachDataHover(svg, resolver, indicators, null, metadata)
-      expect((svg as ExtendedSVGSVGElement)[DATA_HOVER_LISTENERS_SYMBOL]).toBeDefined()
+      expect(
+        (svg as ExtendedSVGSVGElement)[DATA_HOVER_LISTENERS_SYMBOL]
+      ).toBeDefined()
 
       detachAllHoverListeners(svg)
-      expect((svg as ExtendedSVGSVGElement)[DATA_HOVER_LISTENERS_SYMBOL]).toBeUndefined()
+      expect(
+        (svg as ExtendedSVGSVGElement)[DATA_HOVER_LISTENERS_SYMBOL]
+      ).toBeUndefined()
     })
 
     it('does not throw when no listeners were attached', () => {
@@ -101,10 +109,14 @@ describe('hover manager', () => {
         svg
       )
       attachGlyphHover(svg, null, metadata, indicators)
-      const firstRefs = (svg as ExtendedSVGSVGElement)[GLYPH_HOVER_LISTENERS_SYMBOL]
+      const firstRefs = (svg as ExtendedSVGSVGElement)[
+        GLYPH_HOVER_LISTENERS_SYMBOL
+      ]
       detachAllHoverListeners(svg)
       attachGlyphHover(svg, null, metadata, indicators)
-      const secondRefs = (svg as ExtendedSVGSVGElement)[GLYPH_HOVER_LISTENERS_SYMBOL]
+      const secondRefs = (svg as ExtendedSVGSVGElement)[
+        GLYPH_HOVER_LISTENERS_SYMBOL
+      ]
       expect(secondRefs).toBeDefined()
       expect(secondRefs).not.toBe(firstRefs)
     })
@@ -142,10 +154,7 @@ describe('hover manager', () => {
         y: 25,
       })
 
-      const resolveSpy = vi.spyOn(
-        glyphResolver,
-        'resolveGlyphFromElement'
-      )
+      const resolveSpy = vi.spyOn(glyphResolver, 'resolveGlyphFromElement')
 
       const indicators = createIndicators(
         [{ kind: HoverIndicatorKind.NONE }],

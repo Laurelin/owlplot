@@ -6,6 +6,7 @@ import type {
 import { HoverIndicatorKind } from '../../shared/enums'
 import {
   emphasizePoints,
+  drawPointEmphasisOverlay,
   restorePointEmphasis,
   type PointEmphasisResult,
 } from './pointEmphasis'
@@ -40,22 +41,41 @@ export function createIndicators(
               .join('|')
           },
           render(result, context) {
-            if (result.kind !== 'points') return null
+            if (result.kind !== 'points' || result.points.length === 0)
+              return null
             const pointIndex = (context.svg as ExtendedSVGSVGElement)[
               POINT_INDEX_SYMBOL
             ]
-            if (!pointIndex) return null
-            const emphasisResult = emphasizePoints(
+            const size =
+              indicatorConfig.size ?? indicatorConfig.radius ?? 5
+            if (pointIndex && pointIndex.size > 0) {
+              const defaultSize = 2.5
+              const scaleFactor = size / defaultSize
+              const emphasisResult = emphasizePoints(
+                result.points,
+                {
+                  scales: context.scales,
+                  pointIndex,
+                },
+                context.svg,
+                scaleFactor,
+                indicatorConfig.animation
+              )
+              return emphasisResult as IndicatorHandle
+            }
+            return drawPointEmphasisOverlay(
               result.points,
               {
                 scales: context.scales,
-                pointIndex,
+                svg: context.svg,
+                seriesStyles: context.seriesStyles,
+                emphasisOptions: {
+                  style: indicatorConfig.style,
+                  size: indicatorConfig.size ?? indicatorConfig.radius,
+                },
               },
-              context.svg,
-              indicatorConfig.radius ?? 5,
-              indicatorConfig.animation
-            )
-            return emphasisResult as IndicatorHandle
+              size
+            ) as IndicatorHandle
           },
           restore(handle) {
             if (handle) {

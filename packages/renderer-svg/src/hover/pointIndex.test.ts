@@ -22,12 +22,12 @@ describe('point index', () => {
     svg.setAttribute('height', '100')
   })
 
-  it('returns empty Map when SVG has no circles', () => {
+  it('returns empty Map when SVG has no point glyphs', () => {
     const index = buildPointIndexFromRenderedElements(svg)
     expect(index.size).toBe(0)
   })
 
-  it('skips circles without data attrs', () => {
+  it('skips elements without data attrs', () => {
     const circle = document.createElementNS(
       'http://www.w3.org/2000/svg',
       'circle'
@@ -65,7 +65,7 @@ describe('point index', () => {
     const refs = index.get('s1')
     expect(refs).toHaveLength(2)
     expect(refs!.map(r => r.x)).toEqual([0, 2])
-    expect(refs!.map(r => r.originalRadius)).toEqual([2.5, 3])
+    expect(refs!.map(r => r.y)).toEqual([1, 3])
   })
 
   it('sorts refs by x within each series', () => {

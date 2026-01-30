@@ -1,4 +1,5 @@
 import { Position, type LineChartConfig, type AxisVisibility } from '../../config/types'
+import { resolvePointConfig } from '../../config/helpers'
 import type { ChartEnvironment } from '../../env/types'
 import type { ChartSize } from '../types'
 import {
@@ -468,19 +469,20 @@ export function scene(
       },
     })
 
-    // Points: uses paint.fill for fill only if points are enabled, ignores stroke (unless explicitly configured)
-    // If fill is not set, use stroke color for solid paints, or extract first stop color for gradients
+    // Points: intent only (domain x,y + shape/size). Renderer realizes geometry.
     if (pointsEnabled) {
+      const pointConfig = resolvePointConfig(
+        series.point,
+        config.options?.point
+      )
       series.points.forEach((pt, index) => {
         if (pt.y === null || !Number.isFinite(pt.y) || !Number.isFinite(pt.x))
           return
-        // Use fill if set, otherwise derive from stroke
         let pointFill = paint.fill
         if (!pointFill && paint.stroke) {
           if (paint.stroke.type === 'solid') {
             pointFill = paint.stroke
           } else if (paint.stroke.type === 'linear' || paint.stroke.type === 'radial') {
-            // For gradients, normalize first to get sorted stops, then use first stop color
             try {
               const normalized = normalizeGradientPaint(paint.stroke)
               const firstStop = normalized.stops[0]
@@ -488,23 +490,19 @@ export function scene(
                 pointFill = { type: 'solid', color: firstStop.color }
               }
             } catch {
-              // If normalization fails, fall through to default
+              // fall through
             }
           }
         }
-        // Final fallback
         pointFill = pointFill ?? DEFAULT_SOLID_CURRENT_COLOR
 
         children.push({
-          kind: SceneNodeKind.CIRCLE,
+          kind: SceneNodeKind.POINT,
           id: `point:${series.id}:${index}`,
-          cx: scales.x(pt.x),
-          cy: scales.y(pt.y),
-          r: 2.5,
-          style: {
-            fill: pointFill,
-            // stroke is ignored by default (only fill applies)
-          },
+          x: pt.x,
+          y: pt.y,
+          point: { shape: pointConfig.shape, size: pointConfig.size },
+          style: { fill: pointFill },
           metadata: {
             tooltip: createSceneTooltip(
               TooltipKind.POINT,

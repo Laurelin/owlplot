@@ -4,15 +4,19 @@ export default defineConfig({
   test: {
     projects: [
       {
-        testMatch: ['**/packages/renderer-svg/**/*.{test,spec}.ts'],
-        name: 'renderer-svg',
-        environment: 'jsdom',
-        setupFiles: ['<rootDir>/packages/renderer-svg/vitest.setup.ts'],
+        test: {
+          include: ['**/packages/renderer-svg/**/*.{test,spec}.ts'],
+          name: 'renderer-svg',
+          environment: 'jsdom',
+          setupFiles: ['./packages/renderer-svg/vitest.setup.ts'],
+        },
       },
       {
-        testMatch: ['**/packages/core/**/*.{test,spec}.ts'],
-        name: 'core',
-        environment: 'node',
+        test: {
+          include: ['**/packages/core/**/*.{test,spec}.ts'],
+          name: 'core',
+          environment: 'node',
+        },
       },
     ],
     include: ['**/test/**/*.{test,spec}.ts', '**/*.{test,spec}.ts'],

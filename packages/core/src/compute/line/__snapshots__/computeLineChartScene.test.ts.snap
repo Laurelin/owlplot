@@ -345,10 +345,8 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       },
     },
     {
-      "cx": 40,
-      "cy": 174,
       "id": "point:a:0",
-      "kind": "circle",
+      "kind": "point",
       "metadata": {
         "tooltip": {
           "kind": "point",
@@ -367,19 +365,24 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "x": 0,
         },
       },
-      "r": 2.5,
+      "point": {
+        "shape": {
+          "kind": "circle",
+        },
+        "size": 2.5,
+      },
       "style": {
         "fill": {
           "color": "currentColor",
           "type": "solid",
         },
       },
+      "x": 0,
+      "y": 1,
     },
     {
-      "cx": 228.79999999999998,
-      "cy": 24,
       "id": "point:a:1",
-      "kind": "circle",
+      "kind": "point",
       "metadata": {
         "tooltip": {
           "kind": "point",
@@ -398,19 +401,24 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "x": 1,
         },
       },
-      "r": 2.5,
+      "point": {
+        "shape": {
+          "kind": "circle",
+        },
+        "size": 2.5,
+      },
       "style": {
         "fill": {
           "color": "currentColor",
           "type": "solid",
         },
       },
+      "x": 1,
+      "y": 2,
     },
     {
-      "cx": 606.4,
-      "cy": 174,
       "id": "point:a:3",
-      "kind": "circle",
+      "kind": "point",
       "metadata": {
         "tooltip": {
           "kind": "point",
@@ -429,13 +437,20 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "x": 3,
         },
       },
-      "r": 2.5,
+      "point": {
+        "shape": {
+          "kind": "circle",
+        },
+        "size": 2.5,
+      },
       "style": {
         "fill": {
           "color": "currentColor",
           "type": "solid",
         },
       },
+      "x": 3,
+      "y": 1,
     },
     {
       "d": "M 40 324 L 228.79999999999998 174 L 417.59999999999997 99 L 606.4 24",
@@ -454,10 +469,8 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       },
     },
     {
-      "cx": 40,
-      "cy": 324,
       "id": "point:b:0",
-      "kind": "circle",
+      "kind": "point",
       "metadata": {
         "tooltip": {
           "kind": "point",
@@ -476,19 +489,24 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "x": 0,
         },
       },
-      "r": 2.5,
+      "point": {
+        "shape": {
+          "kind": "circle",
+        },
+        "size": 2.5,
+      },
       "style": {
         "fill": {
           "color": "currentColor",
           "type": "solid",
         },
       },
+      "x": 0,
+      "y": 0,
     },
     {
-      "cx": 228.79999999999998,
-      "cy": 174,
       "id": "point:b:1",
-      "kind": "circle",
+      "kind": "point",
       "metadata": {
         "tooltip": {
           "kind": "point",
@@ -507,19 +525,24 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "x": 1,
         },
       },
-      "r": 2.5,
+      "point": {
+        "shape": {
+          "kind": "circle",
+        },
+        "size": 2.5,
+      },
       "style": {
         "fill": {
           "color": "currentColor",
           "type": "solid",
         },
       },
+      "x": 1,
+      "y": 1,
     },
     {
-      "cx": 417.59999999999997,
-      "cy": 99,
       "id": "point:b:2",
-      "kind": "circle",
+      "kind": "point",
       "metadata": {
         "tooltip": {
           "kind": "point",
@@ -538,19 +561,24 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "x": 2,
         },
       },
-      "r": 2.5,
+      "point": {
+        "shape": {
+          "kind": "circle",
+        },
+        "size": 2.5,
+      },
       "style": {
         "fill": {
           "color": "currentColor",
           "type": "solid",
         },
       },
+      "x": 2,
+      "y": 1.5,
     },
     {
-      "cx": 606.4,
-      "cy": 24,
       "id": "point:b:3",
-      "kind": "circle",
+      "kind": "point",
       "metadata": {
         "tooltip": {
           "kind": "point",
@@ -569,13 +597,20 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "x": 3,
         },
       },
-      "r": 2.5,
+      "point": {
+        "shape": {
+          "kind": "circle",
+        },
+        "size": 2.5,
+      },
       "style": {
         "fill": {
           "color": "currentColor",
           "type": "solid",
         },
       },
+      "x": 3,
+      "y": 2,
     },
   ],
   "id": "root",

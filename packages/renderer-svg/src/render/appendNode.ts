@@ -11,11 +11,37 @@ import {
   DATA_X,
   DATA_Y,
 } from '../shared/dataAttributes'
+import { buildTrianglePath, buildDiamondPath } from './pointShapePaths'
+
+/** Render context: scales required for ScenePointNode (domain → pixel). */
+export type AppendNodeContext = {
+  scales: { x: (v: number) => number; y: (v: number) => number }
+}
+
+function stampPointDataAttributes(
+  el: SVGElement,
+  node: { id: string; metadata?: { tooltip?: { kind: TooltipKind; seriesId?: string; points: { x: number; y: number }[] } } }
+): void {
+  if (!node.metadata?.tooltip) return
+  const datum = node.metadata.tooltip
+  if (datum.kind !== TooltipKind.POINT || !datum.seriesId) return
+  el.setAttribute(DATA_SERIES_ID, datum.seriesId)
+  const primaryPoint = datum.points[0]
+  if (primaryPoint) {
+    el.setAttribute(DATA_X, String(primaryPoint.x))
+    el.setAttribute(DATA_Y, String(primaryPoint.y))
+  }
+  const pointIndexMatch = node.id.match(/^point:[^:]+:(\d+)$/)
+  if (pointIndexMatch?.[1] != null) {
+    el.setAttribute(DATA_POINT_INDEX, pointIndexMatch[1])
+  }
+}
 
 export function appendNode(
   node: SceneNode,
   parent: SVGElement,
-  svg?: SVGSVGElement
+  svg?: SVGSVGElement,
+  context?: AppendNodeContext
 ) {
   let el: SVGElement | null = null
 
@@ -24,10 +50,9 @@ export function appendNode(
       el = createSvgElement('g')
       if (node.transform)
         el.setAttribute(SvgAttributeName.TRANSFORM, node.transform)
-      // Pass svg down for gradient defs
       const rootSvg = svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
       node.children.forEach((child: SceneNode) =>
-        appendNode(child, el!, rootSvg)
+        appendNode(child, el!, rootSvg, context)
       )
       break
     }
@@ -49,25 +74,63 @@ export function appendNode(
       el.setAttribute(SvgAttributeName.CX, String(node.cx))
       el.setAttribute(SvgAttributeName.CY, String(node.cy))
       el.setAttribute(SvgAttributeName.R, String(node.r))
-
-      // Stamp domain coordinates from canonical datum.points (required for hover + point index)
-      if (node.metadata?.tooltip) {
-        const datum = node.metadata.tooltip
-        if (datum.kind === TooltipKind.POINT && datum.seriesId) {
-          const circleEl = el as SVGCircleElement
-          circleEl.setAttribute(DATA_SERIES_ID, datum.seriesId)
-          const primaryPoint = datum.points[0]
-          if (primaryPoint) {
-            circleEl.setAttribute(DATA_X, String(primaryPoint.x))
-            circleEl.setAttribute(DATA_Y, String(primaryPoint.y))
-          }
-          // point:seriesId:index → extract index for DATA_POINT_INDEX
-          const pointIndexMatch = node.id.match(/^point:[^:]+:(\d+)$/)
-          if (pointIndexMatch?.[1] != null) {
-            circleEl.setAttribute(DATA_POINT_INDEX, pointIndexMatch[1])
-          }
+      stampPointDataAttributes(el, node)
+      break
+    }
+    case SceneNodeKind.POINT: {
+      if (!context?.scales) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[owlplot] ScenePointNode requires render context with scales; skipping point.')
         }
+        break
       }
+      const cx = context.scales.x(node.x)
+      const cy = context.scales.y(node.y)
+      const size = node.point.size
+      const shape = node.point.shape
+
+      if (shape.kind === 'circle') {
+        el = createSvgElement('circle')
+        el.setAttribute(SvgAttributeName.CX, String(cx))
+        el.setAttribute(SvgAttributeName.CY, String(cy))
+        el.setAttribute(SvgAttributeName.R, String(size))
+      } else if (shape.kind === 'square') {
+        // Circumradius = size => half-diagonal = size => side = size * sqrt(2)
+        const halfSide = size * Math.SQRT1_2
+        el = createSvgElement('rect')
+        el.setAttribute(SvgAttributeName.X, String(cx - halfSide))
+        el.setAttribute(SvgAttributeName.Y, String(cy - halfSide))
+        el.setAttribute('width', String(2 * halfSide))
+        el.setAttribute('height', String(2 * halfSide))
+      } else if (shape.kind === 'triangle') {
+        el = createSvgElement('path')
+        el.setAttribute(SvgAttributeName.D, buildTrianglePath(size))
+        el.setAttribute(SvgAttributeName.TRANSFORM, `translate(${cx},${cy})`)
+      } else if (shape.kind === 'diamond') {
+        el = createSvgElement('path')
+        el.setAttribute(SvgAttributeName.D, buildDiamondPath(size))
+        el.setAttribute(SvgAttributeName.TRANSFORM, `translate(${cx},${cy})`)
+      } else if (shape.kind === 'symbol') {
+        // No registry yet; fall back to circle
+        el = createSvgElement('circle')
+        el.setAttribute(SvgAttributeName.CX, String(cx))
+        el.setAttribute(SvgAttributeName.CY, String(cy))
+        el.setAttribute(SvgAttributeName.R, String(size))
+      } else if (shape.kind === 'emoji') {
+        el = createSvgElement('text')
+        el.setAttribute(SvgAttributeName.X, String(cx))
+        el.setAttribute(SvgAttributeName.Y, String(cy))
+        el.setAttribute(SvgAttributeName.TEXT_ANCHOR, 'middle')
+        el.setAttribute(SvgAttributeName.DOMINANT_BASELINE, 'central')
+        el.setAttribute(SvgAttributeName.FONT_SIZE, String(Math.round(size * 2)))
+        el.textContent = shape.value
+      } else {
+        el = createSvgElement('circle')
+        el.setAttribute(SvgAttributeName.CX, String(cx))
+        el.setAttribute(SvgAttributeName.CY, String(cy))
+        el.setAttribute(SvgAttributeName.R, String(size))
+      }
+      if (el) stampPointDataAttributes(el, node)
       break
     }
     case SceneNodeKind.TEXT: {

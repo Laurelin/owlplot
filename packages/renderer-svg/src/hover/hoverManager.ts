@@ -21,6 +21,8 @@ import {
   GLYPH_HOVER_LISTENERS_SYMBOL,
   DATA_HOVER_LISTENERS_SYMBOL,
   POINT_INDEX_SYMBOL,
+  SERIES_STYLES_SYMBOL,
+  SERIES_POINT_SHAPES_SYMBOL,
 } from '../shared/symbols'
 
 /**
@@ -108,10 +110,13 @@ export function attachDataHover(
   const previousHandles = new Map<string, IndicatorHandle>()
   const previousKeys = new Map<string, string>()
 
+  const extendedSvg = svg as ExtendedSVGSVGElement
   const context: HoverIndicatorContext = {
     svg,
     scales: metadata.scales,
     plotRect: metadata.plotRect,
+    seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
+    seriesPointShapes: extendedSvg[SERIES_POINT_SHAPES_SYMBOL],
   }
 
   const handlePointerMove = (event: PointerEvent) => {
@@ -195,7 +200,6 @@ export function attachDataHover(
   svg.addEventListener('pointermove', handlePointerMove)
   svg.addEventListener('pointerleave', handlePointerLeave)
 
-  const extendedSvg = svg as ExtendedSVGSVGElement
   extendedSvg[DATA_HOVER_LISTENERS_SYMBOL] = {
     pointermove: handlePointerMove,
     pointerleave: handlePointerLeave,
@@ -248,6 +252,8 @@ export function attachGlyphHover(
     svg,
     scales: metadata.scales,
     plotRect: metadata.plotRect,
+    seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
+    seriesPointShapes: extendedSvg[SERIES_POINT_SHAPES_SYMBOL],
   }
 
   const handlePointerMove = (event: PointerEvent) => {

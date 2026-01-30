@@ -1,5 +1,6 @@
 import type { TextAnchor, DominantBaseline } from '../text/types'
 import type { AnyPaint } from '../paint/types'
+import type { PointShape } from '../config/types'
 
 // -----------------------------------
 // enums (never use hardcoded strings)
@@ -11,6 +12,7 @@ export enum SceneNodeKind {
   RECT = 'rect',
   CIRCLE = 'circle',
   TEXT = 'text',
+  POINT = 'point',
 }
 
 export enum TooltipKind {
@@ -30,6 +32,7 @@ export type SceneNode =
   | SceneRectNode
   | SceneCircleNode
   | SceneTextNode
+  | ScenePointNode
 
 export type SceneStyle = {
   fill?: AnyPaint
@@ -100,6 +103,17 @@ export type SceneCircleNode = SceneBaseNode & {
   cx: number
   cy: number
   r: number
+}
+
+/** Point mark: domain position + shape intent only. Renderer realizes geometry. */
+export type ScenePointNode = SceneBaseNode & {
+  kind: SceneNodeKind.POINT
+  /** Domain x (data space). */
+  x: number
+  /** Domain y (data space). */
+  y: number
+  /** Shape intent + size (circumradius). No geometry in core. */
+  point: { shape: PointShape; size: number }
 }
 
 export type SceneTextNode = SceneBaseNode & {

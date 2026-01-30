@@ -1,4 +1,4 @@
-import type { SceneNode } from '@owlplot/core'
+import type { SceneNode, PointShape } from '@owlplot/core'
 import { SceneNodeKind } from '@owlplot/core'
 import type {
   TooltipRenderer,
@@ -9,7 +9,7 @@ import type { HoverMode } from '../hover/types'
 import type { HoverIndicatorConfig } from '../hover/indicators/types'
 
 import { clearSvg } from './svgDom'
-import { appendNode } from './appendNode'
+import { appendNode, type AppendNodeContext } from './appendNode'
 
 import { defaultTooltipRenderer } from '../tooltip/defaultTooltipRenderer'
 import { hideTooltip } from '../tooltip/tooltipDom'
@@ -29,6 +29,7 @@ import {
   POINT_INDEX_SYMBOL,
   TOOLTIP_CONTEXT_SYMBOL,
   SERIES_STYLES_SYMBOL,
+  SERIES_POINT_SHAPES_SYMBOL,
 } from '../shared/symbols'
 import {
   SceneMetadataKey,
@@ -84,6 +85,30 @@ function buildSeriesStylesFromScene(
   return map
 }
 
+/**
+ * Walk scene and build seriesId → PointShape from POINT nodes (id: "point:seriesId:index").
+ * Used for overlay emphasis default shape when point nodes exist; empty when showPoints: false.
+ */
+function buildSeriesPointShapesFromScene(
+  scene: SceneNode
+): Map<string, PointShape> {
+  const map = new Map<string, PointShape>()
+  function walk(node: SceneNode) {
+    if (node.kind === SceneNodeKind.POINT && node.id.startsWith('point:')) {
+      const parts = node.id.split(':')
+      if (parts.length >= 2) {
+        const seriesId = parts[1]
+        if (seriesId && node.point?.shape) map.set(seriesId, node.point.shape)
+      }
+    }
+    if (node.kind === SceneNodeKind.GROUP) {
+      node.children.forEach(walk)
+    }
+  }
+  walk(scene)
+  return map
+}
+
 export function renderSvgScene(
   scene: SceneNode,
   svg: SVGSVGElement,
@@ -104,9 +129,16 @@ export function renderSvgScene(
     extendedSvg[TOOLTIP_CONTEXT_SYMBOL] = options.tooltipContext
   }
   extendedSvg[SERIES_STYLES_SYMBOL] = buildSeriesStylesFromScene(scene)
+  extendedSvg[SERIES_POINT_SHAPES_SYMBOL] =
+    buildSeriesPointShapesFromScene(scene)
 
   clearSvg(svg)
-  appendNode(scene, svg)
+  const hoverMeta = scene.metadata?.[SceneMetadataKey.HOVER] as
+    | { scales: { x: (v: number) => number; y: (v: number) => number } }
+    | undefined
+  const appendContext: AppendNodeContext | undefined =
+    hoverMeta?.scales != null ? { scales: hoverMeta.scales } : undefined
+  appendNode(scene, svg, undefined, appendContext)
 
   const explicitHoverMode = options?.hoverMode
   const hasExplicitIndicator = options?.hoverIndicator !== undefined

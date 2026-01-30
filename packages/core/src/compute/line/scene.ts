@@ -28,6 +28,9 @@ import type { AxisConfig } from '../cartesian2d/axis'
 import { DEFAULT_TICK_FONT, DEFAULT_LABEL_FONT } from '../cartesian2d/axis'
 import { LabelOrientation } from '../cartesian2d/types/axis'
 
+/** Epsilon for "value is zero" and "domain includes zero" checks. Single constant to avoid magic numbers. */
+const ZERO_EPSILON = 1e-10
+
 /**
  * Core → Renderer Contract for Hover Metadata:
  *
@@ -141,8 +144,7 @@ export function axisToSceneNodes(
   plotRect: { x: number; y: number; width: number; height: number },
   tickFont?: string,
   labelFont?: string,
-  isYAxis = false,
-  hideLabelAtIntersection = false,
+  hideTickAtOrigin = false,
   axisConfig?: AxisConfig
 ): SceneNode[] {
   // Normalize visibility flags (default: true)
@@ -188,6 +190,8 @@ export function axisToSceneNodes(
   // ticks and tick labels
   axis.ticks.forEach((tick, i) => {
     const lbl = axis.labelLayouts[i]
+    const isAtOrigin = hideTickAtOrigin && Math.abs(tick.value) < ZERO_EPSILON
+    if (isAtOrigin) return // skip both tick mark and label at origin
 
     // tick mark
     if (showTicks) {
@@ -217,33 +221,23 @@ export function axisToSceneNodes(
       })
     }
 
-    if (lbl && showTickLabels) {
-      // Skip label at intersection (Y-axis at value 0 when X-axis also has 0)
-      // For vertical axes, intersection is at the bottom (y1 for reversed range)
-      const isAtIntersection =
-        isYAxis &&
-        hideLabelAtIntersection &&
-        Math.abs(tick.value) < 1e-10 &&
-        Math.abs(tick.position - axis.line.y1) < 1e-10
-
-      if (!isAtIntersection && lbl.text !== '') {
-        const transform =
-          lbl.rotation !== undefined
-            ? `rotate(${lbl.rotation} ${lbl.x} ${lbl.y})`
-            : undefined
-        const fontSizePx = extractFontSizePx(tickFont ?? DEFAULT_TICK_FONT)
-        children.push({
-          kind: SceneNodeKind.TEXT,
-          id: `axis-tick-label:${axis.orientation}:${i}`,
-          x: lbl.x,
-          y: lbl.y,
-          text: lbl.text,
-          textAnchor: lbl.textAnchor,
-          dominantBaseline: lbl.dominantBaseline,
-          transform,
-          style: { fill: DEFAULT_SOLID_CURRENT_COLOR, fontSizePx },
-        })
-      }
+    if (lbl && showTickLabels && lbl.text !== '') {
+      const transform =
+        lbl.rotation !== undefined
+          ? `rotate(${lbl.rotation} ${lbl.x} ${lbl.y})`
+          : undefined
+      const fontSizePx = extractFontSizePx(tickFont ?? DEFAULT_TICK_FONT)
+      children.push({
+        kind: SceneNodeKind.TEXT,
+        id: `axis-tick-label:${axis.orientation}:${i}`,
+        x: lbl.x,
+        y: lbl.y,
+        text: lbl.text,
+        textAnchor: lbl.textAnchor,
+        dominantBaseline: lbl.dominantBaseline,
+        transform,
+        style: { fill: DEFAULT_SOLID_CURRENT_COLOR, fontSizePx },
+      })
     }
   })
 
@@ -397,20 +391,29 @@ export function scene(
     config.options?.yAxis?.position === 'right' && config.options?.yAxisRight
   const layoutYAxis: AxisConfig | null = isRightOnly ? null : leftAxisConfig
 
-  const { plotRect, scales, axes, xDomain, yDomain, yDomainLeft, yDomainRight } =
-    computeCartesianLayout(config.series, size, env.measureText, {
-      padding,
-      xAxis: bottomAxisConfig,
-      yAxis: layoutYAxis,
-      yAxisRight: rightAxisConfig,
-      yAxisRightDomain: config.options?.yAxisRight?.domain,
-      enableAdaptivePadding: config.options?.enableAdaptivePadding ?? true,
-      axisTickFont: config.options?.axisTickFont,
-      axisLabelFont: config.options?.axisLabelFont,
-    })
+  const resolvedYDomain = config.options?.yDomain ?? { mode: 'include-zero' }
+  const {
+    plotRect,
+    scales,
+    axes,
+    xDomain,
+    yDomain,
+    yDomainLeft,
+    yDomainRight,
+  } = computeCartesianLayout(config.series, size, env.measureText, {
+    padding,
+    xAxis: bottomAxisConfig,
+    yAxis: layoutYAxis,
+    yAxisRight: rightAxisConfig,
+    yAxisRightDomain: config.options?.yAxisRight?.domain,
+    yDomain: resolvedYDomain,
+    enableAdaptivePadding: config.options?.enableAdaptivePadding ?? true,
+    axisTickFont: config.options?.axisTickFont,
+    axisLabelFont: config.options?.axisLabelFont,
+  })
 
   const isDualScale = scales.yLeft !== undefined && scales.yRight !== undefined
-  const getYScale = (series: LineSeries): (v: number) => number =>
+  const getYScale = (series: LineSeries): ((v: number) => number) =>
     isDualScale && series.yAxis === 'right' ? scales.yRight! : scales.y
 
   const children: SceneNode[] = []
@@ -426,9 +429,16 @@ export function scene(
     style: { fill: { type: 'solid', color: 'transparent' } },
   })
 
-  // Get X-axis domain to check for intersection
-  const xAxisDomain = axes.x.ticks.map(t => t.value)
-  const xAxisHasZero = xAxisDomain.some(v => Math.abs(v) < 1e-10)
+  // Origin: both x and y domains include zero. Domain-based (ground truth; ticks can be thinned).
+  // Right-only charts: use the single (right) scale's domain for yAxisHasZero.
+  const effectiveYDomain =
+    axes.y === undefined && yDomainRight !== undefined ? yDomainRight : yDomain
+  const xAxisHasZero = xDomain[0] <= ZERO_EPSILON && xDomain[1] >= -ZERO_EPSILON
+  const yAxisHasZero =
+    effectiveYDomain[0] <= ZERO_EPSILON && effectiveYDomain[1] >= -ZERO_EPSILON
+  const originIntersection = xAxisHasZero && yAxisHasZero
+  const showOriginTicks = config.options?.showOriginTicks ?? false
+  const hideTickAtOrigin = originIntersection && !showOriginTicks
 
   // axes
   children.push(
@@ -437,9 +447,8 @@ export function scene(
       plotRect,
       config.options?.axisTickFont,
       config.options?.axisLabelFont,
-      false, // isYAxis
-      xAxisHasZero, // hideLabelAtIntersection
-      bottomAxisConfig // axisConfig
+      hideTickAtOrigin,
+      bottomAxisConfig
     )
   )
   if (axes.y !== undefined) {
@@ -449,9 +458,8 @@ export function scene(
         plotRect,
         config.options?.axisTickFont,
         config.options?.axisLabelFont,
-        true, // isYAxis
-        xAxisHasZero, // hideLabelAtIntersection
-        leftAxisConfig // axisConfig
+        hideTickAtOrigin,
+        leftAxisConfig
       )
     )
   }
@@ -462,9 +470,8 @@ export function scene(
         plotRect,
         config.options?.axisTickFont,
         config.options?.axisLabelFont,
-        true, // isYAxis
-        xAxisHasZero, // hideLabelAtIntersection
-        rightAxisConfig // axisConfig
+        hideTickAtOrigin,
+        rightAxisConfig
       )
     )
   }
@@ -545,10 +552,7 @@ export function scene(
 
   const seriesPayload = config.series.map((s): HoverSeries => {
     const validPoints = s.points
-      .filter(
-        p =>
-          p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y)
-      )
+      .filter(p => p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y))
       .map(p => ({ x: p.x, y: p.y! }))
       .sort((a, b) => a.x - b.x)
     const sortedPoints = Object.freeze(validPoints)

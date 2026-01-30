@@ -82,7 +82,12 @@ export function computeAdaptivePadding(
     yDomainRight?: [number, number]
   } = {}
 ): AdaptivePadding {
-  const { axisTickFont, axisLabelFont, extraPadding = 0, yDomainRight } = options
+  const {
+    axisTickFont,
+    axisLabelFont,
+    extraPadding = 0,
+    yDomainRight,
+  } = options
 
   // start with zero
   let top = 0
@@ -183,11 +188,10 @@ export function computeAdaptivePadding(
   }
 
   // bottom axis needs space for tick labels + title
-  // With HANGING baseline: y = height + offset, text hangs down by height
-  // Tick label space: height (y position) + offset + height (text extends down)
+  // With HANGING baseline: y = height (no extra gap), text hangs down by height
+  // Tick label space: height (y position) + height (text extends down)
   const bottomTickSpace =
     maxBottomTickLabelHeight + // space for y position
-    DEFAULT_TICK_LABEL_OFFSET +
     maxBottomTickLabelHeight // space text extends down with HANGING baseline
 
   // Title space: positioned below tick labels with offset
@@ -306,8 +310,7 @@ export function computeAdaptivePadding(
 
   // left axis needs space for tick text + title (only when left axis is present; right-only has no left axis)
   if (leftAxisConfig) {
-    const leftTickLabelSpace =
-      DEFAULT_TICK_LABEL_OFFSET + maxLeftTickLabelWidth
+    const leftTickLabelSpace = DEFAULT_TICK_LABEL_OFFSET + maxLeftTickLabelWidth
     const leftTitleSpace = leftAxisConfig.axisLabel
       ? leftAxisTitleWidth + AXIS_TITLE_OFFSET
       : 0
@@ -415,7 +418,7 @@ export function computeAdaptivePadding(
   }
 
   // right axis needs space for tick text + title
-  // With textAnchor START: x = offset, text starts at x and extends right by width
+  // With textAnchor START: x = DEFAULT_TICK_LABEL_OFFSET, text starts at x and extends right by width
   // Tick label space: offset + width
   const rightTickLabelSpace = DEFAULT_TICK_LABEL_OFFSET + maxRightTickLabelWidth
 

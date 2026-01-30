@@ -100,6 +100,24 @@ export type Cartesian2DOptions = {
   /** enable adaptive padding based on label extents (default: true) */
   enableAdaptivePadding?: boolean
 
+  /**
+   * Y-axis domain policy. Default: { mode: 'include-zero' }.
+   * include-zero: clamp computed extents so domain includes 0.
+   * data: use computed extents as-is.
+   * fixed: use explicit min/max (min and max required when mode is 'fixed').
+   */
+  yDomain?: {
+    mode: 'include-zero' | 'data' | 'fixed'
+    min?: number
+    max?: number
+  }
+
+  /**
+   * When both x and y domains include zero, show tick mark and label at origin.
+   * Default false (hide at origin to avoid double zero and clutter).
+   */
+  showOriginTicks?: boolean
+
   /** right Y-axis configuration (secondary/mirror or dual-scale) */
   yAxisRight?: {
     tickCount?: number

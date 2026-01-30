@@ -32,35 +32,6 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
-          "d": "M 0 0 L 0 4",
-          "id": "axis-tick:bottom:0",
-          "kind": "path",
-          "style": {
-            "stroke": {
-              "color": "currentColor",
-              "type": "solid",
-            },
-            "strokeWidth": 1,
-          },
-        },
-        {
-          "dominantBaseline": "hanging",
-          "id": "axis-tick-label:bottom:0",
-          "kind": "text",
-          "style": {
-            "fill": {
-              "color": "currentColor",
-              "type": "solid",
-            },
-            "fontSizePx": 10.666666666666666,
-          },
-          "text": "0",
-          "textAnchor": "middle",
-          "transform": undefined,
-          "x": 0,
-          "y": 20,
-        },
-        {
           "d": "M 141.6 0 L 141.6 4",
           "id": "axis-tick:bottom:1",
           "kind": "path",
@@ -87,7 +58,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "textAnchor": "middle",
           "transform": undefined,
           "x": 141.6,
-          "y": 20,
+          "y": 12,
         },
         {
           "d": "M 283.2 0 L 283.2 4",
@@ -116,7 +87,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "textAnchor": "middle",
           "transform": undefined,
           "x": 283.2,
-          "y": 20,
+          "y": 12,
         },
         {
           "d": "M 424.79999999999995 0 L 424.79999999999995 4",
@@ -145,7 +116,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "textAnchor": "middle",
           "transform": undefined,
           "x": 424.79999999999995,
-          "y": 20,
+          "y": 12,
         },
         {
           "d": "M 566.4 0 L 566.4 4",
@@ -174,17 +145,17 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "textAnchor": "middle",
           "transform": undefined,
           "x": 566.4,
-          "y": 20,
+          "y": 12,
         },
       ],
       "id": "axis-group:bottom",
       "kind": "group",
-      "transform": "translate(40,324)",
+      "transform": "translate(40,332)",
     },
     {
       "children": [
         {
-          "d": "M 0 300 L 0 0",
+          "d": "M 0 308 L 0 0",
           "id": "axis-line:left",
           "kind": "path",
           "style": {
@@ -196,19 +167,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
-          "d": "M 0 300 L -4 300",
-          "id": "axis-tick:left:0",
-          "kind": "path",
-          "style": {
-            "stroke": {
-              "color": "currentColor",
-              "type": "solid",
-            },
-            "strokeWidth": 1,
-          },
-        },
-        {
-          "d": "M 0 225 L -4 225",
+          "d": "M 0 231 L -4 231",
           "id": "axis-tick:left:1",
           "kind": "path",
           "style": {
@@ -234,10 +193,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "textAnchor": "end",
           "transform": undefined,
           "x": -8,
-          "y": 225,
+          "y": 231,
         },
         {
-          "d": "M 0 150 L -4 150",
+          "d": "M 0 154 L -4 154",
           "id": "axis-tick:left:2",
           "kind": "path",
           "style": {
@@ -263,10 +222,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "textAnchor": "end",
           "transform": undefined,
           "x": -8,
-          "y": 150,
+          "y": 154,
         },
         {
-          "d": "M 0 75 L -4 75",
+          "d": "M 0 77 L -4 77",
           "id": "axis-tick:left:3",
           "kind": "path",
           "style": {
@@ -292,7 +251,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "textAnchor": "end",
           "transform": undefined,
           "x": -8,
-          "y": 75,
+          "y": 77,
         },
         {
           "d": "M 0 0 L -4 0",
@@ -329,7 +288,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "transform": "translate(40,24)",
     },
     {
-      "d": "M 40 174 L 228.79999999999998 24M 606.4 174",
+      "d": "M 40 178 L 228.79999999999998 24M 606.4 178",
       "id": "series:a",
       "kind": "path",
       "style": {
@@ -456,7 +415,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "y": 1,
     },
     {
-      "d": "M 40 324 L 228.79999999999998 174 L 417.59999999999997 99 L 606.4 24",
+      "d": "M 40 332 L 228.79999999999998 178 L 417.59999999999997 101 L 606.4 24",
       "id": "series:b",
       "kind": "path",
       "style": {
@@ -625,7 +584,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
   "metadata": {
     "hover": {
       "plotRect": {
-        "height": 300,
+        "height": 308,
         "width": 566.4,
         "x": 40,
         "y": 24,

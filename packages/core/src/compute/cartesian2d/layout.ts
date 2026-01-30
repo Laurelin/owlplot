@@ -6,6 +6,35 @@ import type { PlotRect } from '../types'
 import { computeAdaptivePadding } from './adaptivePadding'
 import type { AxisConfig } from './axis'
 
+export type YDomainPolicy = {
+  mode: 'include-zero' | 'data' | 'fixed'
+  min?: number
+  max?: number
+}
+
+function applyYDomainPolicy(
+  yMin: number,
+  yMax: number,
+  policy: YDomainPolicy | undefined
+): [number, number] {
+  const mode = policy?.mode ?? 'include-zero'
+  if (mode === 'data') return [yMin, yMax]
+  if (mode === 'include-zero') {
+    return [Math.min(0, yMin), Math.max(0, yMax)]
+  }
+  if (
+    mode === 'fixed' &&
+    policy?.min !== undefined &&
+    policy?.max !== undefined
+  ) {
+    let min = policy.min
+    let max = policy.max
+    if (min === max) max = min + 1
+    return [min, max]
+  }
+  return [yMin, yMax]
+}
+
 export type CartesianLayoutResult = {
   plotRect: PlotRect
   scales: {
@@ -43,6 +72,8 @@ export function computeCartesianLayout(
     yAxisRight?: AxisConfig
     /** Explicit right Y domain (dual-scale). If absent, derived from series with yAxis: 'right'. */
     yAxisRightDomain?: [number, number]
+    /** Y-axis domain policy. Default include-zero when undefined. */
+    yDomain?: YDomainPolicy
     enableAdaptivePadding?: boolean
     axisTickFont?: string
     axisLabelFont?: string
@@ -92,6 +123,11 @@ export function computeCartesianLayout(
       yMaxLeft = 1
     }
     if (yMinLeft === yMaxLeft) yMaxLeft = yMinLeft + 1
+    ;[yMinLeft, yMaxLeft] = applyYDomainPolicy(
+      yMinLeft,
+      yMaxLeft,
+      options.yDomain
+    )
 
     if (options.yAxisRightDomain !== undefined) {
       ;[yMinRight, yMaxRight] = options.yAxisRightDomain
@@ -111,6 +147,11 @@ export function computeCartesianLayout(
         yMaxRight = 1
       }
       if (yMinRight === yMaxRight) yMaxRight = yMinRight + 1
+      ;[yMinRight, yMaxRight] = applyYDomainPolicy(
+        yMinRight,
+        yMaxRight,
+        options.yDomain
+      )
     }
     yMin = yMinLeft
     yMax = yMaxLeft
@@ -129,6 +170,7 @@ export function computeCartesianLayout(
       yMax = 1
     }
     if (yMin === yMax) yMax = yMin + 1
+    ;[yMin, yMax] = applyYDomainPolicy(yMin, yMax, options.yDomain)
     yMinLeft = yMin
     yMaxLeft = yMax
     yMinRight = yMin

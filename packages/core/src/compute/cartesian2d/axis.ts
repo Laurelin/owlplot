@@ -165,7 +165,7 @@ export function computeAxisLayout(
     maxTickLabelHeight = Math.max(maxTickLabelHeight, effectiveHeight)
 
     if (orientation === Position.BOTTOM) {
-      y = height + DEFAULT_TICK_LABEL_OFFSET
+      y = height // no extra gap: label top at textHeight below axis
       textAnchor = TextAnchor.MIDDLE
       dominantBaseline = DominantBaseline.HANGING
     } else if (orientation === Position.TOP) {
@@ -261,12 +261,11 @@ export function computeAxisLayout(
 
           if (orientation === Position.BOTTOM) {
             // Position below tick labels
-            // Tick labels: y = height + DEFAULT_TICK_LABEL_OFFSET, baseline = HANGING
-            // Bottom of tick label text: y + height = height + DEFAULT_TICK_LABEL_OFFSET + height
+            // Tick labels: y = height (no extra gap), baseline = HANGING
+            // Bottom of tick label text: y + height = height + height
             // Title with MIDDLE baseline: center at bottom of ticks + offset + half title height
             y =
               maxTickLabelHeight +
-              DEFAULT_TICK_LABEL_OFFSET +
               maxTickLabelHeight +
               AXIS_TITLE_OFFSET +
               titleHeight / 2
@@ -287,7 +286,7 @@ export function computeAxisLayout(
           } else if (orientation === Position.LEFT) {
             // Position to the left of tick labels
             // Tick labels: x = -DEFAULT_TICK_LABEL_OFFSET, textAnchor = END
-            // Left edge of tick label text: x - width = -DEFAULT_TICK_LABEL_OFFSET - width
+            // Left edge of tick label text: x - width = -offset - width
             // Title with MIDDLE textAnchor: center at left edge of ticks - offset - half title width
             x =
               -DEFAULT_TICK_LABEL_OFFSET -
@@ -300,7 +299,7 @@ export function computeAxisLayout(
           } else if (orientation === Position.RIGHT) {
             // Position to the right of tick labels
             // Tick labels: x = DEFAULT_TICK_LABEL_OFFSET, textAnchor = START
-            // Right edge of tick label text: x + width = DEFAULT_TICK_LABEL_OFFSET + width
+            // Right edge of tick label text: x + width = offset + width
             // Title with MIDDLE textAnchor: center at right edge of ticks + offset + half title width
             x =
               DEFAULT_TICK_LABEL_OFFSET +

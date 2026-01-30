@@ -125,4 +125,30 @@ export const basicCharts: readonly ChartDemo[] = [
       options: { showPoints: false },
     },
   },
+  {
+    id: 'tight-y-domain',
+    title: 'Tight Y domain (data extents only)',
+    description:
+      'Y-axis uses data extents only (yDomain: { mode: "data" }). Opt-out from default include-zero for variation-focused views.',
+    purpose: 'api-example',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'series1',
+            points: [
+              { x: 0, y: 15 },
+              { x: 1, y: 18 },
+              { x: 2, y: 22 },
+              { x: 3, y: 20 },
+              { x: 4, y: 25 },
+            ],
+          },
+          0
+        ),
+      ],
+      options: { showPoints: true, yDomain: { mode: 'data' } },
+    },
+  },
 ] as const

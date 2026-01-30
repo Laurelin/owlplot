@@ -24,7 +24,7 @@
 }
 
 .chart-svg-container {
-  /* Container for SVG element */
+  display: block;
 }
 
 .chart-svg {

@@ -20,13 +20,3 @@ export function measureTextFont(
 ): { width: number; height: number } {
   return measureText(text, font ?? fallbackFont)
 }
-
-export function measure(
-  measureText: MeasureText,
-  text: string,
-  font: string | undefined,
-  fallbackFont: string
-) {
-  // use specified font if provided, else fallback
-  return measureText(text, font ?? fallbackFont)
-}

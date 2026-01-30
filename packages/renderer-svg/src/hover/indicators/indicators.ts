@@ -46,8 +46,7 @@ export function createIndicators(
             const pointIndex = (context.svg as ExtendedSVGSVGElement)[
               POINT_INDEX_SYMBOL
             ]
-            const size =
-              indicatorConfig.size ?? indicatorConfig.radius ?? 5
+            const size = indicatorConfig.size ?? indicatorConfig.radius ?? 5
             if (pointIndex && pointIndex.size > 0) {
               const defaultSize = 2.5
               const scaleFactor = size / defaultSize

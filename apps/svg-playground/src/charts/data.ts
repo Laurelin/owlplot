@@ -64,7 +64,7 @@ export const dataCharts: readonly ChartDemo[] = [
       kind: ChartKind.LINE,
       series: [
         withDemoColor(
-          { id: 'series1', points: PRECOMPUTED_DATASETS.dense },
+          { id: 'series1', points: [...PRECOMPUTED_DATASETS.dense] },
           0
         ),
       ],

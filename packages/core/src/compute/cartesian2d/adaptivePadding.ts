@@ -149,7 +149,7 @@ export function computeAdaptivePadding(
     bottomAxisConfig?.axisLabelOrientation?.orientation
   const bottomAxisTitleAngle = bottomAxisConfig?.axisLabelOrientation?.angle
   let bottomAxisTitleHeight = 0
-  let bottomAxisTitleWidth = 0
+  let _bottomAxisTitleWidth = 0
   const showBottomAxis = bottomAxisConfig?.showAxis !== false
 
   if (bottomAxisConfig?.axisLabel && showBottomAxis) {
@@ -179,10 +179,10 @@ export function computeAdaptivePadding(
         unrotatedBounds.height,
         rotation
       )
-      bottomAxisTitleWidth = rotatedBounds.width
+      _bottomAxisTitleWidth = rotatedBounds.width
       bottomAxisTitleHeight = rotatedBounds.height
     } else {
-      bottomAxisTitleWidth = unrotatedBounds.width
+      _bottomAxisTitleWidth = unrotatedBounds.width
       bottomAxisTitleHeight = unrotatedBounds.height
     }
   }
@@ -270,7 +270,7 @@ export function computeAdaptivePadding(
     leftAxisConfig?.axisLabelOrientation?.orientation
   const leftAxisTitleAngle = leftAxisConfig?.axisLabelOrientation?.angle
   let leftAxisTitleWidth = 0
-  let leftAxisTitleHeight = 0
+  let _leftAxisTitleHeight = 0
   const showLeftAxis = leftAxisConfig?.showAxis !== false
 
   if (leftAxisConfig?.axisLabel && showLeftAxis) {
@@ -301,10 +301,10 @@ export function computeAdaptivePadding(
         rotation
       )
       leftAxisTitleWidth = rotatedBounds.width
-      leftAxisTitleHeight = rotatedBounds.height
+      _leftAxisTitleHeight = rotatedBounds.height
     } else {
       leftAxisTitleWidth = unrotatedBounds.width
-      leftAxisTitleHeight = unrotatedBounds.height
+      _leftAxisTitleHeight = unrotatedBounds.height
     }
   }
 
@@ -376,7 +376,7 @@ export function computeAdaptivePadding(
     rightAxisConfig?.axisLabelOrientation?.orientation
   const rightAxisTitleAngle = rightAxisConfig?.axisLabelOrientation?.angle
   let rightAxisTitleWidth = 0
-  let rightAxisTitleHeight = 0
+  let _rightAxisTitleHeight = 0
   const showRightAxis = rightAxisConfig?.showAxis !== false
 
   if (rightAxisConfig?.axisLabel && showRightAxis) {
@@ -407,10 +407,10 @@ export function computeAdaptivePadding(
         rotation
       )
       rightAxisTitleWidth = rotatedBounds.width
-      rightAxisTitleHeight = rotatedBounds.height
+      _rightAxisTitleHeight = rotatedBounds.height
     } else {
       rightAxisTitleWidth = unrotatedBounds.width
-      rightAxisTitleHeight = unrotatedBounds.height
+      _rightAxisTitleHeight = unrotatedBounds.height
     }
   } else if (!showRightAxis || !rightAxisConfig?.axisLabel) {
     // Fallback to left axis title width if no right axis title or axis is hidden

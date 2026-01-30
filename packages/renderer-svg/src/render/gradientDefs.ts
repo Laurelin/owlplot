@@ -21,7 +21,7 @@ function hashString(str: string): string {
  * Must use normalized paint to ensure semantically-equal gradients hash the same.
  * Includes namespace prefix to avoid collisions with user IDs or other libs.
  */
-export function hashGradientPaint(paint: GradientPaint): string {
+function hashGradientPaint(paint: GradientPaint): string {
   // Normalize first to get canonical form (endpoints injected, direction defaulted, stops sorted)
   const normalized = normalizeGradientPaint(paint)
 

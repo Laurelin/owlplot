@@ -1,5 +1,9 @@
 import { ChartKind } from '@owlplot/core'
-import { HoverModeKind, HoverIndicatorKind } from '@owlplot/renderer-svg'
+import {
+  HoverModeKind,
+  HoverIndicatorKind,
+  AnimationEasing,
+} from '@owlplot/renderer-svg'
 import type { ChartDemo } from '../shared/types'
 import { PRECOMPUTED_DATASETS } from '../shared/dataGenerators'
 import { customTooltipRenderer } from '../shared/tooltips'
@@ -63,7 +67,7 @@ export const hoverCharts: readonly ChartDemo[] = [
       hoverIndicator: {
         kind: HoverIndicatorKind.POINT_EMPHASIS,
         radius: 5,
-        animation: { durationMs: 120, easing: 'ease-out' },
+        animation: { durationMs: 120, easing: AnimationEasing.EASE_OUT },
       },
     },
   },

@@ -34,10 +34,7 @@ export function resolveGlyphFromElement(
   const domainX = domainXStr != null ? parseFloat(domainXStr) : NaN
   const domainY = domainYStr != null ? parseFloat(domainYStr) : NaN
 
-  if (
-    !Number.isFinite(domainX) ||
-    !Number.isFinite(domainY)
-  ) {
+  if (!Number.isFinite(domainX) || !Number.isFinite(domainY)) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn(
         '[owlplot] Glyph hover: invalid domain coordinates, cannot resolve hover'

@@ -123,7 +123,9 @@ export function appendNode(
       }
       const seriesId = (node as unknown as { seriesId: string }).seriesId
       if (seriesId == null && process.env.NODE_ENV !== 'production') {
-        console.warn('[owlplot] ScenePointNode requires seriesId; skipping point.')
+        console.warn(
+          '[owlplot] ScenePointNode requires seriesId; skipping point.'
+        )
         break
       }
       const cx = context.scales.x(node.x)

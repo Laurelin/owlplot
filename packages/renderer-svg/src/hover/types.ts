@@ -67,7 +67,13 @@ export type PointIndex = Map<string, HoverPointRef[]>
 export function isHoverMetadata(value: unknown): value is HoverMetadata {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
-  if (!('xInvert' in v) || !('scales' in v) || !('plotRect' in v) || !('xDomain' in v) || !('series' in v))
+  if (
+    !('xInvert' in v) ||
+    !('scales' in v) ||
+    !('plotRect' in v) ||
+    !('xDomain' in v) ||
+    !('series' in v)
+  )
     return false
   if (typeof v.xInvert !== 'function') return false
   if (typeof v.scales !== 'object' || v.scales === null) return false

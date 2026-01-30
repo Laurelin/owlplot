@@ -27,7 +27,7 @@ function applyYDomainPolicy(
     policy?.min !== undefined &&
     policy?.max !== undefined
   ) {
-    let min = policy.min
+    const min = policy.min
     let max = policy.max
     if (min === max) max = min + 1
     return [min, max]

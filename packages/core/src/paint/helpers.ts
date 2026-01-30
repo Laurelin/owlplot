@@ -98,33 +98,6 @@ export function normalizeGradientPaint(
 }
 
 /**
- * Optional validation-only function (throws on invalid, doesn't normalize).
- * Can be used for validation without normalization if needed.
- */
-export function validateGradientPaint(paint: GradientPaint): void {
-  if (paint.stops.length < 2) {
-    throw new Error(
-      `GradientPaint must have at least 2 stops, got ${paint.stops.length}`
-    )
-  }
-
-  const stops = [...paint.stops]
-  for (let i = 0; i < stops.length; i++) {
-    const offset = stops[i]!.offset
-    if (offset < 0 || offset > 1) {
-      throw new Error(
-        `GradientPaint stop offset must be in range [0, 1], got ${offset}`
-      )
-    }
-    if (i > 0 && offset < stops[i - 1]!.offset) {
-      throw new Error(
-        `GradientPaint stops must be sorted ascending, got offset ${offset} after ${stops[i - 1]!.offset}`
-      )
-    }
-  }
-}
-
-/**
  * Creates a linear gradient from a base color.
  * Uses semantic direction (defaults to "horizontal" if undefined).
  * Returns normalized paint.
@@ -172,7 +145,7 @@ export function makeLinearGradientFromBase(
  * Creates a radial gradient from a base color.
  * Returns normalized paint.
  */
-export function makeRadialGradientFromBase(
+function makeRadialGradientFromBase(
   baseColor: string,
   lighterAmount = 0.4,
   stops = 5

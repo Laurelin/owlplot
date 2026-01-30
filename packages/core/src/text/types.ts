@@ -2,23 +2,21 @@
  * allowed text anchor positions
  */
 export enum TextAnchor {
-    START  = "start",
-    MIDDLE = "middle",
-    END    = "end"
-  }
-  
-  /**
-   * allowed dominant baseline values
-   * (subset of SVG options)
-   */
-  export enum DominantBaseline {
-    AUTO     = "auto",
-    MIDDLE   = "middle",
-    HANGING  = "hanging",
-    BASELINE = "baseline"
-  }
-  
+  START = 'start',
+  MIDDLE = 'middle',
+  END = 'end',
+}
 
-export type TextMetrics = { width: number; height: number };
+/**
+ * allowed dominant baseline values
+ * (subset of SVG options)
+ */
+export enum DominantBaseline {
+  AUTO = 'auto',
+  MIDDLE = 'middle',
+  HANGING = 'hanging',
+}
 
-export type MeasureText = (text: string, fontCss: string) => TextMetrics;
+export type TextMetrics = { width: number; height: number }
+
+export type MeasureText = (text: string, fontCss: string) => TextMetrics

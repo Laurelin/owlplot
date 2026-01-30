@@ -97,14 +97,14 @@ export function emphasizePoints(
     const element = nearestRef.element
     const cx = context.scales.x(nearestRef.x)
     const cy = getYScale(seriesId)(nearestRef.y)
-    const prevTransform = element.getAttribute(SvgAttributeName.TRANSFORM) ?? null
+    const prevTransform =
+      element.getAttribute(SvgAttributeName.TRANSFORM) ?? null
     // If element already has a placement transform (e.g. path with translate(cx,cy)),
     // only append scale(k) so it scales in place. Otherwise apply full scale-around-center.
     const hasPlacement = prevTransform != null && prevTransform !== ''
-    const newTransform =
-      hasPlacement
-        ? `${prevTransform} scale(${scaleFactor})`
-        : `translate(${cx},${cy}) scale(${scaleFactor}) translate(${-cx},${-cy})`
+    const newTransform = hasPlacement
+      ? `${prevTransform} scale(${scaleFactor})`
+      : `translate(${cx},${cy}) scale(${scaleFactor}) translate(${-cx},${-cy})`
     element.setAttribute(SvgAttributeName.TRANSFORM, newTransform)
     emphasized.push({ element, previousTransform: prevTransform })
   }
@@ -153,8 +153,7 @@ export function drawPointEmphasisOverlay(
       context.emphasisOptions?.style?.fill ??
       context.seriesStyles?.get(seriesId)?.stroke ??
       'currentColor'
-    const opacity =
-      context.emphasisOptions?.style?.opacity ?? 0.6
+    const opacity = context.emphasisOptions?.style?.opacity ?? 0.6
     const circle = context.svg.ownerDocument.createElementNS(
       'http://www.w3.org/2000/svg',
       'circle'

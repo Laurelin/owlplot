@@ -7,6 +7,7 @@ import { createYAxisResolver } from './yAxisResolver'
 /**
  * Factory function that creates the appropriate resolver based on hover mode.
  * Note: GLYPH mode does not use resolvers - it uses event delegation via attachGlyphHover.
+ * @param _metadata - Reserved for future per-resolver config.
  */
 export function createHoverResolver(
   mode: HoverMode,

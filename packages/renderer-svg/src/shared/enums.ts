@@ -35,21 +35,6 @@ export enum SvgAttributeName {
   ID = 'id',
 }
 
-export enum AnimationAttributeName {
-  ATTRIBUTE_NAME = 'attributeName',
-  FROM = 'from',
-  TO = 'to',
-  DUR = 'dur',
-  FILL = 'fill',
-}
-
-export enum DataAttributeName {
-  OWLPLOT_SERIES_ID = 'owlplotSeriesId',
-  OWLPLOT_X = 'owlplotX',
-  OWLPLOT_Y = 'owlplotY',
-  OWLPLOT_HOVER_LAYER = 'owlplotHoverLayer',
-}
-
 export enum CssClassName {
   OWLPLOT_TOOLTIP = 'owlplot-tooltip',
   OWLPLOT_TOOLTIP_LABEL = 'owlplot-tooltip-label',

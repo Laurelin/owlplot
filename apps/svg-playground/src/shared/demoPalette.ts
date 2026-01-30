@@ -19,10 +19,7 @@ export const DEMO_PALETTE: readonly string[] = [
  * At series-construction time: assign palette color only when series
  * has no color and no paint. Never override explicit styling (Colors tab authority).
  */
-export function withDemoColor(
-  series: LineSeries,
-  index: number
-): LineSeries {
+export function withDemoColor(series: LineSeries, index: number): LineSeries {
   if (series.paint || series.color) return series
   return { ...series, color: DEMO_PALETTE[index % DEMO_PALETTE.length] }
 }

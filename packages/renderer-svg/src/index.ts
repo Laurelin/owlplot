@@ -7,5 +7,5 @@ export type { TooltipDatum }
 
 export type { TooltipRenderer, TooltipContext } from './tooltip/types'
 export type { HoverMode } from './hover/types'
-export type { HoverIndicator } from './hover/indicators/types'
-export { HoverModeKind, HoverIndicatorKind } from './shared/enums'
+export type { HoverIndicator, HoverIndicatorConfig } from './hover/indicators/types'
+export { HoverModeKind, HoverIndicatorKind, AnimationEasing } from './shared/enums'

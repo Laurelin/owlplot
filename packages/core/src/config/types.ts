@@ -25,12 +25,13 @@ export type BuiltInPointShape =
   | { kind: 'triangle' }
   | { kind: 'diamond' }
 
-/** Registry-based custom shape (SSR-friendly; renderer resolves name). */
+/** Registry-based custom shape (SSR-friendly; renderer resolves name). Not yet supported: requires a future symbol registry; currently falls back to circle. */
 export type SymbolPointShape = { kind: 'symbol'; name: string }
 
-/** Emoji as text mark (font-size / metrics; not path geometry). */
+/** Emoji as text mark (font-size / metrics; not path geometry). Supported when passed via series/options; string shorthands are normalized to built-in shapes only. */
 export type EmojiPointShape = { kind: 'emoji'; value: string }
 
+/** Point shape union. Only string shorthands (circle, square, triangle, diamond) are normalized from config; symbol and emoji are supported at render time when provided. */
 export type PointShape = BuiltInPointShape | SymbolPointShape | EmojiPointShape
 
 /** String shorthand for built-in shapes (normalized at config→scene boundary). */

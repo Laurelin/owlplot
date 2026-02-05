@@ -5,14 +5,19 @@ import { DATA_X, DATA_Y } from '../../shared/dataAttributes'
 import { TOOLTIP_DATUM_SYMBOL } from '../../shared/symbols'
 import type { ExtendedSVGElement } from '../../shared/extendedElements'
 
+const testGlobal = globalThis as unknown as {
+  window: Window & typeof globalThis
+  document: Document
+}
+
 describe('glyph resolver', () => {
   beforeEach(() => {
     const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
       url: 'http://localhost',
       pretendToBeVisual: true,
     })
-    ;(global as any).document = dom.window.document
-    ;(global as any).window = dom.window
+    testGlobal.document = dom.window.document
+    testGlobal.window = dom.window
   })
   const metadata = {
     scales: { x: (v: number) => v, y: (v: number) => v },

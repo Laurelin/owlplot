@@ -3,17 +3,25 @@ import { ChartKind, computeChartScene } from '@owlplot/core'
 import { renderSvgScene } from '../src/index'
 import { expect, it, beforeEach } from 'vitest'
 
+const testGlobal = globalThis as unknown as {
+  window: Window & typeof globalThis
+  document: Document
+  SVGSVGElement: typeof SVGSVGElement
+  SVGElement: typeof SVGElement
+  Element: typeof Element
+}
+
 beforeEach(() => {
   const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
     url: 'http://localhost',
     pretendToBeVisual: true,
   })
   // Set up global document and SVG types for createSvgElement
-  ;(global as any).window = dom.window
-  ;(global as any).document = dom.window.document
-  ;(global as any).SVGSVGElement = dom.window.SVGSVGElement
-  ;(global as any).SVGElement = dom.window.SVGElement
-  ;(global as any).Element = dom.window.Element
+  testGlobal.window = dom.window
+  testGlobal.document = dom.window.document
+  testGlobal.SVGSVGElement = dom.window.SVGSVGElement
+  testGlobal.SVGElement = dom.window.SVGElement
+  testGlobal.Element = dom.window.Element
 })
 
 it('renders a line path', () => {

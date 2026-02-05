@@ -39,9 +39,7 @@ export const TRANSPARENT_FILL: SolidPaint = {
  * - Defaults linear direction to "horizontal" if undefined
  * - Returns normalized paint with injected endpoints, default direction, sorted stops
  */
-export function normalizeGradientPaint(
-  paint: GradientPaint
-): GradientPaint {
+export function normalizeGradientPaint(paint: GradientPaint): GradientPaint {
   // Validate stops length
   if (paint.stops.length < 2) {
     throw new Error(
@@ -118,11 +116,11 @@ export function makeLinearGradientFromBase(
     // Interpolate in HSL space for smoother gradients
     const baseHsl = base.toHsl()
     const lighterHsl = lighter.toHsl()
-    
+
     const h = baseHsl.h + (lighterHsl.h - baseHsl.h) * t
     const s = baseHsl.s + (lighterHsl.s - baseHsl.s) * t
     const l = baseHsl.l + (lighterHsl.l - baseHsl.l) * t
-    
+
     const interpolated = colord({ h, s, l, a: 1 }).toHex()
     colors.push(interpolated)
   }
@@ -145,7 +143,7 @@ export function makeLinearGradientFromBase(
  * Creates a radial gradient from a base color.
  * Returns normalized paint.
  */
-function makeRadialGradientFromBase(
+function _makeRadialGradientFromBase(
   baseColor: string,
   lighterAmount = 0.4,
   stops = 5
@@ -160,11 +158,11 @@ function makeRadialGradientFromBase(
     // Interpolate in HSL space for smoother gradients
     const baseHsl = base.toHsl()
     const lighterHsl = lighter.toHsl()
-    
+
     const h = baseHsl.h + (lighterHsl.h - baseHsl.h) * t
     const s = baseHsl.s + (lighterHsl.s - baseHsl.s) * t
     const l = baseHsl.l + (lighterHsl.l - baseHsl.l) * t
-    
+
     const interpolated = colord({ h, s, l, a: 1 }).toHex()
     colors.push(interpolated)
   }
@@ -214,7 +212,10 @@ export function derivePaintStylesFromColor(
   }
 
   // Optional hover/active states (opt-in)
-  if (options?.hoverBrightness !== undefined || options?.activeBrightness !== undefined) {
+  if (
+    options?.hoverBrightness !== undefined ||
+    options?.activeBrightness !== undefined
+  ) {
     const hoverColor = colord(baseColor).lighten(hoverBrightness).toHex()
     const activeColor = colord(baseColor).lighten(activeBrightness).toHex()
 

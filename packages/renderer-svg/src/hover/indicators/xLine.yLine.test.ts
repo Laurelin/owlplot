@@ -6,6 +6,11 @@ import { SvgAttributeName } from '../../shared/enums'
 import { X_HOVER_LINE_SYMBOL, Y_HOVER_LINE_SYMBOL } from '../../shared/symbols'
 import type { ExtendedSVGSVGElement } from '../../shared/extendedElements'
 
+const testGlobal = globalThis as unknown as {
+  window: Window & typeof globalThis
+  document: Document
+}
+
 describe('xLine and yLine', () => {
   let svg: SVGSVGElement
   const plotRect = { x: 10, y: 20, width: 180, height: 60 }
@@ -15,8 +20,8 @@ describe('xLine and yLine', () => {
       url: 'http://localhost',
       pretendToBeVisual: true,
     })
-    ;(global as any).document = dom.window.document
-    ;(global as any).window = dom.window
+    testGlobal.document = dom.window.document
+    testGlobal.window = dom.window
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.setAttribute('width', '200')
     svg.setAttribute('height', '100')

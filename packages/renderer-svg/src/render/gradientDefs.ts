@@ -9,7 +9,7 @@ import { createSvgElement } from './svgDom'
 function hashString(str: string): string {
   let hash = 5381
   for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) + str.charCodeAt(i)
+    hash = (hash << 5) + hash + str.charCodeAt(i)
     hash = hash & hash // Convert to 32-bit integer
   }
   // Convert to positive hex string
@@ -28,11 +28,10 @@ function hashGradientPaint(paint: GradientPaint): string {
   // Create minimal canonical object from normalized paint
   const canonical = {
     type: normalized.type,
-    direction:
-      normalized.type === 'linear'
-        ? normalized.direction
-        : undefined,
-    stops: normalized.stops.map(({ offset, color }) => [offset, color] as const),
+    direction: normalized.type === 'linear' ? normalized.direction : undefined,
+    stops: normalized.stops.map(
+      ({ offset, color }) => [offset, color] as const
+    ),
   }
 
   // Stringify and hash
@@ -46,7 +45,7 @@ function hashGradientPaint(paint: GradientPaint): string {
 /**
  * Ensures a gradient definition exists in SVG <defs>, returns URL reference.
  * Renderer owns IDs - callers never provide them.
- * 
+ *
  * For stroke gradients, uses userSpaceOnUse so gradients follow the path.
  * For fill gradients, uses objectBoundingBox (default behavior).
  */
@@ -86,10 +85,11 @@ export function ensureGradientDef(
   // For fill gradients, use objectBoundingBox (applies to shape bounds)
   if (isStroke) {
     gradient.setAttribute('gradientUnits', 'userSpaceOnUse')
-    
+
     // Get SVG dimensions - use viewBox if available, otherwise width/height
     const svgWidth = svg.viewBox.baseVal.width || svg.width.baseVal.value || 600
-    const svgHeight = svg.viewBox.baseVal.height || svg.height.baseVal.value || 300
+    const svgHeight =
+      svg.viewBox.baseVal.height || svg.height.baseVal.value || 300
 
     // Map core semantic directions to SVG coordinates in user space
     // Use full SVG dimensions so gradient spans entire chart area
@@ -115,7 +115,10 @@ export function ensureGradientDef(
       const radialGradient = gradient as SVGRadialGradientElement
       radialGradient.setAttribute('cx', String(svgWidth / 2))
       radialGradient.setAttribute('cy', String(svgHeight / 2))
-      radialGradient.setAttribute('r', String(Math.max(svgWidth, svgHeight) / 2))
+      radialGradient.setAttribute(
+        'r',
+        String(Math.max(svgWidth, svgHeight) / 2)
+      )
     }
   } else {
     // Fill gradients use objectBoundingBox

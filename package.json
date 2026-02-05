@@ -7,10 +7,10 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run -ws build",
+    "build": "npm run --workspaces build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "npm run -ws lint",
+    "lint": "eslint . --ignore-pattern '**/dist/**'",
     "dev:react": "npm --workspace apps/react-playground run dev",
     "dev:vue": "npm --workspace apps/vue-playground run dev",
     "dev:demo": "npm --workspace apps/svg-playground run dev",

@@ -89,7 +89,13 @@ export const defaultTooltipRenderer: TooltipRenderer = {
       } else {
         const formatted =
           context?.xFormatter?.(datum.x) ??
-          formatValue(datum.x, context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT)
+          formatValue(
+            datum.x,
+            context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT,
+            {
+              locale: context?.locale,
+            }
+          )
         headerEl.textContent = context?.xUnit
           ? `${formatted} ${context.xUnit}`
           : formatted
@@ -143,7 +149,8 @@ export const defaultTooltipRenderer: TooltipRenderer = {
       Object.assign(valueEl.style, styleValue)
       valueEl.textContent = formatValue(
         point.y,
-        context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT
+        context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT,
+        { locale: context?.locale }
       )
       row.appendChild(valueEl)
 

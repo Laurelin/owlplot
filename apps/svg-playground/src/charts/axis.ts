@@ -58,6 +58,38 @@ export const axisCharts: readonly ChartDemo[] = [
     },
   },
   {
+    id: 'large-numbers-compact-locale',
+    title: 'Large Numbers: Compact Axis + Locale',
+    description:
+      'Y-axis uses compact notation (e.g. 140K) for large values; locale en-US for grouping. Tooltip shows full number with locale.',
+    purpose: 'api-example',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'revenue',
+            points: [
+              { x: 0, y: 50_000 },
+              { x: 1, y: 75_000 },
+              { x: 2, y: 100_000 },
+              { x: 3, y: 125_000 },
+              { x: 4, y: 150_000 },
+            ],
+          },
+          0
+        ),
+      ],
+      options: {
+        showPoints: true,
+        xLabel: 'Quarter',
+        yLabel: 'Revenue ($)',
+        locale: 'en-US',
+        compactThreshold: 10_000,
+      },
+    },
+  },
+  {
     id: 'angled-labels',
     title: 'Angled Labels',
     description: 'X-axis labels at -45 degree angle',
@@ -251,7 +283,7 @@ export const axisCharts: readonly ChartDemo[] = [
   {
     id: 'axis-visibility',
     title: 'Axis Visibility',
-    description: 'Mixed visibility: ticks off, labels on (composable per-axis)',
+    description: 'Axis lines and ticks hidden; labels only',
     purpose: 'api-example',
     config: {
       ...axisData,
@@ -262,7 +294,7 @@ export const axisCharts: readonly ChartDemo[] = [
         axisVisibility: {
           ticks: false,
           tickLabels: true,
-          axisLine: true,
+          axisLine: false,
         },
       },
     },

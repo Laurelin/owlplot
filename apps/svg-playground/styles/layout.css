@@ -27,6 +27,10 @@
   background: #f9f9f9;
 }
 
+.tab-button:hover:not(.active) {
+  border-bottom-color: #ddd;
+}
+
 .tab-button.active {
   color: #0066cc;
   border-bottom-color: #0066cc;

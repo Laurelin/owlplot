@@ -85,14 +85,25 @@ export type Cartesian2DOptions = {
   yTickCount?: number
 
   /**
-   * Axis tick label formatting. undefined = AUTO (decimals from tick step); null = raw; otherwise explicit mode.
+   * Axis tick label formatting. undefined = AUTO (decimals from tick step, or compact above compactThreshold); null = raw; otherwise explicit mode.
    */
   axisTickFormat?: NumberFormat | null
 
   /**
    * Tooltip number formatting. Default { mode: 'raw' }. Only apply formatting if user configures it.
+   * Tooltip format is never derived from axis format.
    */
   tooltipFormat?: NumberFormat
+
+  /**
+   * Locale for number formatting (e.g. 'en-US', 'de-DE'). When set, axis and tooltip use Intl for grouping and decimal separator.
+   */
+  locale?: string
+
+  /**
+   * When axis format is AUTO, use compact notation (e.g. 140K) for |value| >= this. Omit or Infinity = no auto-compact. Axis-only; not passed to formatter.
+   */
+  compactThreshold?: number
 
   /** fonts for axes text */
   axisTickFont?: string // e.g. "12px sans-serif"

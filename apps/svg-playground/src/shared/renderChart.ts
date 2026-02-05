@@ -28,6 +28,7 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
     tooltipContext: {
       ...demo.renderOptions?.tooltipContext,
       tooltipFormat: demo.config.options?.tooltipFormat,
+      locale: demo.config.options?.locale,
     },
     hoverMode: demo.renderOptions?.hoverMode,
     hoverIndicator: demo.renderOptions?.hoverIndicator,

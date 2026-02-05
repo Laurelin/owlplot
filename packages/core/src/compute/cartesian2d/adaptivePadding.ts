@@ -1,8 +1,8 @@
 import type { MeasureText } from '../../text/types'
-import { formatNumber, type NumberFormat } from '../../format/number'
 import { measureTextFont } from '../../text/helpers'
 import {
   linearTickValues,
+  formatAxisTickLabel,
   DEFAULT_TICK_LABEL_OFFSET,
   DEFAULT_TICK_FONT,
   DEFAULT_LABEL_FONT,
@@ -12,19 +12,6 @@ import {
 } from './axis'
 import { LabelOrientation } from './types/axis'
 import { Position } from '../../config/types'
-
-/** Same formatting as axis: null → raw, undefined → AUTO, else explicit. */
-function formatTickLabel(
-  value: number,
-  config: AxisConfig | undefined,
-  tickStep: number
-): string {
-  const effectiveFormat: NumberFormat | undefined =
-    config?.axisTickFormat === null
-      ? { mode: 'raw' }
-      : (config?.axisTickFormat ?? undefined)
-  return formatNumber(value, effectiveFormat, { tickStep })
-}
 
 /**
  * Calculate bounding box dimensions for rotated text
@@ -80,6 +67,8 @@ export function computeAdaptivePadding(
     extraPadding?: number
     /** When dual-scale, right axis uses this domain for tick values (and thus padding). */
     yDomainRight?: [number, number]
+    locale?: string
+    compactThreshold?: number
   } = {}
 ): AdaptivePadding {
   const {
@@ -87,6 +76,8 @@ export function computeAdaptivePadding(
     axisLabelFont,
     extraPadding = 0,
     yDomainRight,
+    locale,
+    compactThreshold,
   } = options
 
   // start with zero
@@ -117,7 +108,11 @@ export function computeAdaptivePadding(
     const bottomLabelAngle = bottomAxisConfig?.labelOrientation?.angle
 
     for (const v of bottomAxisTickValues) {
-      const label = formatTickLabel(v, bottomAxisConfig, bottomTickStep)
+      const label = formatAxisTickLabel(v, bottomAxisConfig, {
+        tickStep: bottomTickStep,
+        locale,
+        compactThreshold,
+      })
       let { width: w, height: h } = measureTextFont(
         measureText,
         label,
@@ -144,15 +139,13 @@ export function computeAdaptivePadding(
     }
   }
 
-  // measure bottom axis title (with rotation support, only if visible)
+  // measure bottom axis title (title visibility is independent from axis line visibility)
   const bottomAxisTitleOrientation =
     bottomAxisConfig?.axisLabelOrientation?.orientation
   const bottomAxisTitleAngle = bottomAxisConfig?.axisLabelOrientation?.angle
   let bottomAxisTitleHeight = 0
   let _bottomAxisTitleWidth = 0
-  const showBottomAxis = bottomAxisConfig?.showAxis !== false
-
-  if (bottomAxisConfig?.axisLabel && showBottomAxis) {
+  if (bottomAxisConfig?.axisLabel) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
       measureText,
@@ -238,7 +231,11 @@ export function computeAdaptivePadding(
     const leftLabelAngle = leftAxisConfig?.labelOrientation?.angle
 
     for (const v of leftAxisTickValues) {
-      const label = formatTickLabel(v, leftAxisConfig, leftTickStep)
+      const label = formatAxisTickLabel(v, leftAxisConfig, {
+        tickStep: leftTickStep,
+        locale,
+        compactThreshold,
+      })
       let { width: w, height: h } = measureTextFont(
         measureText,
         label,
@@ -265,15 +262,13 @@ export function computeAdaptivePadding(
     }
   }
 
-  // measure left axis title (with rotation support, only if visible)
+  // measure left axis title (title visibility is independent from axis line visibility)
   const leftAxisTitleOrientation =
     leftAxisConfig?.axisLabelOrientation?.orientation
   const leftAxisTitleAngle = leftAxisConfig?.axisLabelOrientation?.angle
   let leftAxisTitleWidth = 0
   let _leftAxisTitleHeight = 0
-  const showLeftAxis = leftAxisConfig?.showAxis !== false
-
-  if (leftAxisConfig?.axisLabel && showLeftAxis) {
+  if (leftAxisConfig?.axisLabel) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
       measureText,
@@ -342,11 +337,11 @@ export function computeAdaptivePadding(
     const rightLabelAngle = rightAxisConfig?.labelOrientation?.angle
 
     for (const v of rightAxisTickValues) {
-      const label = formatTickLabel(
-        v,
-        rightAxisConfig ?? leftAxisConfig,
-        rightTickStep
-      )
+      const label = formatAxisTickLabel(v, rightAxisConfig ?? leftAxisConfig, {
+        tickStep: rightTickStep,
+        locale,
+        compactThreshold,
+      })
       let { width: w, height: h } = measureTextFont(
         measureText,
         label,
@@ -371,15 +366,13 @@ export function computeAdaptivePadding(
     }
   }
 
-  // measure right axis title (with rotation support, only if visible)
+  // measure right axis title (title visibility is independent from axis line visibility)
   const rightAxisTitleOrientation =
     rightAxisConfig?.axisLabelOrientation?.orientation
   const rightAxisTitleAngle = rightAxisConfig?.axisLabelOrientation?.angle
   let rightAxisTitleWidth = 0
   let _rightAxisTitleHeight = 0
-  const showRightAxis = rightAxisConfig?.showAxis !== false
-
-  if (rightAxisConfig?.axisLabel && showRightAxis) {
+  if (rightAxisConfig?.axisLabel) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
       measureText,
@@ -412,7 +405,7 @@ export function computeAdaptivePadding(
       rightAxisTitleWidth = unrotatedBounds.width
       _rightAxisTitleHeight = unrotatedBounds.height
     }
-  } else if (!showRightAxis || !rightAxisConfig?.axisLabel) {
+  } else if (!rightAxisConfig?.axisLabel) {
     // Fallback to left axis title width if no right axis title or axis is hidden
     rightAxisTitleWidth = leftAxisTitleWidth
   }

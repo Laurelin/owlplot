@@ -1,5 +1,9 @@
 import { Position } from '../../config/types'
-import { formatNumber, type NumberFormat } from '../../format/number'
+import {
+  formatNumber,
+  type FormatContext,
+  type NumberFormat,
+} from '../../format/number'
 import { measureTextFont } from '../../text/helpers'
 import {
   DominantBaseline,
@@ -62,6 +66,39 @@ export interface AxisConfig {
   showAxis?: boolean
 }
 
+/** Options for axis tick label formatting. Axis policy (compact threshold) lives here; formatter stays dumb. */
+export type AxisTickFormatOptions = {
+  tickStep: number
+  locale?: string
+  compactThreshold?: number
+}
+
+/**
+ * Format a single axis tick label. Owns AUTO → compact decision (axis policy); calls formatNumber with format + FormatContext only.
+ * Use in both computeAxisLayout and computeAdaptivePadding so formatting is identical.
+ */
+export function formatAxisTickLabel(
+  value: number,
+  config: AxisConfig | undefined,
+  options: AxisTickFormatOptions
+): string {
+  const effectiveFormat: NumberFormat | undefined =
+    config?.axisTickFormat === null
+      ? { mode: 'raw' }
+      : (config?.axisTickFormat ?? undefined)
+  const useCompact =
+    effectiveFormat === undefined &&
+    options.compactThreshold != null &&
+    Number.isFinite(options.compactThreshold) &&
+    Math.abs(value) >= options.compactThreshold
+  const format = useCompact ? { mode: 'compact' as const } : effectiveFormat
+  const context: FormatContext = {
+    tickStep: options.tickStep,
+    locale: options.locale,
+  }
+  return formatNumber(value, format, context)
+}
+
 /**
  * computeAxisLayout
  *
@@ -78,6 +115,8 @@ export function computeAxisLayout(
   options: {
     axisTickFont?: string
     axisLabelFont?: string
+    locale?: string
+    compactThreshold?: number
   }
 ): AxisLayout {
   const tickCount = config?.tickCount ?? DEFAULT_TICK_COUNT
@@ -90,16 +129,16 @@ export function computeAxisLayout(
     rangeMin +
     ((v - domainMin) / (domainMax - domainMin)) * (rangeMax - rangeMin)
 
-  // Precedence: axisTickFormat === null → raw; undefined → AUTO; else explicit. formatNumber(undefined) = AUTO.
   const tickStep = values.length >= 2 ? Math.abs(values[1]! - values[0]!) : 0
-  const effectiveFormat: NumberFormat | undefined =
-    config?.axisTickFormat === null
-      ? { mode: 'raw' }
-      : (config?.axisTickFormat ?? undefined)
+  const tickFormatOptions: AxisTickFormatOptions = {
+    tickStep,
+    locale: options.locale,
+    compactThreshold: options.compactThreshold,
+  }
 
   let prevLabel: string | undefined
   const ticks: AxisTick[] = values.map(value => {
-    const label = formatNumber(value, effectiveFormat, { tickStep })
+    const label = formatAxisTickLabel(value, config, tickFormatOptions)
     // Skip duplicate label in layout so spacing math stays honest (optional, rare in AUTO)
     const showLabel = prevLabel !== label
     prevLabel = label

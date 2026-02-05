@@ -35,7 +35,9 @@ export function setStyle(
           )
         }
         // Pass isStroke flag so stroke gradients use userSpaceOnUse to follow the path
-        const url = ensureGradientDef(svg, paint, { isStroke: key === 'stroke' })
+        const url = ensureGradientDef(svg, paint, {
+          isStroke: key === 'stroke',
+        })
         el.setAttribute(key, url)
       }
       continue

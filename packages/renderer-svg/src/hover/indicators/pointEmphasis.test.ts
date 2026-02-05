@@ -12,6 +12,11 @@ import { buildPointIndexFromRenderedElements } from '../pointIndex'
 import { DATA_SERIES_ID, DATA_X, DATA_Y } from '../../shared/dataAttributes'
 import { SvgAttributeName } from '../../shared/enums'
 
+const testGlobal = globalThis as unknown as {
+  window: Window & typeof globalThis
+  document: Document
+}
+
 describe('point emphasis', () => {
   let svg: SVGSVGElement
   const identity = (v: number) => v
@@ -21,8 +26,8 @@ describe('point emphasis', () => {
       url: 'http://localhost',
       pretendToBeVisual: true,
     })
-    ;(global as any).document = dom.window.document
-    ;(global as any).window = dom.window
+    testGlobal.document = dom.window.document
+    testGlobal.window = dom.window
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.setAttribute('width', '200')
     svg.setAttribute('height', '100')
@@ -107,7 +112,9 @@ describe('point emphasis', () => {
       expect(result).not.toBeNull()
       expect((result as PointEmphasisResult).mode).toBe('dom')
       expect((result as PointEmphasisResult).emphasizedPoints).toHaveLength(1)
-      expect(circle.getAttribute(SvgAttributeName.TRANSFORM)).toContain('scale(2)')
+      expect(circle.getAttribute(SvgAttributeName.TRANSFORM)).toContain(
+        'scale(2)'
+      )
 
       restorePointEmphasis(result as PointEmphasisResult)
       expect(circle.getAttribute(SvgAttributeName.TRANSFORM)).toBeNull()

@@ -11,8 +11,10 @@ export type TooltipContext = {
   xFormatter?: (x: number | string) => string
   xUnit?: string
   xScaleType?: 'linear' | 'time' | 'log'
-  /** Tooltip number formatting. Default { mode: 'raw' }. Only apply if user configures. */
+  /** Tooltip number formatting. Default { mode: 'raw' }. Only apply if user configures. Never derive from axis format. */
   tooltipFormat?: NumberFormat
+  /** Locale for number formatting (e.g. 'en-US'). When set, tooltip values use Intl for grouping/decimal separator. */
+  locale?: string
 }
 
 /** Derived from scene node style (stroke resolved to color for swatch). Not in TooltipDatum. */

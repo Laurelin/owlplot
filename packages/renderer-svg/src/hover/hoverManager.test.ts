@@ -21,6 +21,11 @@ import type { HoverMetadata } from './types'
 import * as svgCoordinates from '../shared/svgCoordinates'
 import * as glyphResolver from './resolvers/glyphResolver'
 
+const testGlobal = globalThis as unknown as {
+  window: Window & typeof globalThis
+  document: Document
+}
+
 describe('hover manager', () => {
   let svg: SVGSVGElement
   const plotRect = { x: 0, y: 0, width: 200, height: 100 }
@@ -39,8 +44,8 @@ describe('hover manager', () => {
       url: 'http://localhost',
       pretendToBeVisual: true,
     })
-    ;(global as any).document = dom.window.document
-    ;(global as any).window = dom.window
+    testGlobal.document = dom.window.document
+    testGlobal.window = dom.window
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.setAttribute('width', '200')
     svg.setAttribute('height', '100')
@@ -162,7 +167,7 @@ describe('hover manager', () => {
       )
       attachGlyphHover(svg, null, metadata, indicators)
 
-      const win = (global as any).window
+      const win = testGlobal.window
       const event = new win.MouseEvent('pointermove', {
         clientX: 50,
         clientY: 25,

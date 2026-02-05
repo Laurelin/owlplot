@@ -3,6 +3,7 @@ import {
   formatRaw,
   formatDecimals,
   formatSignificantFigures,
+  formatCompact,
   formatNumber,
 } from './number'
 
@@ -90,5 +91,43 @@ describe('formatNumber', () => {
         significantFigures: 2,
       })
     ).toBe('130')
+  })
+
+  it('formatter never auto-compacts (AUTO is decimals only)', () => {
+    expect(formatNumber(140000, undefined, { tickStep: 1 })).toBe('140000')
+    expect(formatNumber(140000, undefined, {})).toBe('140000')
+    expect(formatNumber(140000, { mode: 'raw' }, undefined)).toBe('140000')
+  })
+
+  it('explicit mode compact', () => {
+    expect(formatNumber(140000, { mode: 'compact' })).toMatch(/140K?/i)
+    expect(formatNumber(1.3e6, { mode: 'compact' })).toMatch(/1\.?3M?/i)
+  })
+
+  it('locale applies grouping (en-US)', () => {
+    expect(formatNumber(1234.5, { mode: 'raw' }, { locale: 'en-US' })).toBe(
+      '1,234.5'
+    )
+    expect(
+      formatNumber(1.25, undefined, { tickStep: 0.25, locale: 'en-US' })
+    ).toBe('1.25')
+  })
+})
+
+describe('formatCompact', () => {
+  it('formats large numbers as K/M/B', () => {
+    expect(formatCompact(140000)).toMatch(/140K?/i)
+    expect(formatCompact(1.3e6)).toMatch(/1\.?3M?/i)
+    expect(formatCompact(500e9)).toMatch(/500B?/i)
+  })
+
+  it('formats zero and negative', () => {
+    expect(formatCompact(0)).toBe('0')
+    expect(formatCompact(-0)).toBe('0')
+    expect(formatCompact(-140000)).toBe('-140K')
+  })
+
+  it('uses fallback for invalid locale and preserves a single sign', () => {
+    expect(formatCompact(-140000, 'invalid-locale-tag')).toBe('-140K')
   })
 })

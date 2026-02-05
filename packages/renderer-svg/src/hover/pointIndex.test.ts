@@ -7,6 +7,11 @@ import {
 import { DATA_SERIES_ID, DATA_X, DATA_Y } from '../shared/dataAttributes'
 import { SvgAttributeName } from '../shared/enums'
 
+const testGlobal = globalThis as unknown as {
+  window: Window & typeof globalThis
+  document: Document
+}
+
 describe('point index', () => {
   let svg: SVGSVGElement
 
@@ -15,8 +20,8 @@ describe('point index', () => {
       url: 'http://localhost',
       pretendToBeVisual: true,
     })
-    ;(global as any).document = dom.window.document
-    ;(global as any).window = dom.window
+    testGlobal.document = dom.window.document
+    testGlobal.window = dom.window
     svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.setAttribute('width', '200')
     svg.setAttribute('height', '100')

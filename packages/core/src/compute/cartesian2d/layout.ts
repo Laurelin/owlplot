@@ -77,6 +77,8 @@ export function computeCartesianLayout(
     enableAdaptivePadding?: boolean
     axisTickFont?: string
     axisLabelFont?: string
+    locale?: string
+    compactThreshold?: number
   }
 ): CartesianLayoutResult {
   // 1) X domain and partition series by Y axis
@@ -202,6 +204,8 @@ export function computeCartesianLayout(
         axisTickFont: options.axisTickFont,
         axisLabelFont: options.axisLabelFont,
         yDomainRight: isDualScale ? [yMinRight, yMaxRight] : undefined,
+        locale: options.locale,
+        compactThreshold: options.compactThreshold,
       }
     )
 
@@ -262,16 +266,19 @@ export function computeCartesianLayout(
   }
 
   // 6) axis layouts (local axis coords)
+  const axisLayoutOptions = {
+    axisTickFont: options.axisTickFont,
+    axisLabelFont: options.axisLabelFont,
+    locale: options.locale,
+    compactThreshold: options.compactThreshold,
+  }
   const xAxis: AxisLayout = computeAxisLayout(
     Position.BOTTOM,
     [xMin, xMax],
     [0, plotRect.width],
     measureText,
     options.xAxis,
-    {
-      axisTickFont: options.axisTickFont,
-      axisLabelFont: options.axisLabelFont,
-    }
+    axisLayoutOptions
   )
 
   const yAxis: AxisLayout | undefined =
@@ -282,10 +289,7 @@ export function computeCartesianLayout(
           [plotRect.height, 0],
           measureText,
           options.yAxis,
-          {
-            axisTickFont: options.axisTickFont,
-            axisLabelFont: options.axisLabelFont,
-          }
+          axisLayoutOptions
         )
       : undefined
 
@@ -296,10 +300,7 @@ export function computeCartesianLayout(
         [plotRect.height, 0],
         measureText,
         options.yAxisRight,
-        {
-          axisTickFont: options.axisTickFont,
-          axisLabelFont: options.axisLabelFont,
-        }
+        axisLayoutOptions
       )
     : undefined
 

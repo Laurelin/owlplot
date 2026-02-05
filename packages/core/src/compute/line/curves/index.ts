@@ -4,13 +4,12 @@ import { buildLinearSubpaths } from './linear'
 import { buildMonotoneXSubpaths } from './monotoneX'
 import { buildCatmullRomSubpaths } from './catmullRom'
 
-const DEFAULT_LINEAR_CURVE: LineCurve = { type: 'linear' }
+const DEFAULT_CURVE: LineCurve = { type: 'monotoneX' }
 
 export function resolveLineCurve(
-  seriesCurve: LineCurve | undefined,
-  chartCurve: LineCurve | undefined
+  seriesCurve: LineCurve | undefined
 ): LineCurve {
-  return seriesCurve ?? chartCurve ?? DEFAULT_LINEAR_CURVE
+  return seriesCurve ?? DEFAULT_CURVE
 }
 
 export function buildCurvePath(

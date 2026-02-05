@@ -1,5 +1,5 @@
 import { resolvePointConfig } from '../../config/helpers'
-import type { LineCurve, LineSeries, PointConfig } from '../../config/types'
+import type { LineSeries, PointConfig } from '../../config/types'
 import {
   createSceneTooltip,
   SceneNodeKind,
@@ -43,8 +43,7 @@ export function buildSeriesNodes(
     yRight?: (value: number) => number
   },
   pointsEnabled: boolean,
-  defaultPointConfig: PointConfig | undefined,
-  defaultCurve: LineCurve | undefined
+  defaultPointConfig: PointConfig | undefined
 ): SceneNode[] {
   const isDualScale = scales.yLeft !== undefined && scales.yRight !== undefined
   const getYScale = (series: LineSeries): ((v: number) => number) =>
@@ -55,7 +54,7 @@ export function buildSeriesNodes(
   for (const series of seriesList) {
     const paint = resolveSeriesPaint(series, pointsEnabled)
     const yScaleForSeries = getYScale(series)
-    const curve = resolveLineCurve(series.curve, defaultCurve)
+    const curve = resolveLineCurve(series.curve)
     const projected: ScreenPointOrGap[] = series.points.map(pt =>
       pt.y === null || !Number.isFinite(pt.y) || !Number.isFinite(pt.x)
         ? null

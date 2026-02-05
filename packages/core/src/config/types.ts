@@ -55,7 +55,7 @@ export type LineSeries = {
   paint?: PaintStyles // Advanced: full paint control
   /** Point mark shape and size (circumradius). Default shape circle, size 2.5. */
   point?: PointConfig
-  /** Per-series line interpolation mode. Defaults to options.curve, then linear. */
+  /** Per-series line interpolation mode. Defaults to { type: 'monotoneX' }. */
   curve?: LineCurve
   /** Which Y axis (scale) this series uses. Default 'left'. Used for dual-scale (e.g. °C left, °F right). */
   yAxis?: 'left' | 'right'
@@ -196,10 +196,7 @@ export type Cartesian2DOptions = {
   }
 }
 
-export type LineChartOptions = Cartesian2DOptions & {
-  /** Global curve default for series that do not specify series.curve. Defaults to { type: 'linear' }. */
-  curve?: LineCurve
-}
+export type LineChartOptions = Cartesian2DOptions
 
 export type LineChartConfig = {
   kind: ChartKind.LINE

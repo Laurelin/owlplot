@@ -30,6 +30,27 @@ owlplot exists to make charts that are:
 
 Owlplot treats x as semantic only when explicitly signaled (string domain, formatter, unit, or scale type). Positional x values are intentionally omitted from default tooltips.
 
+### Line Curves
+
+Line charts default to `{ type: 'monotoneX' }`.
+
+Set curve per series:
+
+```ts
+{
+  kind: ChartKind.LINE,
+  series: [
+    {
+      id: 'series-1',
+      curve: { type: 'linear' },
+      points: [...],
+    },
+  ],
+}
+```
+
+Available modes are `{ type: 'linear' }`, `{ type: 'monotoneX' }`, and `{ type: 'catmullRom', tension?: number }`.
+
 ## quickstart (dev)
 
 clone + install:

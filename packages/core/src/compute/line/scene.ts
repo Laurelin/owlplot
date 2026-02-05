@@ -114,7 +114,8 @@ export function scene(
       config.series,
       scales,
       pointsEnabled,
-      config.options?.point
+      config.options?.point,
+      config.options?.curve
     )
   )
 

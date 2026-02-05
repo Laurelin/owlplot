@@ -43,6 +43,11 @@ export type PointConfig = {
   size?: number
 }
 
+export type LineCurve =
+  | { type: 'linear' }
+  | { type: 'monotoneX' }
+  | { type: 'catmullRom'; tension?: number }
+
 export type LineSeries = {
   id: string
   points: DataPoint[]
@@ -50,6 +55,8 @@ export type LineSeries = {
   paint?: PaintStyles // Advanced: full paint control
   /** Point mark shape and size (circumradius). Default shape circle, size 2.5. */
   point?: PointConfig
+  /** Per-series line interpolation mode. Defaults to options.curve, then linear. */
+  curve?: LineCurve
   /** Which Y axis (scale) this series uses. Default 'left'. Used for dual-scale (e.g. °C left, °F right). */
   yAxis?: 'left' | 'right'
 }
@@ -190,7 +197,8 @@ export type Cartesian2DOptions = {
 }
 
 export type LineChartOptions = Cartesian2DOptions & {
-  curve?: 'linear' // expand later
+  /** Global curve default for series that do not specify series.curve. Defaults to { type: 'linear' }. */
+  curve?: LineCurve
 }
 
 export type LineChartConfig = {

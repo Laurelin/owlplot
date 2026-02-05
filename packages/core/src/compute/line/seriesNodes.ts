@@ -1,5 +1,5 @@
 import { resolvePointConfig } from '../../config/helpers'
-import type { LineSeries, PointConfig } from '../../config/types'
+import type { LineCurve, LineSeries, PointConfig } from '../../config/types'
 import {
   createSceneTooltip,
   SceneNodeKind,
@@ -13,32 +13,8 @@ import {
   TRANSPARENT_FILL,
   type PaintStyles,
 } from '../../paint/helpers'
-
-function buildLinePathD(
-  data: { x: number; y: number | null }[],
-  xScale: (value: number) => number,
-  yScale: (value: number) => number
-): string {
-  let d = ''
-  let started = false
-
-  for (const pt of data) {
-    if (pt.y === null || !Number.isFinite(pt.y) || !Number.isFinite(pt.x)) {
-      started = false
-      continue
-    }
-    const px = xScale(pt.x)
-    const py = yScale(pt.y)
-
-    if (!started) {
-      d += `M ${px} ${py}`
-      started = true
-    } else {
-      d += ` L ${px} ${py}`
-    }
-  }
-  return d
-}
+import { buildCurvePath, resolveLineCurve } from './curves'
+import type { ScreenPointOrGap } from './curves/types'
 
 function resolveSeriesPaint(
   series: LineSeries,
@@ -67,7 +43,8 @@ export function buildSeriesNodes(
     yRight?: (value: number) => number
   },
   pointsEnabled: boolean,
-  defaultPointConfig: PointConfig | undefined
+  defaultPointConfig: PointConfig | undefined,
+  defaultCurve: LineCurve | undefined
 ): SceneNode[] {
   const isDualScale = scales.yLeft !== undefined && scales.yRight !== undefined
   const getYScale = (series: LineSeries): ((v: number) => number) =>
@@ -78,6 +55,12 @@ export function buildSeriesNodes(
   for (const series of seriesList) {
     const paint = resolveSeriesPaint(series, pointsEnabled)
     const yScaleForSeries = getYScale(series)
+    const curve = resolveLineCurve(series.curve, defaultCurve)
+    const projected: ScreenPointOrGap[] = series.points.map(pt =>
+      pt.y === null || !Number.isFinite(pt.y) || !Number.isFinite(pt.x)
+        ? null
+        : { x: scales.x(pt.x), y: yScaleForSeries(pt.y) }
+    )
 
     const strokePaint = paint.stroke ?? DEFAULT_SOLID_CURRENT_COLOR
     const isGradient =
@@ -85,7 +68,7 @@ export function buildSeriesNodes(
     children.push({
       kind: SceneNodeKind.PATH,
       id: `series:${series.id}`,
-      d: buildLinePathD(series.points, scales.x, yScaleForSeries),
+      d: buildCurvePath(projected, curve),
       style: {
         fill: TRANSPARENT_FILL,
         stroke: strokePaint,

@@ -151,4 +151,62 @@ export const basicCharts: readonly ChartDemo[] = [
       options: { showPoints: true, yDomain: { mode: 'data' } },
     },
   },
+  {
+    id: 'curve-modes-comparison',
+    title: 'Curve Modes Comparison',
+    description:
+      'Three series: linear, monotoneX, catmullRom. Use tooltip series labels to compare interpolation modes.',
+    purpose: 'api-example',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'linear',
+            curve: { type: 'linear' },
+            points: [
+              { x: 0, y: 14 },
+              { x: 1, y: 22 },
+              { x: 2, y: 16 },
+              { x: 3, y: 29 },
+              { x: 4, y: 21 },
+              { x: 5, y: 34 },
+            ],
+          },
+          0
+        ),
+        withDemoColor(
+          {
+            id: 'monotoneX',
+            curve: { type: 'monotoneX' },
+            points: [
+              { x: 0, y: 30 },
+              { x: 1, y: 39 },
+              { x: 2, y: 33 },
+              { x: 3, y: 47 },
+              { x: 4, y: 37 },
+              { x: 5, y: 52 },
+            ],
+          },
+          1
+        ),
+        withDemoColor(
+          {
+            id: 'catmullRom',
+            curve: { type: 'catmullRom' },
+            points: [
+              { x: 0, y: 46 },
+              { x: 1, y: 58 },
+              { x: 2, y: 49 },
+              { x: 3, y: 66 },
+              { x: 4, y: 54 },
+              { x: 5, y: 72 },
+            ],
+          },
+          2
+        ),
+      ],
+      options: { showPoints: false },
+    },
+  },
 ] as const

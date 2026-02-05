@@ -5,6 +5,47 @@ import { withDemoColor } from '../shared/demoPalette'
 
 export const dataCharts: readonly ChartDemo[] = [
   {
+    id: 'repeated-x-curve-behavior',
+    title: 'Repeated X Values (Curve Behavior)',
+    description:
+      'Repeated x-values in each series. monotoneX falls back to linear for non-strict x segments; compare against explicit linear.',
+    purpose: 'edge-case',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'linear (repeated x)',
+            curve: { type: 'linear' },
+            points: [
+              { x: 0, y: 12 },
+              { x: 1, y: 15 },
+              { x: 1, y: 11 },
+              { x: 2, y: 18 },
+              { x: 3, y: 17 },
+            ],
+          },
+          0
+        ),
+        withDemoColor(
+          {
+            id: 'monotoneX (repeated x)',
+            curve: { type: 'monotoneX' },
+            points: [
+              { x: 0, y: 11 },
+              { x: 1, y: 14 },
+              { x: 1, y: 10 },
+              { x: 2, y: 17 },
+              { x: 3, y: 16 },
+            ],
+          },
+          1
+        ),
+      ],
+      options: { showPoints: true },
+    },
+  },
+  {
     id: 'null-data-points',
     title: 'Null Data Points',
     description: 'Gaps in lines for missing data',

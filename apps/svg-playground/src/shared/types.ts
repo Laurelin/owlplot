@@ -4,6 +4,7 @@ import type {
   TooltipContext,
   HoverMode,
   HoverIndicatorConfig,
+  LegendOptions,
 } from '@owlplot/renderer-svg'
 
 export type RenderOptions = {
@@ -11,6 +12,7 @@ export type RenderOptions = {
   readonly tooltipContext?: TooltipContext
   readonly hoverMode?: HoverMode
   readonly hoverIndicator?: HoverIndicatorConfig | HoverIndicatorConfig[]
+  readonly legend?: LegendOptions | boolean | null
 }
 
 export type ChartDemoPurpose =

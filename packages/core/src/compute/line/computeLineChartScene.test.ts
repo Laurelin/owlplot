@@ -9,6 +9,23 @@ function getYDomain(result: {
   return result.scene.metadata?.hover?.yDomain
 }
 
+function getLegendEntries(result: {
+  scene: {
+    metadata?: {
+      legend?: {
+        entries: Array<{
+          seriesId: string
+          label: string
+          paint: { type: string; color?: string }
+          order: number
+        }>
+      }
+    }
+  }
+}) {
+  return result.scene.metadata?.legend?.entries
+}
+
 function collectSceneNodeIds(node: {
   id?: string
   children?: unknown[]
@@ -221,6 +238,71 @@ describe('computeChartScene (line)', () => {
       // Y axis has 0 in domain; x does not. No origin intersection, so y tick at 0 is drawn.
       expect(ids).toContain('axis-tick:left:0')
       expect(ids).toContain('axis-tick-label:left:0')
+    })
+  })
+
+  describe('legend metadata', () => {
+    const env = { devicePixelRatio: 2, measureText: approximateMeasureText }
+    const size = { width: 640, height: 360 }
+
+    it('includes legend entries in series declaration order', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'alpha',
+            points: [
+              { x: 0, y: 1 },
+              { x: 1, y: 2 },
+            ],
+          },
+          {
+            id: 'beta',
+            points: [
+              { x: 0, y: 2 },
+              { x: 1, y: 3 },
+            ],
+          },
+        ],
+      }
+
+      const result = computeChartScene(config, size, env)
+      const entries = getLegendEntries(result)
+
+      expect(entries?.map(entry => entry.seriesId)).toEqual(['alpha', 'beta'])
+      expect(entries?.map(entry => entry.order)).toEqual([0, 1])
+      expect(entries?.map(entry => entry.label)).toEqual(['alpha', 'beta'])
+    })
+
+    it('uses resolved series paint for legend swatches', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'solid',
+            color: '#ff0000',
+            points: [
+              { x: 0, y: 1 },
+              { x: 1, y: 2 },
+            ],
+          },
+          {
+            id: 'custom',
+            paint: { stroke: { type: 'solid', color: '#00aa00' } },
+            points: [
+              { x: 0, y: 2 },
+              { x: 1, y: 3 },
+            ],
+          },
+        ],
+      }
+
+      const result = computeChartScene(config, size, env)
+      const entries = getLegendEntries(result)
+      const byId = new Map(entries?.map(entry => [entry.seriesId, entry.paint]))
+
+      expect(byId.get('solid')).toEqual({ type: 'solid', color: '#ff0000' })
+      expect(byId.get('custom')).toEqual({ type: 'solid', color: '#00aa00' })
     })
   })
 })

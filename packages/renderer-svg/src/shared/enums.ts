@@ -48,4 +48,5 @@ export enum ContainerId {
 
 export enum SceneMetadataKey {
   HOVER = 'hover',
+  LEGEND = 'legend',
 }

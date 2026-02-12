@@ -68,12 +68,24 @@ export type TooltipDatum = {
   x: number
 }
 
+export type LegendEntry = {
+  seriesId: string
+  label: string
+  paint: AnyPaint
+  order: number
+}
+
+export type LegendMetadata = {
+  entries: LegendEntry[]
+}
+
 export type SceneBaseNode = {
   id: string
   style?: SceneStyle
   transform?: string // pull up into base so every node can have it
   metadata?: {
     tooltip?: TooltipDatum
+    legend?: LegendMetadata
     [key: string]: unknown
   }
 }

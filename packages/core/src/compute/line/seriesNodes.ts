@@ -16,7 +16,7 @@ import {
 import { buildCurvePath, resolveLineCurve } from './curves'
 import type { ScreenPointOrGap } from './curves/types'
 
-function resolveSeriesPaint(
+export function resolveSeriesPaint(
   series: LineSeries,
   pointsEnabled: boolean
 ): PaintStyles {

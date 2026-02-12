@@ -7,7 +7,7 @@ import { computeCartesianLayout } from '../cartesian2d/layout'
 import type { ChartSize } from '../types'
 import { axisToSceneNodes } from './axisNodes'
 import { buildAxisConfigs } from './axisConfig'
-import { buildSeriesNodes } from './seriesNodes'
+import { buildSeriesNodes, resolveSeriesPaint } from './seriesNodes'
 import { buildHoverMetadata } from './hoverMetadata'
 
 export { axisToSceneNodes } from './axisNodes'
@@ -118,6 +118,17 @@ export function scene(
     )
   )
 
+  const legendEntries = config.series.map((series, index) => {
+    const paint = resolveSeriesPaint(series, pointsEnabled)
+    return {
+      seriesId: series.id,
+      label: series.id,
+      paint: paint.stroke ??
+        paint.fill ?? { type: 'solid', color: 'currentColor' },
+      order: index,
+    }
+  })
+
   const hover = buildHoverMetadata(
     config.series,
     scales,
@@ -133,7 +144,7 @@ export function scene(
       kind: SceneNodeKind.GROUP,
       id: 'root',
       children,
-      metadata: { hover },
+      metadata: { hover, legend: { entries: legendEntries } },
     },
   }
 }

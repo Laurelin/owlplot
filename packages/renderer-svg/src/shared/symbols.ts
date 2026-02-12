@@ -5,6 +5,12 @@ export const TOOLTIP_DATUM_SYMBOL = Symbol('owlplot-tooltip-datum')
 export const TOOLTIP_CONTEXT_SYMBOL = Symbol('owlplot-tooltip-context')
 export const SERIES_STYLES_SYMBOL = Symbol('owlplot-series-styles')
 export const SERIES_POINT_SHAPES_SYMBOL = Symbol('owlplot-series-point-shapes')
+export const HIDDEN_SERIES_IDS_SYMBOL = Symbol('owlplot-hidden-series-ids')
+export const BASE_SVG_HEIGHT_SYMBOL = Symbol('owlplot-base-svg-height')
+export const BASE_SVG_WIDTH_SYMBOL = Symbol('owlplot-base-svg-width')
+export const EXTERNAL_LEGEND_ELEMENT_SYMBOL = Symbol(
+  'owlplot-external-legend-element'
+)
 
 export const POINT_INDEX_SYMBOL = Symbol('owlplot-point-index')
 export const X_HOVER_LINE_SYMBOL = Symbol('owlplot-x-hover-line')

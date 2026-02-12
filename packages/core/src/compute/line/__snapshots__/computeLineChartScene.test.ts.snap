@@ -646,6 +646,28 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       ],
       "yInvert": [Function],
     },
+    "legend": {
+      "entries": [
+        {
+          "label": "a",
+          "order": 0,
+          "paint": {
+            "color": "currentColor",
+            "type": "solid",
+          },
+          "seriesId": "a",
+        },
+        {
+          "label": "b",
+          "order": 1,
+          "paint": {
+            "color": "currentColor",
+            "type": "solid",
+          },
+          "seriesId": "b",
+        },
+      ],
+    },
   },
 }
 `;

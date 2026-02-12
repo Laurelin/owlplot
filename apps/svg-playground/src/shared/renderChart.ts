@@ -13,6 +13,7 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
   svg.setAttribute('width', String(DEFAULT_CHART_SIZE.width))
   svg.setAttribute('height', String(DEFAULT_CHART_SIZE.height))
   svg.classList.add('chart-svg')
+  container.appendChild(svg)
 
   const result = computeChartScene(
     demo.config,
@@ -32,6 +33,7 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
     },
     hoverMode: demo.renderOptions?.hoverMode,
     hoverIndicator: demo.renderOptions?.hoverIndicator,
+    legend: demo.renderOptions?.legend,
+    legendHost: container,
   })
-  container.appendChild(svg)
 }

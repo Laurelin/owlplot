@@ -10,6 +10,11 @@ import type { HoverIndicatorConfig } from '../hover/indicators/types'
 
 import { clearSvg } from './svgDom'
 import { appendNode, type AppendNodeContext } from './appendNode'
+import {
+  clearLegendArtifacts,
+  renderLegend,
+  type LegendOptions,
+} from './legend'
 
 import { defaultTooltipRenderer } from '../tooltip/defaultTooltipRenderer'
 import { hideTooltip } from '../tooltip/tooltipDom'
@@ -30,6 +35,7 @@ import {
   TOOLTIP_CONTEXT_SYMBOL,
   SERIES_STYLES_SYMBOL,
   SERIES_POINT_SHAPES_SYMBOL,
+  HIDDEN_SERIES_IDS_SYMBOL,
 } from '../shared/symbols'
 import {
   SceneMetadataKey,
@@ -117,6 +123,8 @@ export function renderSvgScene(
     tooltipContext?: TooltipContext
     hoverMode?: HoverMode
     hoverIndicator?: HoverIndicatorConfig | HoverIndicatorConfig[]
+    legend?: LegendOptions | boolean | null
+    legendHost?: HTMLElement
   }
 ): void {
   // Cleanup previous hover state
@@ -131,6 +139,8 @@ export function renderSvgScene(
   extendedSvg[SERIES_STYLES_SYMBOL] = buildSeriesStylesFromScene(scene)
   extendedSvg[SERIES_POINT_SHAPES_SYMBOL] =
     buildSeriesPointShapesFromScene(scene)
+  const hiddenSeriesIds = extendedSvg[HIDDEN_SERIES_IDS_SYMBOL] ?? new Set()
+  extendedSvg[HIDDEN_SERIES_IDS_SYMBOL] = hiddenSeriesIds
 
   clearSvg(svg)
   const hoverMeta = scene.metadata?.[SceneMetadataKey.HOVER] as
@@ -143,6 +153,7 @@ export function renderSvgScene(
               yRight: (v: number) => number
             }
         series: Array<{ id: string; yAxis: 'left' | 'right' }>
+        plotRect: { x: number; y: number; width: number; height: number }
       }
     | undefined
   const seriesYAxis =
@@ -154,6 +165,25 @@ export function renderSvgScene(
       ? { scales: hoverMeta.scales, seriesYAxis: seriesYAxis ?? {} }
       : undefined
   appendNode(scene, svg, undefined, appendContext)
+  const legendOption = options?.legend
+  const legendDisabled =
+    legendOption === null ||
+    legendOption === false ||
+    (typeof legendOption === 'object' && legendOption.placement === 'none')
+  if (!legendDisabled) {
+    const legendOptions: LegendOptions =
+      typeof legendOption === 'object' ? legendOption : {}
+    renderLegend(
+      scene,
+      svg,
+      hiddenSeriesIds,
+      legendOptions,
+      hoverMeta?.plotRect,
+      options?.legendHost
+    )
+  } else {
+    clearLegendArtifacts(svg)
+  }
 
   const explicitHoverMode = options?.hoverMode
   const hasExplicitIndicator = options?.hoverIndicator !== undefined

@@ -81,7 +81,12 @@ export type LegendMetadata = {
   entries: LegendEntry[]
 }
 
-export type SceneNodeRole = 'background' | 'band' | 'series' | 'axis'
+export type SceneNodeRole =
+  | 'background'
+  | 'band'
+  | 'series'
+  | 'axis'
+  | 'annotation'
 
 export type SceneBaseNode = {
   id: string

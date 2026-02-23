@@ -110,12 +110,28 @@ export type HorizontalBandConfig = {
   yAxis?: 'left' | 'right'
 }
 
+export type ChartAnnotationConfig = {
+  text: string
+  x: number | string
+  y: number
+  align?: 'left' | 'center' | 'right'
+  style?: {
+    fill?: AnyPaint
+    opacity?: number
+    fontSizePx?: number
+    fontWeight?: number | string
+    fontFamily?: string
+  }
+  yAxis?: 'left' | 'right'
+}
+
 import type { NumberFormat } from '../format/number'
 
 export type Cartesian2DOptions = {
   xScale?: AxisScaleConfig
   yScale?: AxisScaleConfig
   bands?: HorizontalBandConfig[]
+  annotations?: ChartAnnotationConfig[]
   xLabel?: string
   yLabel?: string
   /** Primary Y-axis position. When 'right' and yAxisRight is set, only the right axis is shown (one scale). Default 'left'. */

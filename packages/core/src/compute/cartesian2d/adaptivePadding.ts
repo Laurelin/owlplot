@@ -1,5 +1,6 @@
 import type { MeasureText } from '../../text/types'
 import { measureTextFont } from '../../text/helpers'
+import { measureRotatedBoundingBox } from '../../text/measureRotatedBoundingBox'
 import {
   formatAxisTickLabel,
   DEFAULT_TICK_LABEL_OFFSET,
@@ -13,23 +14,6 @@ import type { ContinuousScale } from './scale'
 import { generateTicks } from './ticks'
 import { LabelOrientation } from './types/axis'
 import { Position } from '../../config/types'
-
-/**
- * Calculate bounding box dimensions for rotated text
- */
-function getRotatedTextBounds(
-  width: number,
-  height: number,
-  angleDegrees: number
-): { width: number; height: number } {
-  const angleRad = (angleDegrees * Math.PI) / 180
-  const cos = Math.abs(Math.cos(angleRad))
-  const sin = Math.abs(Math.sin(angleRad))
-  return {
-    width: width * cos + height * sin,
-    height: width * sin + height * cos,
-  }
-}
 
 export type AdaptivePadding = {
   top: number
@@ -126,7 +110,11 @@ export function computeAdaptivePadding(
         bottomLabelAngle !== undefined
       ) {
         // Angled labels: calculate bounding box
-        const bounds = getRotatedTextBounds(w, h, bottomLabelAngle)
+        const bounds = measureRotatedBoundingBox(
+          w,
+          h,
+          (bottomLabelAngle * Math.PI) / 180
+        )
         w = bounds.width
         h = bounds.height
       }
@@ -141,7 +129,6 @@ export function computeAdaptivePadding(
     bottomAxisConfig?.axisLabelOrientation?.orientation
   const bottomAxisTitleAngle = bottomAxisConfig?.axisLabelOrientation?.angle
   let bottomAxisTitleHeight = 0
-  let _bottomAxisTitleWidth = 0
   if (bottomAxisConfig?.axisLabel) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
@@ -164,15 +151,13 @@ export function computeAdaptivePadding(
 
     // Calculate rotated bounds if needed (mechanical, not special-cased)
     if (rotation !== undefined) {
-      const rotatedBounds = getRotatedTextBounds(
+      const rotatedBounds = measureRotatedBoundingBox(
         unrotatedBounds.width,
         unrotatedBounds.height,
-        rotation
+        (rotation * Math.PI) / 180
       )
-      _bottomAxisTitleWidth = rotatedBounds.width
       bottomAxisTitleHeight = rotatedBounds.height
     } else {
-      _bottomAxisTitleWidth = unrotatedBounds.width
       bottomAxisTitleHeight = unrotatedBounds.height
     }
   }
@@ -245,7 +230,11 @@ export function computeAdaptivePadding(
         leftLabelAngle !== undefined
       ) {
         // Angled labels: calculate bounding box
-        const bounds = getRotatedTextBounds(w, h, leftLabelAngle)
+        const bounds = measureRotatedBoundingBox(
+          w,
+          h,
+          (leftLabelAngle * Math.PI) / 180
+        )
         w = bounds.width
         h = bounds.height
       }
@@ -260,7 +249,6 @@ export function computeAdaptivePadding(
     leftAxisConfig?.axisLabelOrientation?.orientation
   const leftAxisTitleAngle = leftAxisConfig?.axisLabelOrientation?.angle
   let leftAxisTitleWidth = 0
-  let _leftAxisTitleHeight = 0
   if (leftAxisConfig?.axisLabel) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
@@ -283,16 +271,14 @@ export function computeAdaptivePadding(
 
     // Calculate rotated bounds if needed (mechanical, not special-cased)
     if (rotation !== undefined) {
-      const rotatedBounds = getRotatedTextBounds(
+      const rotatedBounds = measureRotatedBoundingBox(
         unrotatedBounds.width,
         unrotatedBounds.height,
-        rotation
+        (rotation * Math.PI) / 180
       )
       leftAxisTitleWidth = rotatedBounds.width
-      _leftAxisTitleHeight = rotatedBounds.height
     } else {
       leftAxisTitleWidth = unrotatedBounds.width
-      _leftAxisTitleHeight = unrotatedBounds.height
     }
   }
 
@@ -346,7 +332,11 @@ export function computeAdaptivePadding(
         rightLabelOrientation === LabelOrientation.ANGLED &&
         rightLabelAngle !== undefined
       ) {
-        const bounds = getRotatedTextBounds(w, h, rightLabelAngle)
+        const bounds = measureRotatedBoundingBox(
+          w,
+          h,
+          (rightLabelAngle * Math.PI) / 180
+        )
         w = bounds.width
         h = bounds.height
       }
@@ -361,7 +351,6 @@ export function computeAdaptivePadding(
     rightAxisConfig?.axisLabelOrientation?.orientation
   const rightAxisTitleAngle = rightAxisConfig?.axisLabelOrientation?.angle
   let rightAxisTitleWidth = 0
-  let _rightAxisTitleHeight = 0
   if (rightAxisConfig?.axisLabel) {
     // Always measure unrotated bounds first
     const unrotatedBounds = measureTextFont(
@@ -384,16 +373,14 @@ export function computeAdaptivePadding(
 
     // Calculate rotated bounds if needed (mechanical, not special-cased)
     if (rotation !== undefined) {
-      const rotatedBounds = getRotatedTextBounds(
+      const rotatedBounds = measureRotatedBoundingBox(
         unrotatedBounds.width,
         unrotatedBounds.height,
-        rotation
+        (rotation * Math.PI) / 180
       )
       rightAxisTitleWidth = rotatedBounds.width
-      _rightAxisTitleHeight = rotatedBounds.height
     } else {
       rightAxisTitleWidth = unrotatedBounds.width
-      _rightAxisTitleHeight = unrotatedBounds.height
     }
   } else if (!rightAxisConfig?.axisLabel) {
     // Fallback to left axis title width if no right axis title or axis is hidden

@@ -1,6 +1,7 @@
 import { computeChartScene, approximateMeasureText } from '@owlplot/core'
 import { renderSvgScene } from '@owlplot/renderer-svg'
 import type { ChartDemo } from './types'
+import { applySceneTransforms } from './sceneTransforms'
 
 // Sizing token - exported for future use (small multiples, responsive, export)
 export const DEFAULT_CHART_SIZE = {
@@ -23,8 +24,10 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
       measureText: approximateMeasureText,
     }
   )
+  const baseScene = result.scene
+  const scene = applySceneTransforms(baseScene, demo.sceneTransforms)
 
-  renderSvgScene(result.scene, svg, {
+  renderSvgScene(scene, svg, {
     tooltip: demo.renderOptions?.tooltip,
     tooltipContext: {
       ...demo.renderOptions?.tooltipContext,

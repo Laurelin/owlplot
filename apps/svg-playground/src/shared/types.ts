@@ -6,6 +6,7 @@ import type {
   HoverIndicatorConfig,
   LegendOptions,
 } from '@owlplot/renderer-svg'
+import type { SceneTransform } from './sceneTransforms'
 
 export type RenderOptions = {
   readonly tooltip?: TooltipRenderer | null
@@ -33,6 +34,7 @@ export type ChartDemo = {
   readonly description: string // explains why demo exists
   readonly purpose: ChartDemoPurpose // formalized intent
   readonly config: Readonly<ChartConfig> // immutable config
+  readonly sceneTransforms?: readonly SceneTransform[]
   readonly renderOptions?: Readonly<RenderOptions>
   readonly meta?: ChartDemoMeta // automation metadata
 }

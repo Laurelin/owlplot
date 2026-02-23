@@ -18,6 +18,13 @@ export default defineConfig({
           environment: 'node',
         },
       },
+      {
+        test: {
+          include: ['**/apps/svg-playground/**/*.{test,spec}.ts'],
+          name: 'svg-playground',
+          environment: 'node',
+        },
+      },
     ],
     include: ['**/test/**/*.{test,spec}.ts', '**/*.{test,spec}.ts'],
     globals: true,

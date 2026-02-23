@@ -38,7 +38,6 @@ function applyHoverResult(
   event: PointerEvent,
   svg: SVGSVGElement,
   tooltipRenderer: TooltipRenderer | null,
-  metadata: HoverMetadata,
   previousHandles: Map<string, IndicatorHandle>,
   previousKeys: Map<string, string>
 ): void {
@@ -143,7 +142,6 @@ export function attachDataHover(
         event,
         svg,
         tooltipRenderer,
-        metadata,
         previousHandles,
         previousKeys
       )
@@ -159,7 +157,6 @@ export function attachDataHover(
         event,
         svg,
         tooltipRenderer,
-        metadata,
         previousHandles,
         previousKeys
       )
@@ -181,7 +178,6 @@ export function attachDataHover(
       event,
       svg,
       tooltipRenderer,
-      metadata,
       previousHandles,
       previousKeys
     )
@@ -195,7 +191,6 @@ export function attachDataHover(
       {} as PointerEvent,
       svg,
       tooltipRenderer,
-      metadata,
       previousHandles,
       previousKeys
     )
@@ -274,7 +269,6 @@ export function attachGlyphHover(
         event,
         svg,
         tooltipRenderer,
-        metadata,
         previousHandles,
         previousKeys
       )
@@ -290,7 +284,6 @@ export function attachGlyphHover(
         event,
         svg,
         tooltipRenderer,
-        metadata,
         previousHandles,
         previousKeys
       )
@@ -305,7 +298,6 @@ export function attachGlyphHover(
       event,
       svg,
       tooltipRenderer,
-      metadata,
       previousHandles,
       previousKeys
     )
@@ -319,7 +311,6 @@ export function attachGlyphHover(
       {} as PointerEvent,
       svg,
       tooltipRenderer,
-      metadata,
       previousHandles,
       previousKeys
     )

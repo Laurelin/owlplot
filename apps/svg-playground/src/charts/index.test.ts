@@ -9,34 +9,55 @@ describe('chart groups', () => {
     expect(legends?.demos).toHaveLength(6)
   })
 
-  it('registers complexity tab with math and poster Big-O demos', () => {
+  it('registers complexity tab with one screenshot-style Big-O poster demo', () => {
     const complexity = chartGroups.find(group => group.id === 'complexity')
     expect(complexity).toBeDefined()
     expect(complexity?.label).toBe('Complexity Charts')
-    expect(complexity?.demos).toHaveLength(2)
+    expect(complexity?.demos).toHaveLength(1)
 
-    const mathDemo = complexity?.demos.find(demo => demo.id === 'big-o-complexity-math')
-    expect(mathDemo).toBeDefined()
-    expect(mathDemo?.config.options?.yScale?.type).toBe('log')
-    expect(mathDemo?.config.options?.regions?.length).toBeGreaterThanOrEqual(5)
-    expect(mathDemo?.config.options?.annotations?.length).toBeGreaterThanOrEqual(8)
+    const demo = complexity?.demos[0]
+    expect(demo?.id).toBe('big-o-complexity-poster')
+    expect(demo?.config.options?.yScale?.type).toBe('log')
+    expect(demo?.config.options?.yDomain).toEqual({
+      mode: 'fixed',
+      min: 1,
+      max: 1e7,
+    })
+    expect(demo?.config.options?.bands).toHaveLength(5)
+    expect(demo?.config.options?.regions).toBeUndefined()
+    expect(demo?.sceneTransforms).toBeUndefined()
+    expect(demo?.config.options?.annotations).toHaveLength(12)
 
-    const seriesIds = mathDemo?.config.series.map(series => series.id) ?? []
+    const seriesIds = demo?.config.series.map(series => series.id) ?? []
     expect(seriesIds).toEqual(
-      expect.arrayContaining(['O(1)', 'O(log n)', 'O(n)', 'O(n log n)', 'O(n^2)'])
+      expect.arrayContaining([
+        'O(1)',
+        'O(log n)',
+        'O(n)',
+        'O(n log n)',
+        'O(n^2)',
+        'O(2^n)',
+        'O(n!)',
+      ])
     )
 
-    const regions = mathDemo?.config.options?.regions ?? []
-    for (const region of regions) {
-      expect(region.upperSeriesId).not.toBe(region.lowerSeriesId)
-    }
-
-    const posterDemo = complexity?.demos.find(
-      demo => demo.id === 'big-o-complexity-poster'
+    const annotationText =
+      demo?.config.options?.annotations?.map(annotation => annotation.text) ?? []
+    expect(annotationText).toEqual(
+      expect.arrayContaining([
+        'Excellent',
+        'Good',
+        'Fair',
+        'Bad',
+        'Horrible',
+        'O(1)',
+        'O(log n)',
+        'O(n)',
+        'O(n log n)',
+        'O(n^2)',
+        'O(2^n)',
+        'O(n!)',
+      ])
     )
-    expect(posterDemo).toBeDefined()
-    expect(posterDemo?.config.options?.yScale?.type).toBe('linear')
-    expect(posterDemo?.sceneTransforms?.length).toBeGreaterThanOrEqual(2)
-    expect(posterDemo?.config.options?.axisVisibility?.tickLabels).toBe(false)
   })
 })

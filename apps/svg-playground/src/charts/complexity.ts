@@ -1,17 +1,14 @@
 import { ChartKind, type CartesianSeries } from '@owlplot/core'
 import type { ChartDemo } from '../shared/types'
 import { sampleFunction } from '../shared/dataGenerators'
-import {
-  injectBigOWedgeBackgroundTransform,
-  styleBigOPosterTransform,
-} from './bigOTransforms'
-import { createBigOPosterSeries } from './bigOPosterSeries'
 
-const mathDomain = { xMin: 1, xMax: 24, step: 1 } as const
+const xMin = 1
+const xMax = 24
+const step = 1
 const yCap = 1e7
 
-function log10(n: number): number {
-  return Math.log10(n)
+function log2(n: number): number {
+  return Math.log2(n)
 }
 
 function factorialCapped(n: number, cap: number): number {
@@ -30,98 +27,81 @@ type BigOSeriesDef = {
 
 const bigODefs: readonly BigOSeriesDef[] = [
   { id: 'O(1)', evaluate: () => 1 },
-  { id: 'O(log n)', evaluate: n => 1 + log10(n) },
+  { id: 'O(log n)', evaluate: n => log2(n) },
   { id: 'O(n)', evaluate: n => n },
-  { id: 'O(n log n)', evaluate: n => n * log10(n) },
+  { id: 'O(n log n)', evaluate: n => n * log2(n) },
   { id: 'O(n^2)', evaluate: n => n * n },
   { id: 'O(2^n)', evaluate: n => 2 ** n },
   { id: 'O(n!)', evaluate: n => factorialCapped(Math.floor(n), yCap) },
 ] as const
 
-function makeMathSeries(): CartesianSeries[] {
+function makeSeries(): CartesianSeries[] {
   return bigODefs.map(def => ({
     id: def.id,
     color: '#111111',
     curve: { type: 'linear' },
-    points: sampleFunction(def.evaluate, mathDomain.xMin, mathDomain.xMax, mathDomain.step, {
-      yCap,
-    }),
+    points: sampleFunction(def.evaluate, xMin, xMax, step, { yCap }),
   }))
 }
 
-function makePosterSeries(): CartesianSeries[] {
-  return createBigOPosterSeries({ sampleCount: 16, bandGap: 0.012 }).map(series => ({
-    id: series.id,
-    color: '#111111',
-    curve: { type: 'linear' },
-    points: series.points,
-  }))
-}
-
-const regionDefs = [
+const bandDefs = [
   {
-    upperSeriesId: 'O(n!)',
-    lowerSeriesId: 'O(2^n)',
-    fill: { type: 'solid', color: '#ef8f87' as const },
-    opacity: 1,
-  },
-  {
-    upperSeriesId: 'O(2^n)',
-    lowerSeriesId: 'O(n^2)',
-    fill: { type: 'solid', color: '#f19a8f' as const },
-    opacity: 1,
-  },
-  {
-    upperSeriesId: 'O(n^2)',
-    lowerSeriesId: 'O(n log n)',
-    fill: { type: 'solid', color: '#ffc447' as const },
-    opacity: 1,
-  },
-  {
-    upperSeriesId: 'O(n log n)',
-    lowerSeriesId: 'O(n)',
-    fill: { type: 'solid', color: '#fff15c' as const },
-    opacity: 1,
-  },
-  {
-    upperSeriesId: 'O(n)',
-    lowerSeriesId: 'O(log n)',
-    fill: { type: 'solid', color: '#c8ea2d' as const },
-    opacity: 1,
-  },
-  {
-    upperSeriesId: 'O(log n)',
-    lowerSeriesId: 'O(1)',
     fill: { type: 'solid', color: '#7bdc2a' as const },
-    opacity: 1,
+    opacity: 0.78,
+    yMin: 1,
+    yMax: 10,
+  },
+  {
+    fill: { type: 'solid', color: '#c8ea2d' as const },
+    opacity: 0.78,
+    yMin: 10,
+    yMax: 100,
+  },
+  {
+    fill: { type: 'solid', color: '#fff15c' as const },
+    opacity: 0.78,
+    yMin: 100,
+    yMax: 1000,
+  },
+  {
+    fill: { type: 'solid', color: '#ffc447' as const },
+    opacity: 0.78,
+    yMin: 1000,
+    yMax: 100000,
+  },
+  {
+    fill: { type: 'solid', color: '#ef8f87' as const },
+    opacity: 0.78,
+    yMin: 100000,
+    yMax: 10000000,
   },
 ] as const
 
-const mathAnnotations = [
-  { text: 'O(1)', x: 23, y: 1.1, align: 'right' as const },
-  { text: 'O(log n)', x: 23, y: 2.2, align: 'right' as const },
-  { text: 'O(n)', x: 23, y: 22, align: 'right' as const },
-  { text: 'O(n log n)', x: 20, y: 80, align: 'right' as const },
-  { text: 'O(n^2)', x: 10, y: 100, align: 'left' as const },
-  { text: 'O(2^n)', x: 4.2, y: 120, align: 'left' as const },
-  { text: 'O(n!)', x: 2.2, y: 130, align: 'left' as const },
-  { text: 'Excellent', x: 20, y: 3.2, align: 'center' as const },
-  { text: 'Good', x: 20, y: 35, align: 'center' as const },
-  { text: 'Fair', x: 20, y: 330, align: 'center' as const },
-  { text: 'Bad', x: 20, y: 15000, align: 'center' as const },
-  { text: 'Horrible', x: 20, y: 2_000_000, align: 'center' as const },
+const annotationDefs = [
+  { text: 'Excellent', x: 20, y: 3, align: 'center' as const },
+  { text: 'Good', x: 20, y: 30, align: 'center' as const },
+  { text: 'Fair', x: 20, y: 300, align: 'center' as const },
+  { text: 'Bad', x: 20, y: 30000, align: 'center' as const },
+  { text: 'Horrible', x: 20, y: 3000000, align: 'center' as const },
+  { text: 'O(1)', x: 22, y: 1.5, align: 'left' as const },
+  { text: 'O(log n)', x: 20, y: 5, align: 'left' as const },
+  { text: 'O(n)', x: 22, y: 30, align: 'left' as const },
+  { text: 'O(n log n)', x: 18, y: 100, align: 'center' as const },
+  { text: 'O(n^2)', x: 12, y: 150, align: 'center' as const },
+  { text: 'O(2^n)', x: 5, y: 150, align: 'center' as const },
+  { text: 'O(n!)', x: 3, y: 150, align: 'center' as const },
 ] as const
 
 export const complexityCharts: readonly ChartDemo[] = [
   {
-    id: 'big-o-complexity-math',
-    title: 'Complexity (Math)',
+    id: 'big-o-complexity-poster',
+    title: 'Big-O Complexity Chart',
     description:
-      'Magnitude-oriented comparison using log-scale y-axis with mathematically sampled growth functions.',
+      'Poster-style comparison using log-scale y-axis, threshold bands, and annotation labels.',
     purpose: 'visual-regression',
     config: {
       kind: ChartKind.LINE,
-      series: makeMathSeries(),
+      series: makeSeries(),
       options: {
         showPoints: false,
         xLabel: 'Elements',
@@ -129,8 +109,8 @@ export const complexityCharts: readonly ChartDemo[] = [
         xScale: { type: 'linear' },
         yScale: { type: 'log', base: 10 },
         yDomain: { mode: 'fixed', min: 1, max: 1e7 },
-        regions: regionDefs.map(region => ({ ...region })),
-        annotations: mathAnnotations.map(annotation => ({
+        bands: bandDefs.map(band => ({ ...band })),
+        annotations: annotationDefs.map(annotation => ({
           ...annotation,
           style: {
             fill: { type: 'solid', color: '#111111' as const },
@@ -140,36 +120,6 @@ export const complexityCharts: readonly ChartDemo[] = [
         })),
       },
     },
-    renderOptions: {
-      legend: false,
-    },
-  },
-  {
-    id: 'big-o-complexity-poster',
-    title: 'Complexity (Poster)',
-    description:
-      'Conceptual ranking illustration with normalized series, wedge background bands, and suppressed quantitative ticks.',
-    purpose: 'visual-regression',
-    config: {
-      kind: ChartKind.LINE,
-      series: makePosterSeries(),
-      options: {
-        showPoints: false,
-        xLabel: 'Input Size (n)',
-        yLabel: 'Relative Growth (Conceptual)',
-        xScale: { type: 'linear' },
-        yScale: { type: 'linear' },
-        xTickCount: 0,
-        yTickCount: 0,
-        yDomain: { mode: 'fixed', min: 0, max: 1 },
-        axisVisibility: {
-          ticks: false,
-          tickLabels: false,
-          axisLine: true,
-        },
-      },
-    },
-    sceneTransforms: [injectBigOWedgeBackgroundTransform, styleBigOPosterTransform],
     renderOptions: {
       legend: false,
     },

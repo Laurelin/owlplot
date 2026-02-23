@@ -140,47 +140,6 @@ export function makeLinearGradientFromBase(
 }
 
 /**
- * Creates a radial gradient from a base color.
- * Returns normalized paint.
- */
-function _makeRadialGradientFromBase(
-  baseColor: string,
-  lighterAmount = 0.4,
-  stops = 5
-): RadialGradientPaint {
-  const base = colord(baseColor)
-  const lighter = base.lighten(lighterAmount)
-
-  // Generate colors by interpolating between base and lighter
-  const colors: string[] = []
-  for (let i = 0; i < stops; i++) {
-    const t = i / (stops - 1) // 0 to 1
-    // Interpolate in HSL space for smoother gradients
-    const baseHsl = base.toHsl()
-    const lighterHsl = lighter.toHsl()
-
-    const h = baseHsl.h + (lighterHsl.h - baseHsl.h) * t
-    const s = baseHsl.s + (lighterHsl.s - baseHsl.s) * t
-    const l = baseHsl.l + (lighterHsl.l - baseHsl.l) * t
-
-    const interpolated = colord({ h, s, l, a: 1 }).toHex()
-    colors.push(interpolated)
-  }
-
-  const colorStops: ColorStop[] = colors.map((color, i) => ({
-    offset: i / (colors.length - 1),
-    color,
-  }))
-
-  const paint: RadialGradientPaint = {
-    type: 'radial',
-    stops: colorStops,
-  }
-
-  return normalizeGradientPaint(paint) as RadialGradientPaint
-}
-
-/**
  * Derives partial PaintStyles from a single color.
  * Only provides fill/stroke by default, hover/active are opt-in.
  */

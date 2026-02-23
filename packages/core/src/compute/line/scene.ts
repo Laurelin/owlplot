@@ -13,6 +13,7 @@ import { buildAxisConfigs } from './axisConfig'
 import { buildSeriesNodes, resolveSeriesPaint } from './seriesNodes'
 import { buildHoverMetadata } from './hoverMetadata'
 import type { ContinuousScale } from '../cartesian2d/scale'
+import { TextAnchor } from '../../text/types'
 
 export { axisToSceneNodes } from './axisNodes'
 export type { HoverSeries } from './hoverMetadata'
@@ -79,6 +80,67 @@ function buildBandNodes(
   })
 
   return nodes
+}
+
+function buildAnnotationNodes(
+  config: LineChartConfig,
+  scales: CartesianScales,
+  plotRect: { x: number; y: number; width: number; height: number }
+): SceneNode[] {
+  const annotations = config.options?.annotations
+  if (annotations == null || annotations.length === 0) return []
+
+  const clipTop = plotRect.y
+  const clipBottom = plotRect.y + plotRect.height
+  const clipLeft = plotRect.x
+  const clipRight = plotRect.x + plotRect.width
+
+  return annotations.flatMap((annotation, index) => {
+    if (!Number.isFinite(annotation.y)) return []
+    if (typeof annotation.x !== 'number' || !Number.isFinite(annotation.x)) {
+      return []
+    }
+
+    const yScale = resolveYScale(scales, annotation.yAxis)
+    const projectedX = scales.x.forward(annotation.x)
+    const projectedY = yScale.forward(annotation.y)
+
+    // Skip out-of-plot annotations in v1. No clamping.
+    if (
+      projectedX < clipLeft ||
+      projectedX > clipRight ||
+      projectedY < clipTop ||
+      projectedY > clipBottom
+    ) {
+      return []
+    }
+
+    const textAnchor =
+      annotation.align === 'left'
+        ? TextAnchor.START
+        : annotation.align === 'right'
+          ? TextAnchor.END
+          : TextAnchor.MIDDLE
+
+    return [
+      {
+        kind: SceneNodeKind.TEXT,
+        id: `__annotation__:${index}`,
+        x: projectedX,
+        y: projectedY,
+        text: annotation.text,
+        textAnchor,
+        style: {
+          fill: annotation.style?.fill,
+          opacity: annotation.style?.opacity,
+          fontSizePx: annotation.style?.fontSizePx,
+          fontWeight: annotation.style?.fontWeight,
+          fontFamily: annotation.style?.fontFamily,
+        },
+        metadata: { role: 'annotation' },
+      } satisfies SceneNode,
+    ]
+  })
 }
 
 /**
@@ -150,21 +212,18 @@ export function scene(
   const hideRightTickAtOrigin =
     shouldHideOriginTicks && xMaxIsZero && yRightMinIsZero
 
-  children.push(...buildBandNodes(config, scales, plotRect))
-
   const pointsEnabled = config.options?.showPoints ?? false
   const chartAreaFillOpacity = config.options?.area?.fillOpacity
-  children.push(
-    ...buildSeriesNodes(
-      config.series,
-      scales,
-      pointsEnabled,
-      chartAreaFillOpacity,
-      config.options?.point
-    )
+  const bandNodes = buildBandNodes(config, scales, plotRect)
+  const seriesNodes = buildSeriesNodes(
+    config.series,
+    scales,
+    pointsEnabled,
+    chartAreaFillOpacity,
+    config.options?.point
   )
-
-  children.push(
+  const annotationNodes = buildAnnotationNodes(config, scales, plotRect)
+  const axisNodes: SceneNode[] = [
     ...axisToSceneNodes(
       axes.x,
       plotRect,
@@ -172,35 +231,35 @@ export function scene(
       config.options?.axisLabelFont,
       hideBottomTickAtOrigin,
       bottomAxisConfig
-    )
-  )
-  if (axes.y !== undefined) {
-    children.push(
-      ...axisToSceneNodes(
-        axes.y,
-        plotRect,
-        config.options?.axisTickFont,
-        config.options?.axisLabelFont,
-        hideLeftTickAtOrigin,
-        leftAxisConfig
-      )
-    )
-  }
-  if (axes.yRight) {
-    children.push(
-      ...axisToSceneNodes(
-        axes.yRight,
-        plotRect,
-        config.options?.axisTickFont,
-        config.options?.axisLabelFont,
-        hideRightTickAtOrigin,
-        rightAxisConfig
-      )
-    )
-  }
+    ),
+    ...(axes.y !== undefined
+      ? axisToSceneNodes(
+          axes.y,
+          plotRect,
+          config.options?.axisTickFont,
+          config.options?.axisLabelFont,
+          hideLeftTickAtOrigin,
+          leftAxisConfig
+        )
+      : []),
+    ...(axes.yRight
+      ? axisToSceneNodes(
+          axes.yRight,
+          plotRect,
+          config.options?.axisTickFont,
+          config.options?.axisLabelFont,
+          hideRightTickAtOrigin,
+          rightAxisConfig
+        )
+      : []),
+  ]
+
+  // Layering invariant: bands -> series -> annotations -> axes.
+  children.push(...bandNodes, ...seriesNodes, ...annotationNodes, ...axisNodes)
 
   // Bands are intentionally excluded from legend generation in v1.
   // They are contextual background, not semantic series.
+  // Annotations are also excluded from legend generation in v1.
   const legendEntries = config.series.map((series, index) => {
     const paint = resolveSeriesPaint(series, pointsEnabled)
     const swatchPaint =

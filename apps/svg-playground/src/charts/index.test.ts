@@ -23,10 +23,10 @@ describe('chart groups', () => {
       min: 1,
       max: 1e7,
     })
-    expect(demo?.config.options?.bands).toHaveLength(5)
+    expect(demo?.config.options?.bands).toBeUndefined()
     expect(demo?.config.options?.regions).toBeUndefined()
-    expect(demo?.sceneTransforms).toBeUndefined()
-    expect(demo?.config.options?.annotations).toHaveLength(12)
+    expect(demo?.sceneTransforms).toHaveLength(2)
+    expect(demo?.config.options?.annotations).toHaveLength(6)
 
     const seriesIds = demo?.config.series.map(series => series.id) ?? []
     expect(seriesIds).toEqual(
@@ -45,13 +45,7 @@ describe('chart groups', () => {
       demo?.config.options?.annotations?.map(annotation => annotation.text) ?? []
     expect(annotationText).toEqual(
       expect.arrayContaining([
-        'Excellent',
-        'Good',
-        'Fair',
-        'Bad',
-        'Horrible',
-        'O(1)',
-        'O(log n)',
+        'O(log n), O(1)',
         'O(n)',
         'O(n log n)',
         'O(n^2)',
@@ -59,5 +53,7 @@ describe('chart groups', () => {
         'O(n!)',
       ])
     )
+
+    expect(demo?.meta?.badges).toHaveLength(5)
   })
 })

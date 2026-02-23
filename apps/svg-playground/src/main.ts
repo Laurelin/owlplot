@@ -3,6 +3,25 @@ import { mountTabs } from './tabs'
 import { renderChartInto } from './shared/renderChart'
 import type { ChartDemo } from './shared/types'
 
+function createBadgeLegend(demo: ChartDemo): HTMLElement | null {
+  const badges = demo.meta?.badges
+  if (badges == null || badges.length === 0) return null
+
+  const row = document.createElement('div')
+  row.classList.add('chart-badge-row')
+
+  for (const badge of badges) {
+    const chip = document.createElement('span')
+    chip.classList.add('chart-badge')
+    chip.textContent = badge.label
+    chip.style.background = badge.color
+    chip.style.color = badge.textColor ?? '#222222'
+    row.appendChild(chip)
+  }
+
+  return row
+}
+
 function createChartCard(demo: ChartDemo): HTMLElement {
   const card = document.createElement('div')
   card.classList.add('chart-card')
@@ -16,6 +35,11 @@ function createChartCard(demo: ChartDemo): HTMLElement {
   description.classList.add('chart-description')
   description.textContent = demo.description
   card.appendChild(description)
+
+  const badgeRow = createBadgeLegend(demo)
+  if (badgeRow) {
+    card.appendChild(badgeRow)
+  }
 
   const svgContainer = document.createElement('div')
   svgContainer.classList.add('chart-svg-container')

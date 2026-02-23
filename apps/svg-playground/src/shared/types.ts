@@ -26,6 +26,11 @@ export type ChartDemoMeta = {
   readonly tags?: readonly string[]
   readonly snapshot?: boolean // Include in snapshot tests
   readonly stressTest?: boolean // Performance-heavy demo
+  readonly badges?: readonly {
+    label: string
+    color: string
+    textColor?: string
+  }[]
 }
 
 export type ChartDemo = {

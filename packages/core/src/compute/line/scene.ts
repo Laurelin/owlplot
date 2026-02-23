@@ -64,7 +64,7 @@ function buildBandNodes(
 
     nodes.push({
       kind: SceneNodeKind.RECT,
-      id: `band:${index}`,
+      id: `__band__:${index}`,
       x: plotRect.x,
       y: clampedTop,
       width: plotRect.width,
@@ -74,6 +74,7 @@ function buildBandNodes(
         opacity: band.opacity,
         stroke: { type: 'solid', color: 'none' },
       },
+      metadata: { role: 'band' },
     })
   })
 
@@ -128,6 +129,7 @@ export function scene(
     width: size.width,
     height: size.height,
     style: { fill: { type: 'solid', color: 'transparent' } },
+    metadata: { role: 'background' },
   })
 
   const showOriginTicks = config.options?.showOriginTicks ?? false
@@ -197,6 +199,8 @@ export function scene(
     )
   }
 
+  // Bands are intentionally excluded from legend generation in v1.
+  // They are contextual background, not semantic series.
   const legendEntries = config.series.map((series, index) => {
     const paint = resolveSeriesPaint(series, pointsEnabled)
     const swatchPaint =

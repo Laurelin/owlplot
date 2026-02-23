@@ -7,6 +7,9 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "height": 360,
       "id": "background",
       "kind": "rect",
+      "metadata": {
+        "role": "background",
+      },
       "style": {
         "fill": {
           "color": "transparent",

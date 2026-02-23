@@ -597,8 +597,8 @@ describe('computeChartScene (line)', () => {
       const children = rootChildren(result as unknown as { scene: { children?: TestSceneNode[] } })
       const ids = children.map(node => node.id)
 
-      const band0Index = ids.indexOf('band:0')
-      const band1Index = ids.indexOf('band:1')
+      const band0Index = ids.indexOf('__band__:0')
+      const band1Index = ids.indexOf('__band__:1')
       const seriesIndex = ids.indexOf('series:s')
       const axisIndex = ids.indexOf('axis-group:bottom')
 
@@ -637,15 +637,15 @@ describe('computeChartScene (line)', () => {
       const result = computeChartScene(config, size, env)
       const band0 = findSceneNodeById(
         result.scene as unknown as TestSceneNode,
-        'band:0'
+        '__band__:0'
       )
       const band1 = findSceneNodeById(
         result.scene as unknown as TestSceneNode,
-        'band:1'
+        '__band__:1'
       )
       const band2 = findSceneNodeById(
         result.scene as unknown as TestSceneNode,
-        'band:2'
+        '__band__:2'
       )
 
       expect(band0).toBeDefined()
@@ -693,11 +693,11 @@ describe('computeChartScene (line)', () => {
       const result = computeChartScene(config, size, env)
       const leftBand = findSceneNodeById(
         result.scene as unknown as TestSceneNode,
-        'band:0'
+        '__band__:0'
       )
       const rightBand = findSceneNodeById(
         result.scene as unknown as TestSceneNode,
-        'band:1'
+        '__band__:1'
       )
 
       expect(leftBand).toBeDefined()
@@ -729,7 +729,7 @@ describe('computeChartScene (line)', () => {
       const result = computeChartScene(config, size, env)
       const band = findSceneNodeById(
         result.scene as unknown as TestSceneNode,
-        'band:0'
+        '__band__:0'
       )
       const yScale = (
         result.scene.metadata as {

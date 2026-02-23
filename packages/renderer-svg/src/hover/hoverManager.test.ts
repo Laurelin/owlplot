@@ -20,6 +20,7 @@ import { SvgAttributeName } from '../shared/enums'
 import type { HoverMetadata } from './types'
 import * as svgCoordinates from '../shared/svgCoordinates'
 import * as glyphResolver from './resolvers/glyphResolver'
+import type { TooltipRenderer } from '../tooltip/types'
 
 const testGlobal = globalThis as unknown as {
   window: Window & typeof globalThis
@@ -182,6 +183,80 @@ describe('hover manager', () => {
 
       expect(resolveSpy).toHaveBeenCalledWith(circle, metadata)
       resolveSpy.mockRestore()
+      vi.restoreAllMocks()
+    })
+  })
+
+  describe('bands are non-hoverable context', () => {
+    it('point hover resolution is unchanged when a full-plot band rect is present', async () => {
+      const metadataWithSeries: HoverMetadata = {
+        scales: { x: identityScale(), y: identityScale() },
+        plotRect,
+        xDomain: [0, 10],
+        yDomain: [0, 10],
+        series: [
+          {
+            id: 's1',
+            yAxis: 'left',
+            sortedPoints: [{ x: 5, y: 5 }],
+          },
+        ],
+      }
+
+      const bandRect = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'rect'
+      )
+      bandRect.setAttribute('id', '__band__:0')
+      bandRect.setAttribute('x', '0')
+      bandRect.setAttribute('y', '0')
+      bandRect.setAttribute('width', '200')
+      bandRect.setAttribute('height', '100')
+      svg.appendChild(bandRect)
+
+      const resolver = createHoverResolver({ kind: HoverModeKind.POINT })
+      const indicators = createIndicators(
+        [{ kind: HoverIndicatorKind.NONE }],
+        svg
+      )
+
+      const renderSpy = vi.fn(() => {
+        const el = document.createElement('div')
+        el.textContent = 'tooltip'
+        return el
+      })
+      const tooltipRenderer: TooltipRenderer = { render: renderSpy }
+
+      vi.spyOn(svgCoordinates, 'getMouseSvgCoordinates').mockReturnValue({
+        x: 5,
+        y: 5,
+      })
+      const rafSpy = vi
+        .spyOn(globalThis, 'requestAnimationFrame')
+        .mockImplementation(cb => {
+          cb(0)
+          return 1
+        })
+
+      attachDataHover(
+        svg,
+        resolver,
+        indicators,
+        tooltipRenderer,
+        metadataWithSeries
+      )
+      const win = testGlobal.window
+      svg.dispatchEvent(
+        new win.MouseEvent('pointermove', {
+          clientX: 5,
+          clientY: 5,
+          bubbles: true,
+        })
+      )
+
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(renderSpy).toHaveBeenCalledTimes(1)
+      rafSpy.mockRestore()
       vi.restoreAllMocks()
     })
   })

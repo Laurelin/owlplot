@@ -5,6 +5,7 @@ import {
   type NumberFormat,
 } from '../../format/number'
 import { measureTextFont } from '../../text/helpers'
+import { measureRotatedBoundingBox } from '../../text/measureRotatedBoundingBox'
 import {
   DominantBaseline,
   TextAnchor,
@@ -171,11 +172,13 @@ export function computeAxisLayout(
     ) {
       rotation = labelAngle
       // For angled labels, calculate rotated bounds
-      const angleRad = (labelAngle * Math.PI) / 180
-      const cos = Math.abs(Math.cos(angleRad))
-      const sin = Math.abs(Math.sin(angleRad))
-      effectiveWidth = width * cos + height * sin
-      effectiveHeight = width * sin + height * cos
+      const bounds = measureRotatedBoundingBox(
+        width,
+        height,
+        (labelAngle * Math.PI) / 180
+      )
+      effectiveWidth = bounds.width
+      effectiveHeight = bounds.height
     }
 
     // Track max effective dimensions for title positioning
@@ -260,13 +263,13 @@ export function computeAxisLayout(
           let titleWidth = unrotatedBounds.width
           let titleHeight = unrotatedBounds.height
           if (rotation !== undefined) {
-            const angleRad = (rotation * Math.PI) / 180
-            const cos = Math.abs(Math.cos(angleRad))
-            const sin = Math.abs(Math.sin(angleRad))
-            titleWidth =
-              unrotatedBounds.width * cos + unrotatedBounds.height * sin
-            titleHeight =
-              unrotatedBounds.width * sin + unrotatedBounds.height * cos
+            const bounds = measureRotatedBoundingBox(
+              unrotatedBounds.width,
+              unrotatedBounds.height,
+              (rotation * Math.PI) / 180
+            )
+            titleWidth = bounds.width
+            titleHeight = bounds.height
           }
 
           // Position title with offset beyond tick labels

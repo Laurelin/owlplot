@@ -65,8 +65,10 @@ type TestSceneNode = {
   y?: number
   width?: number
   height?: number
+  textAnchor?: string
   style?: { fillOpacity?: number }
   children?: TestSceneNode[]
+  metadata?: { role?: string }
 }
 
 function findSceneNodeById(
@@ -742,6 +744,159 @@ describe('computeChartScene (line)', () => {
       expect(band).toBeDefined()
       expect(band?.y).toBeCloseTo(expectedTop, 10)
       expect(band?.height).toBeCloseTo(expectedBottom - expectedTop, 10)
+    })
+  })
+
+  describe('annotations', () => {
+    const env = { devicePixelRatio: 2, measureText: approximateMeasureText }
+    const size = { width: 640, height: 360 }
+
+    it('emits annotation nodes and preserves layering between series and axes', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 's',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 10 },
+            ],
+          },
+        ],
+        options: {
+          annotations: [{ text: 'A', x: 0.5, y: 5 }],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const children = rootChildren(
+        result as unknown as { scene: { children?: TestSceneNode[] } }
+      )
+      const ids = children.map(node => node.id)
+      const seriesIndex = ids.indexOf('series:s')
+      const annotationIndex = ids.indexOf('__annotation__:0')
+      const axisIndex = ids.indexOf('axis-group:bottom')
+
+      expect(seriesIndex).toBeGreaterThanOrEqual(0)
+      expect(annotationIndex).toBeGreaterThanOrEqual(0)
+      expect(axisIndex).toBeGreaterThanOrEqual(0)
+      expect(seriesIndex).toBeLessThan(annotationIndex)
+      expect(annotationIndex).toBeLessThan(axisIndex)
+      const annotation = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__annotation__:0'
+      )
+      expect(annotation?.kind).toBe('text')
+      expect(annotation?.metadata?.role).toBe('annotation')
+    })
+
+    it('maps align to textAnchor', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          { id: 's', points: [{ x: 0, y: 0 }, { x: 1, y: 10 }] },
+        ],
+        options: {
+          annotations: [
+            { text: 'L', x: 0.2, y: 2, align: 'left' },
+            { text: 'C', x: 0.5, y: 5, align: 'center' },
+            { text: 'R', x: 0.8, y: 8, align: 'right' },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__annotation__:0'
+        )?.textAnchor
+      ).toBe('start')
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__annotation__:1'
+        )?.textAnchor
+      ).toBe('middle')
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__annotation__:2'
+        )?.textAnchor
+      ).toBe('end')
+    })
+
+    it('uses right-side y-scale when annotation.yAxis is right', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'left',
+            yAxis: 'left',
+            points: [{ x: 0, y: 0 }, { x: 1, y: 10 }],
+          },
+          {
+            id: 'right',
+            yAxis: 'right',
+            points: [{ x: 0, y: 100 }, { x: 1, y: 200 }],
+          },
+        ],
+        options: {
+          yAxisRight: { tickCount: 5 },
+          annotations: [
+            { text: 'L', x: 0.5, y: 5 },
+            { text: 'R', x: 0.5, y: 105, yAxis: 'right' },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const leftAnnotation = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__annotation__:0'
+      )
+      const rightAnnotation = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__annotation__:1'
+      )
+
+      expect(leftAnnotation).toBeDefined()
+      expect(rightAnnotation).toBeDefined()
+      expect(leftAnnotation?.y).not.toBe(rightAnnotation?.y)
+    })
+
+    it('skips annotations projected outside plot rect', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [{ id: 's', points: [{ x: 0, y: 0 }, { x: 1, y: 10 }] }],
+        options: {
+          annotations: [
+            { text: 'inside', x: 0.5, y: 5 },
+            { text: 'outside-x', x: -100, y: 5 },
+            { text: 'outside-y', x: 0.5, y: 1000 },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__annotation__:0'
+        )
+      ).toBeDefined()
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__annotation__:1'
+        )
+      ).toBeUndefined()
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__annotation__:2'
+        )
+      ).toBeUndefined()
     })
   })
 })

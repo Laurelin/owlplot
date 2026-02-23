@@ -11,7 +11,7 @@ export enum Position {
 
 export type DataPoint = { x: number; y: number | null }
 
-import type { PaintStyles } from '../paint/types'
+import type { AnyPaint, PaintStyles } from '../paint/types'
 
 // -----------------------------------
 // Point shape (define once; config, scene, renderer use same type)
@@ -102,11 +102,20 @@ export type AxisScaleConfig = {
   base?: number
 }
 
+export type HorizontalBandConfig = {
+  yMin: number
+  yMax: number
+  fill: AnyPaint
+  opacity?: number
+  yAxis?: 'left' | 'right'
+}
+
 import type { NumberFormat } from '../format/number'
 
 export type Cartesian2DOptions = {
   xScale?: AxisScaleConfig
   yScale?: AxisScaleConfig
+  bands?: HorizontalBandConfig[]
   xLabel?: string
   yLabel?: string
   /** Primary Y-axis position. When 'right' and yAxisRight is set, only the right axis is shown (one scale). Default 'left'. */

@@ -60,6 +60,11 @@ function collectSceneNodeIds(node: {
 
 type TestSceneNode = {
   id?: string
+  kind?: string
+  x?: number
+  y?: number
+  width?: number
+  height?: number
   style?: { fillOpacity?: number }
   children?: TestSceneNode[]
 }
@@ -75,6 +80,10 @@ function findSceneNodeById(
     if (found) return found
   }
   return undefined
+}
+
+function rootChildren(result: { scene: { children?: TestSceneNode[] } }) {
+  return result.scene.children ?? []
 }
 
 describe('computeChartScene (line)', () => {
@@ -557,6 +566,182 @@ describe('computeChartScene (line)', () => {
       )
       expect(areaStrokeNode?.style?.fillOpacity).toBeUndefined()
       expect(lineStrokeNode?.style?.fillOpacity).toBeUndefined()
+    })
+  })
+
+  describe('horizontal bands', () => {
+    const env = { devicePixelRatio: 2, measureText: approximateMeasureText }
+    const size = { width: 640, height: 360 }
+
+    it('emits bands before series and axes, preserving config order', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 's',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 10 },
+            ],
+          },
+        ],
+        options: {
+          bands: [
+            { yMin: 2, yMax: 4, fill: { type: 'solid', color: '#22c55e' } },
+            { yMin: 6, yMax: 8, fill: { type: 'solid', color: '#f59e0b' } },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const children = rootChildren(result as unknown as { scene: { children?: TestSceneNode[] } })
+      const ids = children.map(node => node.id)
+
+      const band0Index = ids.indexOf('band:0')
+      const band1Index = ids.indexOf('band:1')
+      const seriesIndex = ids.indexOf('series:s')
+      const axisIndex = ids.indexOf('axis-group:bottom')
+
+      expect(band0Index).toBeGreaterThanOrEqual(0)
+      expect(band1Index).toBeGreaterThanOrEqual(0)
+      expect(seriesIndex).toBeGreaterThanOrEqual(0)
+      expect(axisIndex).toBeGreaterThanOrEqual(0)
+      expect(band0Index).toBeLessThan(band1Index)
+      expect(band1Index).toBeLessThan(seriesIndex)
+      expect(seriesIndex).toBeLessThan(axisIndex)
+      expect(children[band0Index]?.kind).toBe('rect')
+      expect(children[band1Index]?.kind).toBe('rect')
+    })
+
+    it('normalizes y bounds, clips to plot rect, and skips fully out-of-range bands', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 's',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 10 },
+            ],
+          },
+        ],
+        options: {
+          bands: [
+            { yMin: 8, yMax: 3, fill: { type: 'solid', color: '#60a5fa' } }, // swapped
+            { yMin: -5, yMax: 3, fill: { type: 'solid', color: '#10b981' } }, // clipped
+            { yMin: 20, yMax: 30, fill: { type: 'solid', color: '#ef4444' } }, // skipped
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const band0 = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'band:0'
+      )
+      const band1 = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'band:1'
+      )
+      const band2 = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'band:2'
+      )
+
+      expect(band0).toBeDefined()
+      expect(band1).toBeDefined()
+      expect(band2).toBeUndefined()
+      expect((band0?.height ?? 0) > 0).toBe(true)
+      expect((band1?.height ?? 0) > 0).toBe(true)
+    })
+
+    it('uses right-side scale when band.yAxis is right', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'left',
+            yAxis: 'left',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 10 },
+            ],
+          },
+          {
+            id: 'right',
+            yAxis: 'right',
+            points: [
+              { x: 0, y: 100 },
+              { x: 1, y: 200 },
+            ],
+          },
+        ],
+        options: {
+          yAxisRight: { tickCount: 5 },
+          bands: [
+            { yMin: 5, yMax: 10, fill: { type: 'solid', color: '#3b82f6' } },
+            {
+              yMin: 105,
+              yMax: 110,
+              yAxis: 'right',
+              fill: { type: 'solid', color: '#f97316' },
+            },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const leftBand = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'band:0'
+      )
+      const rightBand = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'band:1'
+      )
+
+      expect(leftBand).toBeDefined()
+      expect(rightBand).toBeDefined()
+      expect(leftBand?.y).not.toBe(rightBand?.y)
+    })
+
+    it('projects bands correctly with log y-scale', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 's',
+            points: [
+              { x: 1, y: 1 },
+              { x: 2, y: 1000 },
+            ],
+          },
+        ],
+        options: {
+          yScale: { type: 'log', base: 10 },
+          yDomain: { mode: 'data' },
+          bands: [
+            { yMin: 10, yMax: 100, fill: { type: 'solid', color: '#a3e635' } },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const band = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'band:0'
+      )
+      const yScale = (
+        result.scene.metadata as {
+          hover: { scales: { y: { forward: (v: number) => number } } }
+        }
+      ).hover.scales.y
+      const expectedTop = Math.min(yScale.forward(10), yScale.forward(100))
+      const expectedBottom = Math.max(yScale.forward(10), yScale.forward(100))
+
+      expect(band).toBeDefined()
+      expect(band?.y).toBeCloseTo(expectedTop, 10)
+      expect(band?.height).toBeCloseTo(expectedBottom - expectedTop, 10)
     })
   })
 })

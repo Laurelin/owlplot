@@ -170,7 +170,8 @@ export type Cartesian2DOptions = {
   }
 
   /**
-   * When both x and y domains include zero, show tick mark and label at origin.
+   * Controls whether zero tick/label are shown at the axis-corner origin intersection
+   * (e.g. x-min=0 with left-axis y-min=0).
    * Default false (hide at origin to avoid double zero and clutter).
    */
   showOriginTicks?: boolean

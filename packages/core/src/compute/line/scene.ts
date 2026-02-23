@@ -66,14 +66,23 @@ export function scene(
     style: { fill: { type: 'solid', color: 'transparent' } },
   })
 
-  const effectiveYDomain =
-    axes.y === undefined && yDomainRight !== undefined ? yDomainRight : yDomain
-  const xAxisHasZero = xDomain[0] <= ZERO_EPSILON && xDomain[1] >= -ZERO_EPSILON
-  const yAxisHasZero =
-    effectiveYDomain[0] <= ZERO_EPSILON && effectiveYDomain[1] >= -ZERO_EPSILON
-  const originIntersection = xAxisHasZero && yAxisHasZero
   const showOriginTicks = config.options?.showOriginTicks ?? false
-  const hideTickAtOrigin = originIntersection && !showOriginTicks
+  const shouldHideOriginTicks = !showOriginTicks
+  const xMinIsZero = Math.abs(xDomain[0]) <= ZERO_EPSILON
+  const xMaxIsZero = Math.abs(xDomain[1]) <= ZERO_EPSILON
+  const leftDomain = yDomainLeft ?? yDomain
+  const rightDomain = yDomainRight ?? yDomain
+  const yLeftMinIsZero =
+    axes.y !== undefined && Math.abs(leftDomain[0]) <= ZERO_EPSILON
+  const yRightMinIsZero =
+    axes.yRight !== undefined && Math.abs(rightDomain[0]) <= ZERO_EPSILON
+  const hideBottomTickAtOrigin =
+    shouldHideOriginTicks &&
+    ((xMinIsZero && yLeftMinIsZero) || (xMaxIsZero && yRightMinIsZero))
+  const hideLeftTickAtOrigin =
+    shouldHideOriginTicks && xMinIsZero && yLeftMinIsZero
+  const hideRightTickAtOrigin =
+    shouldHideOriginTicks && xMaxIsZero && yRightMinIsZero
 
   children.push(
     ...axisToSceneNodes(
@@ -81,7 +90,7 @@ export function scene(
       plotRect,
       config.options?.axisTickFont,
       config.options?.axisLabelFont,
-      hideTickAtOrigin,
+      hideBottomTickAtOrigin,
       bottomAxisConfig
     )
   )
@@ -92,7 +101,7 @@ export function scene(
         plotRect,
         config.options?.axisTickFont,
         config.options?.axisLabelFont,
-        hideTickAtOrigin,
+        hideLeftTickAtOrigin,
         leftAxisConfig
       )
     )
@@ -104,7 +113,7 @@ export function scene(
         plotRect,
         config.options?.axisTickFont,
         config.options?.axisLabelFont,
-        hideTickAtOrigin,
+        hideRightTickAtOrigin,
         rightAxisConfig
       )
     )

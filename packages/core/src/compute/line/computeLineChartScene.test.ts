@@ -328,6 +328,33 @@ describe('computeChartScene (line)', () => {
       expect(ids).toContain('axis-tick:left:0')
       expect(ids).toContain('axis-tick-label:left:0')
     })
+
+    it('keeps zero ticks when zero is inside the domain (negative to positive)', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 's',
+            points: [
+              { x: -2, y: -2 },
+              { x: -1, y: -1 },
+              { x: 0, y: 0 },
+              { x: 1, y: 1 },
+              { x: 2, y: 2 },
+            ],
+          },
+        ],
+        options: {},
+      }
+      const result = computeChartScene(config, size, env)
+      const ids = collectSceneNodeIds(
+        result.scene as { id?: string; children?: unknown[] }
+      )
+      expect(ids).toContain('axis-tick:bottom:2')
+      expect(ids).toContain('axis-tick-label:bottom:2')
+      expect(ids).toContain('axis-tick:left:2')
+      expect(ids).toContain('axis-tick-label:left:2')
+    })
   })
 
   describe('legend metadata', () => {

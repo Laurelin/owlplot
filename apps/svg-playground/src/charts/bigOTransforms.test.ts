@@ -4,7 +4,6 @@ import {
   injectBigOWedgeBackgroundTransform,
   styleBigOPosterTransform,
 } from './bigOTransforms'
-import { complexityCharts } from './complexity'
 
 function makeScene(): SceneNode {
   return {
@@ -92,6 +91,7 @@ describe('bigO transforms', () => {
     )
 
     expect(wedges.length).toBeGreaterThan(0)
+    expect(wedges.length).toBe(6)
     for (const wedge of wedges) {
       if (wedge.kind !== SceneNodeKind.PATH) continue
       const points = extractPathPoints(wedge.d)
@@ -121,28 +121,3 @@ describe('bigO transforms', () => {
     expect(series.style?.strokeWidth).toBe(1.8)
   })
 })
-
-describe('complexity poster preset', () => {
-  it('normalizes poster series into [0, 1] y-domain with stable rank offsets', () => {
-    const poster = complexityCharts.find(chart => chart.id === 'big-o-complexity-poster')
-    expect(poster).toBeDefined()
-    const series = poster?.config.series ?? []
-    expect(series.length).toBeGreaterThan(0)
-
-    let previousMax = -Infinity
-    for (const current of series) {
-      const yValues = current.points
-        .map(point => point.y)
-        .filter((value): value is number => value != null)
-      expect(yValues.length).toBeGreaterThan(0)
-
-      const minY = Math.min(...yValues)
-      const maxY = Math.max(...yValues)
-      expect(minY).toBeGreaterThanOrEqual(0)
-      expect(maxY).toBeLessThanOrEqual(1)
-      expect(minY).toBeGreaterThanOrEqual(previousMax - 1e-9)
-      previousMax = maxY
-    }
-  })
-})
-

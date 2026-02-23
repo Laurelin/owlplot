@@ -1,13 +1,13 @@
-import { ChartKind, type CartesianSeries, type DataPoint } from '@owlplot/core'
+import { ChartKind, type CartesianSeries } from '@owlplot/core'
 import type { ChartDemo } from '../shared/types'
 import { sampleFunction } from '../shared/dataGenerators'
 import {
   injectBigOWedgeBackgroundTransform,
   styleBigOPosterTransform,
 } from './bigOTransforms'
+import { createBigOPosterSeries } from './bigOPosterSeries'
 
 const mathDomain = { xMin: 1, xMax: 24, step: 1 } as const
-const posterDomain = { xMin: 1, xMax: 10, step: 1 } as const
 const yCap = 1e7
 
 function log10(n: number): number {
@@ -49,43 +49,12 @@ function makeMathSeries(): CartesianSeries[] {
   }))
 }
 
-function normalizePosterPoints(allSeries: readonly DataPoint[][]): DataPoint[][] {
-  const seriesCount = allSeries.length
-  const epsilon = 0.01 / seriesCount
-  const bandHeight = (1 - epsilon * (seriesCount - 1)) / seriesCount
-
-  return allSeries.map((points, rank) => {
-    const finiteYValues = points
-      .map(point => point.y)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-    const minY = Math.min(...finiteYValues)
-    const maxY = Math.max(...finiteYValues)
-    const range = maxY - minY
-    const bandStart = rank * (bandHeight + epsilon)
-
-    return points.map(point => {
-      if (point.y == null || !Number.isFinite(point.y)) return point
-      const normalized = range <= 1e-12 ? 0 : (point.y - minY) / range
-      const bounded = Math.max(0, Math.min(1, normalized))
-      const y = Math.min(1, bandStart + bounded * bandHeight)
-      return { x: point.x, y }
-    })
-  })
-}
-
 function makePosterSeries(): CartesianSeries[] {
-  const sampled = bigODefs.map(def =>
-    sampleFunction(def.evaluate, posterDomain.xMin, posterDomain.xMax, posterDomain.step, {
-      yCap,
-    })
-  )
-  const normalized = normalizePosterPoints(sampled)
-
-  return bigODefs.map((def, index) => ({
-    id: def.id,
+  return createBigOPosterSeries({ sampleCount: 16, bandGap: 0.012 }).map(series => ({
+    id: series.id,
     color: '#111111',
     curve: { type: 'linear' },
-    points: normalized[index] ?? [],
+    points: series.points,
   }))
 }
 
@@ -190,6 +159,8 @@ export const complexityCharts: readonly ChartDemo[] = [
         yLabel: 'Relative Growth (Conceptual)',
         xScale: { type: 'linear' },
         yScale: { type: 'linear' },
+        xTickCount: 0,
+        yTickCount: 0,
         yDomain: { mode: 'fixed', min: 0, max: 1 },
         axisVisibility: {
           ticks: false,
@@ -204,4 +175,3 @@ export const complexityCharts: readonly ChartDemo[] = [
     },
   },
 ] as const
-

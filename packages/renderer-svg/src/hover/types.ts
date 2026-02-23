@@ -1,6 +1,6 @@
 import { HoverModeKind } from '../shared/enums'
 import type { HoverPointRef } from '../shared/extendedElements'
-import type { HoverSeries } from '@owlplot/core'
+import type { HoverSeries, ContinuousScale } from '@owlplot/core'
 
 // Domain point types (avoid repetition)
 export type DomainPoint = { x: number; y: number }
@@ -17,9 +17,7 @@ export type HoverResolutionResult =
 
 /** Single-scale hover metadata. */
 export type HoverMetadataSingle = {
-  xInvert: (px: number) => number
-  yInvert: (py: number) => number
-  scales: { x: (v: number) => number; y: (v: number) => number }
+  scales: { x: ContinuousScale; y: ContinuousScale }
   plotRect: { x: number; y: number; width: number; height: number }
   xDomain: [number, number]
   yDomain: [number, number]
@@ -28,14 +26,11 @@ export type HoverMetadataSingle = {
 
 /** Dual-scale hover metadata. */
 export type HoverMetadataDual = {
-  xInvert: (px: number) => number
   scales: {
-    x: (v: number) => number
-    yLeft: (v: number) => number
-    yRight: (v: number) => number
+    x: ContinuousScale
+    yLeft: ContinuousScale
+    yRight: ContinuousScale
   }
-  yInvertLeft: (py: number) => number
-  yInvertRight: (py: number) => number
   yDomainLeft: [number, number]
   yDomainRight: [number, number]
   plotRect: { x: number; y: number; width: number; height: number }
@@ -68,19 +63,33 @@ export function isHoverMetadata(value: unknown): value is HoverMetadata {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
   if (
-    !('xInvert' in v) ||
     !('scales' in v) ||
     !('plotRect' in v) ||
     !('xDomain' in v) ||
     !('series' in v)
   )
     return false
-  if (typeof v.xInvert !== 'function') return false
   if (typeof v.scales !== 'object' || v.scales === null) return false
   if (!Array.isArray(v.series)) return false
   const scales = v.scales as Record<string, unknown>
-  if ('yLeft' in scales && 'yRight' in scales) {
-    return 'yInvertLeft' in v && 'yInvertRight' in v
+  if (
+    !('x' in scales) ||
+    typeof scales.x !== 'object' ||
+    scales.x === null ||
+    typeof (scales.x as { forward?: unknown }).forward !== 'function' ||
+    typeof (scales.x as { invert?: unknown }).invert !== 'function'
+  ) {
+    return false
   }
-  return 'yInvert' in v && 'yDomain' in v
+  if ('yLeft' in scales && 'yRight' in scales) {
+    return 'yDomainLeft' in v && 'yDomainRight' in v
+  }
+  return (
+    'y' in scales &&
+    typeof scales.y === 'object' &&
+    scales.y !== null &&
+    typeof (scales.y as { forward?: unknown }).forward === 'function' &&
+    typeof (scales.y as { invert?: unknown }).invert === 'function' &&
+    'yDomain' in v
+  )
 }

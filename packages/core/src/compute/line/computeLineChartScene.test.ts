@@ -9,6 +9,22 @@ function getYDomain(result: {
   return result.scene.metadata?.hover?.yDomain
 }
 
+function getDualYDomains(result: {
+  scene: {
+    metadata?: {
+      hover?: {
+        yDomainLeft?: [number, number]
+        yDomainRight?: [number, number]
+      }
+    }
+  }
+}): { left?: [number, number]; right?: [number, number] } {
+  return {
+    left: result.scene.metadata?.hover?.yDomainLeft,
+    right: result.scene.metadata?.hover?.yDomainRight,
+  }
+}
+
 function getLegendEntries(result: {
   scene: {
     metadata?: {
@@ -40,6 +56,25 @@ function collectSceneNodeIds(node: {
     }
   }
   return ids
+}
+
+type TestSceneNode = {
+  id?: string
+  style?: { fillOpacity?: number }
+  children?: TestSceneNode[]
+}
+
+function findSceneNodeById(
+  node: TestSceneNode,
+  id: string
+): TestSceneNode | undefined {
+  if (node.id === id) return node
+  if (!Array.isArray(node.children)) return undefined
+  for (const child of node.children) {
+    const found = findSceneNodeById(child, id)
+    if (found) return found
+  }
+  return undefined
 }
 
 describe('computeChartScene (line)', () => {
@@ -140,6 +175,60 @@ describe('computeChartScene (line)', () => {
       const result = computeChartScene(config, size, env)
       const yDomain = getYDomain(result)
       expect(yDomain).toEqual([10, 20])
+    })
+
+    it('mode data includes area baseline even when all y values are null', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'area',
+            type: 'area',
+            baseline: 42,
+            points: [
+              { x: 0, y: null },
+              { x: 1, y: null },
+            ],
+          },
+        ],
+        options: { yDomain: { mode: 'data' } },
+      }
+      const result = computeChartScene(config, size, env)
+      const yDomain = getYDomain(result)
+      expect(yDomain).toEqual([42, 43])
+    })
+
+    it('dual-scale keeps area baseline isolated to the correct side domain', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'left-area',
+            type: 'area',
+            baseline: -10,
+            points: [
+              { x: 0, y: null },
+              { x: 1, y: null },
+            ],
+          },
+          {
+            id: 'right-line',
+            yAxis: 'right',
+            points: [
+              { x: 0, y: 100 },
+              { x: 1, y: 120 },
+            ],
+          },
+        ],
+        options: {
+          yDomain: { mode: 'data' },
+          yAxisRight: { tickCount: 5 },
+        },
+      }
+      const result = computeChartScene(config, size, env)
+      const domains = getDualYDomains(result)
+      expect(domains.left).toEqual([-10, -9])
+      expect(domains.right).toEqual([100, 120])
     })
 
     it('mode fixed uses explicit min/max', () => {
@@ -303,6 +392,144 @@ describe('computeChartScene (line)', () => {
 
       expect(byId.get('solid')).toEqual({ type: 'solid', color: '#ff0000' })
       expect(byId.get('custom')).toEqual({ type: 'solid', color: '#00aa00' })
+    })
+
+    it('uses fill paint for area legend swatches before stroke fallback', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'area',
+            type: 'area',
+            paint: {
+              fill: { type: 'solid', color: '#112233' },
+              stroke: { type: 'solid', color: '#abcdef' },
+            },
+            points: [
+              { x: 0, y: 1 },
+              { x: 1, y: 3 },
+            ],
+          },
+        ],
+      }
+
+      const result = computeChartScene(config, size, env)
+      const entries = getLegendEntries(result)
+      expect(entries?.[0]?.paint).toEqual({ type: 'solid', color: '#112233' })
+    })
+  })
+
+  describe('area fill opacity', () => {
+    const env = { devicePixelRatio: 2, measureText: approximateMeasureText }
+    const size = { width: 640, height: 360 }
+
+    it('applies chart-level area fill opacity by default', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'area',
+            type: 'area',
+            points: [
+              { x: 0, y: 1 },
+              { x: 1, y: 3 },
+            ],
+          },
+        ],
+        options: { area: { fillOpacity: 0.4 } },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const fillNode = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'series-fill:area'
+      )
+      expect(fillNode?.style?.fillOpacity).toBe(0.4)
+    })
+
+    it('series-level area fill opacity overrides chart-level value', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'area',
+            type: 'area',
+            fillOpacity: 0.7,
+            points: [
+              { x: 0, y: 1 },
+              { x: 1, y: 3 },
+            ],
+          },
+        ],
+        options: { area: { fillOpacity: 0.4 } },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const fillNode = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'series-fill:area'
+      )
+      expect(fillNode?.style?.fillOpacity).toBe(0.7)
+    })
+
+    it('omits fillOpacity when resolved opacity is 1', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'area',
+            type: 'area',
+            fillOpacity: 1,
+            points: [
+              { x: 0, y: 1 },
+              { x: 1, y: 3 },
+            ],
+          },
+        ],
+      }
+
+      const result = computeChartScene(config, size, env)
+      const fillNode = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'series-fill:area'
+      )
+      expect(fillNode?.style?.fillOpacity).toBeUndefined()
+    })
+
+    it('never attaches fillOpacity to line stroke nodes', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'area',
+            type: 'area',
+            fillOpacity: 0.6,
+            points: [
+              { x: 0, y: 1 },
+              { x: 1, y: 3 },
+            ],
+          },
+          {
+            id: 'line',
+            points: [
+              { x: 0, y: 2 },
+              { x: 1, y: 4 },
+            ],
+          },
+        ],
+      }
+
+      const result = computeChartScene(config, size, env)
+      const areaStrokeNode = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'series:area'
+      )
+      const lineStrokeNode = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        'series:line'
+      )
+      expect(areaStrokeNode?.style?.fillOpacity).toBeUndefined()
+      expect(lineStrokeNode?.style?.fillOpacity).toBeUndefined()
     })
   })
 })

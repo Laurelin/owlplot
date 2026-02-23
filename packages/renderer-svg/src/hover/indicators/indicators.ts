@@ -100,7 +100,7 @@ export function createIndicators(
               hideXLine(svgRef)
               return null as IndicatorHandle
             }
-            const svgX = context.scales.x(primaryPoint.point.x)
+            const svgX = context.scales.x.forward(primaryPoint.point.x)
             updateXLine(svgRef, svgX, context.plotRect, indicatorConfig.style)
             return { type: 'x-line' } as IndicatorHandle
           },
@@ -131,7 +131,7 @@ export function createIndicators(
                   ? context.scales.yRight
                   : context.scales.yLeft
                 : context.scales.y
-            const svgY = yScale(primaryPoint.point.y)
+            const svgY = yScale.forward(primaryPoint.point.y)
             updateYLine(svgRef, svgY, context.plotRect, indicatorConfig.style)
             return { type: 'y-line' } as IndicatorHandle
           },

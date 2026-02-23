@@ -24,12 +24,16 @@ export function createPointResolver(): HoverResolver {
       const k = 4 // Check ±4 neighbors
 
       // Invert mouse coords to domain for binary search
-      const domainX = metadata.xInvert(mouseSvgX)
+      const domainX = metadata.scales.x.invert(mouseSvgX)
 
       const isDual = 'yLeft' in scales
       const getYScale = (s: (typeof series)[0]): ((v: number) => number) => {
-        if (isDual) return s.yAxis === 'right' ? scales.yRight : scales.yLeft
-        return scales.y
+        if (isDual) {
+          return s.yAxis === 'right'
+            ? scales.yRight.forward.bind(scales.yRight)
+            : scales.yLeft.forward.bind(scales.yLeft)
+        }
+        return scales.y.forward.bind(scales.y)
       }
 
       for (const s of series) {
@@ -53,7 +57,7 @@ export function createPointResolver(): HoverResolver {
           if (!candidate) continue
 
           // Screen-space euclidean distance
-          const candidateSvgX = scales.x(candidate.x)
+          const candidateSvgX = scales.x.forward(candidate.x)
           const candidateSvgY = yScale(candidate.y)
           const dx = candidateSvgX - mouseSvgX
           const dy = candidateSvgY - mouseSvgY

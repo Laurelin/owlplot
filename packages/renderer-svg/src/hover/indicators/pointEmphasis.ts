@@ -76,9 +76,11 @@ export function emphasizePoints(
   const getYScale = (seriesId: string): ((v: number) => number) => {
     const side = seriesYAxis[seriesId] ?? 'left'
     if (isDualScale(context.scales)) {
-      return side === 'right' ? context.scales.yRight : context.scales.yLeft
+      return side === 'right'
+        ? context.scales.yRight.forward.bind(context.scales.yRight)
+        : context.scales.yLeft.forward.bind(context.scales.yLeft)
     }
-    return context.scales.y
+    return context.scales.y.forward.bind(context.scales.y)
   }
 
   for (const { seriesId, point } of nearestPoints) {
@@ -95,7 +97,7 @@ export function emphasizePoints(
     }
 
     const element = nearestRef.element
-    const cx = context.scales.x(nearestRef.x)
+    const cx = context.scales.x.forward(nearestRef.x)
     const cy = getYScale(seriesId)(nearestRef.y)
     const prevTransform =
       element.getAttribute(SvgAttributeName.TRANSFORM) ?? null
@@ -140,14 +142,16 @@ export function drawPointEmphasisOverlay(
   const getYScale = (seriesId: string): ((v: number) => number) => {
     const side = seriesYAxis[seriesId] ?? 'left'
     if (isDualScale(context.scales)) {
-      return side === 'right' ? context.scales.yRight : context.scales.yLeft
+      return side === 'right'
+        ? context.scales.yRight.forward.bind(context.scales.yRight)
+        : context.scales.yLeft.forward.bind(context.scales.yLeft)
     }
-    return context.scales.y
+    return context.scales.y.forward.bind(context.scales.y)
   }
 
   g.setAttribute(DATA_HOVER_LAYER, 'point-emphasis')
   for (const { seriesId, point } of nearestPoints) {
-    const cx = context.scales.x(point.x)
+    const cx = context.scales.x.forward(point.x)
     const cy = getYScale(seriesId)(point.y)
     const fill =
       context.emphasisOptions?.style?.fill ??

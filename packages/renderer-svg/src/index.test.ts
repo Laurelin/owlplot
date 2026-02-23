@@ -15,6 +15,16 @@ const testGlobal = globalThis as unknown as {
   Element: typeof Element
 }
 
+function identityScale() {
+  return {
+    type: 'linear' as const,
+    domain: [0, 1] as const,
+    range: [0, 1] as const,
+    forward: (v: number) => v,
+    invert: (v: number) => v,
+  }
+}
+
 function parseTranslate(transform: string | null): { x: number; y: number } {
   const match = /translate\(([-\d.]+),([-\d.]+)\)/.exec(transform ?? '')
   if (!match) {
@@ -61,6 +71,98 @@ it('renders a line path', () => {
   renderSvgScene(scene, svg)
 
   expect(svg.innerHTML).toContain('<path')
+})
+
+it('renders fill-opacity for area fill paths', () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('width', '200')
+  svg.setAttribute('height', '100')
+  const scene: SceneNode = {
+    kind: SceneNodeKind.GROUP,
+    id: 'root',
+    children: [
+      {
+        kind: SceneNodeKind.PATH,
+        id: 'series-fill:s',
+        d: 'M0 0 L50 10 L100 0 Z',
+        style: {
+          fill: { type: 'solid', color: '#ff0000' },
+          fillOpacity: 0.3,
+          stroke: { type: 'solid', color: 'none' },
+        },
+      },
+    ],
+  }
+  renderSvgScene(scene, svg)
+
+  const path = svg.querySelector(
+    '[id="series-fill:s"]'
+  ) as SVGPathElement | null
+  expect(path?.getAttribute('fill')).toBe('#ff0000')
+  expect(path?.getAttribute('fill-opacity')).toBe('0.3')
+})
+
+it('keeps fill-opacity when fill uses a gradient paint', () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('width', '200')
+  svg.setAttribute('height', '100')
+  const scene: SceneNode = {
+    kind: SceneNodeKind.GROUP,
+    id: 'root',
+    children: [
+      {
+        kind: SceneNodeKind.PATH,
+        id: 'series-fill:g',
+        d: 'M0 0 L40 20 L80 0 Z',
+        style: {
+          fill: {
+            type: 'linear',
+            direction: 'horizontal',
+            stops: [
+              { offset: 0, color: '#111111' },
+              { offset: 1, color: '#999999' },
+            ],
+          },
+          fillOpacity: 0.35,
+          stroke: { type: 'solid', color: 'none' },
+        },
+      },
+    ],
+  }
+  renderSvgScene(scene, svg)
+
+  const path = svg.querySelector(
+    '[id="series-fill:g"]'
+  ) as SVGPathElement | null
+  expect(path?.getAttribute('fill')?.startsWith('url(#')).toBe(true)
+  expect(path?.getAttribute('fill-opacity')).toBe('0.35')
+})
+
+it('omits fill-opacity when style.fillOpacity is not provided', () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('width', '200')
+  svg.setAttribute('height', '100')
+  const scene: SceneNode = {
+    kind: SceneNodeKind.GROUP,
+    id: 'root',
+    children: [
+      {
+        kind: SceneNodeKind.PATH,
+        id: 'series-fill:no-opacity',
+        d: 'M0 0 L40 20 L80 0 Z',
+        style: {
+          fill: { type: 'solid', color: '#444444' },
+          stroke: { type: 'solid', color: 'none' },
+        },
+      },
+    ],
+  }
+  renderSvgScene(scene, svg)
+
+  const path = svg.querySelector(
+    '[id="series-fill:no-opacity"]'
+  ) as SVGPathElement | null
+  expect(path?.hasAttribute('fill-opacity')).toBe(false)
 })
 
 it('toggles series visibility from legend item clicks by series id', () => {
@@ -273,9 +375,7 @@ it('supports inside top-right legend without expanding svg height', () => {
         ],
       },
       hover: {
-        xInvert: (px: number) => px,
-        yInvert: (px: number) => px,
-        scales: { x: (v: number) => v, y: (v: number) => v },
+        scales: { x: identityScale(), y: identityScale() },
         plotRect: { x: 40, y: 20, width: 220, height: 120 },
         xDomain: [0, 10] as [number, number],
         yDomain: [0, 10] as [number, number],

@@ -1,4 +1,5 @@
-import type { LineSeries } from '../../config/types'
+import type { CartesianSeries } from '../../config/types'
+import type { CartesianScales } from '../cartesian2d/layout'
 
 /**
  * Core -> Renderer Contract for Hover Metadata:
@@ -18,24 +19,15 @@ export type HoverSeries = {
 }
 
 export function buildHoverMetadata(
-  seriesList: LineSeries[],
-  scales: {
-    x: (value: number) => number
-    y: (value: number) => number
-    xInvert: (px: number) => number
-    yInvert: (py: number) => number
-    yLeft?: (value: number) => number
-    yRight?: (value: number) => number
-    yInvertLeft?: (py: number) => number
-    yInvertRight?: (py: number) => number
-  },
+  seriesList: CartesianSeries[],
+  scales: CartesianScales,
   plotRect: { x: number; y: number; width: number; height: number },
   xDomain: [number, number],
   yDomain: [number, number],
   yDomainLeft?: [number, number],
   yDomainRight?: [number, number]
 ) {
-  const isDualScale = scales.yLeft !== undefined && scales.yRight !== undefined
+  const isDualScale = 'yLeft' in scales && 'yRight' in scales
   const seriesPayload = seriesList.map((s): HoverSeries => {
     const validPoints = s.points
       .filter(p => p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y))
@@ -51,14 +43,11 @@ export function buildHoverMetadata(
 
   return isDualScale
     ? {
-        xInvert: scales.xInvert,
         scales: {
           x: scales.x,
-          yLeft: scales.yLeft!,
-          yRight: scales.yRight!,
+          yLeft: scales.yLeft,
+          yRight: scales.yRight,
         },
-        yInvertLeft: scales.yInvertLeft!,
-        yInvertRight: scales.yInvertRight!,
         yDomainLeft: yDomainLeft!,
         yDomainRight: yDomainRight!,
         plotRect,
@@ -66,8 +55,6 @@ export function buildHoverMetadata(
         series: seriesPayload,
       }
     : {
-        xInvert: scales.xInvert,
-        yInvert: scales.yInvert,
         scales: { x: scales.x, y: scales.y },
         plotRect,
         xDomain,

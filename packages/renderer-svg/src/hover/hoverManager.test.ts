@@ -26,13 +26,21 @@ const testGlobal = globalThis as unknown as {
   document: Document
 }
 
+function identityScale() {
+  return {
+    type: 'linear' as const,
+    domain: [0, 1] as const,
+    range: [0, 1] as const,
+    forward: (v: number) => v,
+    invert: (v: number) => v,
+  }
+}
+
 describe('hover manager', () => {
   let svg: SVGSVGElement
   const plotRect = { x: 0, y: 0, width: 200, height: 100 }
   const metadata: HoverMetadata = {
-    xInvert: (px: number) => px,
-    yInvert: (py: number) => py,
-    scales: { x: (v: number) => v, y: (v: number) => v },
+    scales: { x: identityScale(), y: identityScale() },
     plotRect,
     xDomain: [0, 10],
     yDomain: [0, 10],

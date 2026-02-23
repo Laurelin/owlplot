@@ -1,15 +1,52 @@
 import type { MeasureText } from '../../text/types'
-import { Position, type LineSeries } from '../../config/types'
+import { Position, type CartesianSeries } from '../../config/types'
 import { computeAxisLayout } from './axis'
 import type { AxisLayout } from './types/axis'
 import type { PlotRect } from '../types'
 import { computeAdaptivePadding } from './adaptivePadding'
 import type { AxisConfig } from './axis'
+import { createLinearScale, type ContinuousScale } from './scale'
 
 export type YDomainPolicy = {
   mode: 'include-zero' | 'data' | 'fixed'
   min?: number
   max?: number
+}
+
+function resolveAreaBaselineDomain(
+  series: CartesianSeries
+): number | undefined {
+  if (series.type !== 'area') return undefined
+  const baseline = series.baseline ?? 'zero'
+  // Baseline validation belongs here for future non-linear scales (e.g. log).
+  return baseline === 'zero' ? 0 : baseline
+}
+
+function computeYDataExtents(series: CartesianSeries[]): [number, number] {
+  let min = Infinity
+  let max = -Infinity
+  for (const s of series) {
+    for (const p of s.points) {
+      if (p.y === null) continue
+      if (p.y < min) min = p.y
+      if (p.y > max) max = p.y
+    }
+  }
+  return [min, max]
+}
+
+function includeAreaBaselinesInExtents(
+  series: CartesianSeries[],
+  extents: [number, number]
+): [number, number] {
+  let [min, max] = extents
+  for (const s of series) {
+    const baseline = resolveAreaBaselineDomain(s)
+    if (baseline === undefined || !Number.isFinite(baseline)) continue
+    if (baseline < min) min = baseline
+    if (baseline > max) max = baseline
+  }
+  return [min, max]
 }
 
 function applyYDomainPolicy(
@@ -37,17 +74,7 @@ function applyYDomainPolicy(
 
 export type CartesianLayoutResult = {
   plotRect: PlotRect
-  scales: {
-    x: (value: number) => number
-    y: (value: number) => number
-    xInvert: (px: number) => number
-    yInvert: (py: number) => number
-    /** Present when dual-scale (two Y domains). Use per-series for path/points. */
-    yLeft?: (value: number) => number
-    yRight?: (value: number) => number
-    yInvertLeft?: (py: number) => number
-    yInvertRight?: (py: number) => number
-  }
+  scales: CartesianScales
   axes: {
     x: AxisLayout
     y?: AxisLayout
@@ -60,8 +87,21 @@ export type CartesianLayoutResult = {
   yDomainRight?: [number, number]
 }
 
+export type CartesianScalesSingle = {
+  x: ContinuousScale
+  y: ContinuousScale
+}
+
+export type CartesianScalesDual = {
+  x: ContinuousScale
+  yLeft: ContinuousScale
+  yRight: ContinuousScale
+}
+
+export type CartesianScales = CartesianScalesSingle | CartesianScalesDual
+
 export function computeCartesianLayout(
-  series: LineSeries[],
+  series: CartesianSeries[],
   size: { width: number; height: number },
   measureText: MeasureText,
   options: {
@@ -111,15 +151,10 @@ export function computeCartesianLayout(
   let yMaxRight: number
 
   if (isDualScale) {
-    yMinLeft = Infinity
-    yMaxLeft = -Infinity
-    for (const s of leftSeries) {
-      for (const p of s.points) {
-        if (p.y === null) continue
-        if (p.y < yMinLeft) yMinLeft = p.y
-        if (p.y > yMaxLeft) yMaxLeft = p.y
-      }
-    }
+    ;[yMinLeft, yMaxLeft] = includeAreaBaselinesInExtents(
+      leftSeries,
+      computeYDataExtents(leftSeries)
+    )
     if (yMinLeft === Infinity || yMaxLeft === -Infinity) {
       yMinLeft = 0
       yMaxLeft = 1
@@ -135,15 +170,10 @@ export function computeCartesianLayout(
       ;[yMinRight, yMaxRight] = options.yAxisRightDomain
       if (yMinRight === yMaxRight) yMaxRight = yMinRight + 1
     } else {
-      yMinRight = Infinity
-      yMaxRight = -Infinity
-      for (const s of rightSeries) {
-        for (const p of s.points) {
-          if (p.y === null) continue
-          if (p.y < yMinRight) yMinRight = p.y
-          if (p.y > yMaxRight) yMaxRight = p.y
-        }
-      }
+      ;[yMinRight, yMaxRight] = includeAreaBaselinesInExtents(
+        rightSeries,
+        computeYDataExtents(rightSeries)
+      )
       if (yMinRight === Infinity || yMaxRight === -Infinity) {
         yMinRight = 0
         yMaxRight = 1
@@ -158,15 +188,10 @@ export function computeCartesianLayout(
     yMin = yMinLeft
     yMax = yMaxLeft
   } else {
-    yMin = Infinity
-    yMax = -Infinity
-    for (const s of series) {
-      for (const p of s.points) {
-        if (p.y === null) continue
-        if (p.y < yMin) yMin = p.y
-        if (p.y > yMax) yMax = p.y
-      }
-    }
+    ;[yMin, yMax] = includeAreaBaselinesInExtents(
+      series,
+      computeYDataExtents(series)
+    )
     if (yMin === Infinity || yMax === -Infinity) {
       yMin = 0
       yMax = 1
@@ -226,44 +251,20 @@ export function computeCartesianLayout(
     height: Math.max(0, size.height - top - bottom),
   }
 
-  // 5) build scale functions
-  const xScale = (v: number): number =>
-    plotRect.x + ((v - xMin) / (xMax - xMin)) * plotRect.width
-
-  const yScale = (v: number): number =>
-    plotRect.y +
-    plotRect.height -
-    ((v - yMin) / (yMax - yMin)) * plotRect.height
-
-  const yScaleLeft = (v: number): number =>
-    plotRect.y +
-    plotRect.height -
-    ((v - yMinLeft) / (yMaxLeft - yMinLeft)) * plotRect.height
-
-  const yScaleRight = (v: number): number =>
-    plotRect.y +
-    plotRect.height -
-    ((v - yMinRight) / (yMaxRight - yMinRight)) * plotRect.height
-
-  const xInvert = (px: number): number => {
-    const relativeX = (px - plotRect.x) / plotRect.width
-    return xMin + relativeX * (xMax - xMin)
-  }
-
-  const yInvert = (py: number): number => {
-    const relativeY = (plotRect.height - (py - plotRect.y)) / plotRect.height
-    return yMin + relativeY * (yMax - yMin)
-  }
-
-  const yInvertLeft = (py: number): number => {
-    const relativeY = (plotRect.height - (py - plotRect.y)) / plotRect.height
-    return yMinLeft + relativeY * (yMaxLeft - yMinLeft)
-  }
-
-  const yInvertRight = (py: number): number => {
-    const relativeY = (plotRect.height - (py - plotRect.y)) / plotRect.height
-    return yMinRight + relativeY * (yMaxRight - yMinRight)
-  }
+  // 5) build continuous scales
+  const xScale = createLinearScale([xMin, xMax], [plotRect.x, plotRect.x + plotRect.width])
+  const yScale = createLinearScale(
+    [yMin, yMax],
+    [plotRect.y + plotRect.height, plotRect.y]
+  )
+  const yScaleLeft = createLinearScale(
+    [yMinLeft, yMaxLeft],
+    [plotRect.y + plotRect.height, plotRect.y]
+  )
+  const yScaleRight = createLinearScale(
+    [yMinRight, yMaxRight],
+    [plotRect.y + plotRect.height, plotRect.y]
+  )
 
   // 6) axis layouts (local axis coords)
   const axisLayoutOptions = {
@@ -310,18 +311,9 @@ export function computeCartesianLayout(
     ...(yAxisRight !== undefined && { yRight: yAxisRight }),
   }
 
-  const scales: CartesianLayoutResult['scales'] = {
-    x: xScale,
-    y: yScale,
-    xInvert,
-    yInvert,
-    ...(isDualScale && {
-      yLeft: yScaleLeft,
-      yRight: yScaleRight,
-      yInvertLeft,
-      yInvertRight,
-    }),
-  }
+  const scales: CartesianLayoutResult['scales'] = isDualScale
+    ? { x: xScale, yLeft: yScaleLeft, yRight: yScaleRight }
+    : { x: xScale, y: yScale }
 
   return {
     plotRect,

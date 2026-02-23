@@ -39,6 +39,8 @@ export type SceneStyle = {
   stroke?: AnyPaint
   strokeWidth?: number
   opacity?: number
+  fillOpacity?: number
+  strokeOpacity?: number
   fontFamily?: string
   fontSizePx?: number
   fontWeight?: number | string

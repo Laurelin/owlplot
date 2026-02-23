@@ -109,22 +109,29 @@ export function scene(
   }
 
   const pointsEnabled = config.options?.showPoints ?? false
+  const chartAreaFillOpacity = config.options?.area?.fillOpacity
   children.push(
     ...buildSeriesNodes(
       config.series,
       scales,
       pointsEnabled,
+      chartAreaFillOpacity,
       config.options?.point
     )
   )
 
   const legendEntries = config.series.map((series, index) => {
     const paint = resolveSeriesPaint(series, pointsEnabled)
+    const swatchPaint =
+      series.type === 'area'
+        ? (paint.fill ??
+          paint.stroke ?? { type: 'solid', color: 'currentColor' as const })
+        : (paint.stroke ??
+          paint.fill ?? { type: 'solid', color: 'currentColor' as const })
     return {
       seriesId: series.id,
       label: series.id,
-      paint: paint.stroke ??
-        paint.fill ?? { type: 'solid', color: 'currentColor' },
+      paint: swatchPaint,
       order: index,
     }
   })

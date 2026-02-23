@@ -590,8 +590,32 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         "y": 24,
       },
       "scales": {
-        "x": [Function],
-        "y": [Function],
+        "x": {
+          "domain": [
+            0,
+            3,
+          ],
+          "forward": [Function],
+          "invert": [Function],
+          "range": [
+            40,
+            606.4,
+          ],
+          "type": "linear",
+        },
+        "y": {
+          "domain": [
+            0,
+            2,
+          ],
+          "forward": [Function],
+          "invert": [Function],
+          "range": [
+            332,
+            24,
+          ],
+          "type": "linear",
+        },
       },
       "series": [
         {
@@ -639,12 +663,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
         0,
         3,
       ],
-      "xInvert": [Function],
       "yDomain": [
         0,
         2,
       ],
-      "yInvert": [Function],
     },
     "legend": {
       "entries": [

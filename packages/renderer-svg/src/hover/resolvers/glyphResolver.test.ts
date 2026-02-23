@@ -10,6 +10,16 @@ const testGlobal = globalThis as unknown as {
   document: Document
 }
 
+function identityScale() {
+  return {
+    type: 'linear' as const,
+    domain: [0, 1] as const,
+    range: [0, 1] as const,
+    forward: (v: number) => v,
+    invert: (v: number) => v,
+  }
+}
+
 describe('glyph resolver', () => {
   beforeEach(() => {
     const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
@@ -20,7 +30,7 @@ describe('glyph resolver', () => {
     testGlobal.window = dom.window
   })
   const metadata = {
-    scales: { x: (v: number) => v, y: (v: number) => v },
+    scales: { x: identityScale(), y: identityScale() },
   }
 
   describe('invariant: a glyph is only hoverable if it carries full domain metadata', () => {

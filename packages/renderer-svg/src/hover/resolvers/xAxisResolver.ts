@@ -9,10 +9,10 @@ export function createXAxisResolver(): HoverResolver {
   return {
     resolve(input) {
       const { mouseSvgX, metadata } = input
-      const { xInvert, xDomain, series } = metadata
+      const { xDomain, series } = metadata
 
       // Clamp to plot rect (should be done in hoverManager, but double-check)
-      const domainX = xInvert(mouseSvgX)
+      const domainX = metadata.scales.x.invert(mouseSvgX)
       const [xMin, xMax] = xDomain
       const clampedX = Math.max(xMin, Math.min(xMax, domainX))
 

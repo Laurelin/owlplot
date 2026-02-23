@@ -1,4 +1,4 @@
-import type { SceneNode, PointShape } from '@owlplot/core'
+import type { SceneNode, PointShape, ContinuousScale } from '@owlplot/core'
 import { SceneNodeKind } from '@owlplot/core'
 import type {
   TooltipRenderer,
@@ -146,11 +146,11 @@ export function renderSvgScene(
   const hoverMeta = scene.metadata?.[SceneMetadataKey.HOVER] as
     | {
         scales:
-          | { x: (v: number) => number; y: (v: number) => number }
+          | { x: ContinuousScale; y: ContinuousScale }
           | {
-              x: (v: number) => number
-              yLeft: (v: number) => number
-              yRight: (v: number) => number
+              x: ContinuousScale
+              yLeft: ContinuousScale
+              yRight: ContinuousScale
             }
         series: Array<{ id: string; yAxis: 'left' | 'right' }>
         plotRect: { x: number; y: number; width: number; height: number }

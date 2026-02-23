@@ -209,4 +209,128 @@ export const basicCharts: readonly ChartDemo[] = [
       options: { showPoints: false },
     },
   },
+  {
+    id: 'simple-area',
+    title: 'Simple Area',
+    description: 'Single area series with zero baseline',
+    purpose: 'api-example',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'area',
+            type: 'area',
+            points: [
+              { x: 0, y: 10 },
+              { x: 1, y: 16 },
+              { x: 2, y: 12 },
+              { x: 3, y: 19 },
+              { x: 4, y: 15 },
+            ],
+          },
+          0
+        ),
+      ],
+      options: { showPoints: false },
+    },
+  },
+  {
+    id: 'area-monotone',
+    title: 'Area Monotone',
+    description: 'Area with monotoneX curve interpolation',
+    purpose: 'api-example',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'smooth-area',
+            type: 'area',
+            curve: { type: 'monotoneX' },
+            points: [
+              { x: 0, y: 8 },
+              { x: 1, y: 15 },
+              { x: 2, y: 11 },
+              { x: 3, y: 20 },
+              { x: 4, y: 14 },
+            ],
+          },
+          1
+        ),
+      ],
+      options: { showPoints: false },
+    },
+  },
+  {
+    id: 'area-negative-values',
+    title: 'Area With Negatives',
+    description: 'Area crossing below and above zero baseline',
+    purpose: 'edge-case',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'net',
+            type: 'area',
+            points: [
+              { x: 0, y: -12 },
+              { x: 1, y: -5 },
+              { x: 2, y: 4 },
+              { x: 3, y: 9 },
+              { x: 4, y: -2 },
+            ],
+          },
+          2
+        ),
+      ],
+      options: { showPoints: false },
+    },
+  },
+  {
+    id: 'dual-scale-area',
+    title: 'Dual-Scale Area',
+    description: 'Left and right area series using independent Y scales',
+    purpose: 'edge-case',
+    config: {
+      kind: ChartKind.LINE,
+      series: [
+        withDemoColor(
+          {
+            id: 'temperature-c',
+            type: 'area',
+            yAxis: 'left',
+            points: [
+              { x: 0, y: 6 },
+              { x: 1, y: 9 },
+              { x: 2, y: 14 },
+              { x: 3, y: 11 },
+              { x: 4, y: 8 },
+            ],
+          },
+          3
+        ),
+        withDemoColor(
+          {
+            id: 'humidity',
+            type: 'area',
+            yAxis: 'right',
+            points: [
+              { x: 0, y: 55 },
+              { x: 1, y: 62 },
+              { x: 2, y: 58 },
+              { x: 3, y: 66 },
+              { x: 4, y: 60 },
+            ],
+          },
+          4
+        ),
+      ],
+      options: {
+        showPoints: false,
+        yAxisRight: { axisLabel: 'Humidity (%)', tickCount: 5 },
+      },
+    },
+  },
 ] as const

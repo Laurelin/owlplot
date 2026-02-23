@@ -19,7 +19,13 @@ const testGlobal = globalThis as unknown as {
 
 describe('point emphasis', () => {
   let svg: SVGSVGElement
-  const identity = (v: number) => v
+  const identityScale = {
+    type: 'linear' as const,
+    domain: [0, 1] as const,
+    range: [0, 1] as const,
+    forward: (v: number) => v,
+    invert: (v: number) => v,
+  }
 
   beforeEach(() => {
     const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
@@ -36,7 +42,7 @@ describe('point emphasis', () => {
   describe('invariant: point emphasis only operates on real rendered glyphs', () => {
     it('returns null when pointIndex is empty (size === 0)', () => {
       const context: PointEmphasisContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         pointIndex: new Map(),
       }
       const result = emphasizePoints(
@@ -52,7 +58,7 @@ describe('point emphasis', () => {
       const index = new Map()
       index.set('otherSeries', [])
       const context: PointEmphasisContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         pointIndex: index,
       }
       const result = emphasizePoints(
@@ -76,7 +82,7 @@ describe('point emphasis', () => {
       svg.appendChild(circle)
       const pointIndex = buildPointIndexFromRenderedElements(svg)
       const context: PointEmphasisContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         pointIndex,
       }
       const result = emphasizePoints([], context, svg, 2)
@@ -99,7 +105,7 @@ describe('point emphasis', () => {
       const pointIndex = buildPointIndexFromRenderedElements(svg)
       expect(pointIndex.size).toBe(1)
       const context: PointEmphasisContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         pointIndex,
       }
 
@@ -132,7 +138,7 @@ describe('point emphasis', () => {
       svg.appendChild(circle)
       const pointIndex = buildPointIndexFromRenderedElements(svg)
       const context: PointEmphasisContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         pointIndex,
       }
       emphasizePoints(
@@ -148,7 +154,7 @@ describe('point emphasis', () => {
   describe('overlay when no glyphs', () => {
     it('drawPointEmphasisOverlay returns overlay result; restore removes overlay', () => {
       const overlayContext: PointEmphasisOverlayContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         svg,
       }
       const result = drawPointEmphasisOverlay(
@@ -168,7 +174,7 @@ describe('point emphasis', () => {
     it('overlay uses series color by default when seriesStyles provided', () => {
       const seriesStyles = new Map([['s1', { stroke: '#0ea5e9' }]])
       const overlayContext: PointEmphasisOverlayContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         svg,
         seriesStyles,
       }
@@ -187,7 +193,7 @@ describe('point emphasis', () => {
     it('user style override wins over series-derived fill', () => {
       const seriesStyles = new Map([['s1', { stroke: '#0ea5e9' }]])
       const overlayContext: PointEmphasisOverlayContext = {
-        scales: { x: identity, y: identity },
+        scales: { x: identityScale, y: identityScale },
         svg,
         seriesStyles,
         emphasisOptions: { style: { fill: '#7c3aed', opacity: 0.8 } },

@@ -117,6 +117,10 @@ function collectSeriesElements(
     `[${SvgAttributeName.ID}="series:${seriesId}"]`
   ) as SVGElement | null
   if (linePath) elements.push(linePath)
+  const areaFillPath = svg.querySelector(
+    `[${SvgAttributeName.ID}="series-fill:${seriesId}"]`
+  ) as SVGElement | null
+  if (areaFillPath) elements.push(areaFillPath)
 
   const bySeries = Array.from(
     svg.querySelectorAll(`[${DATA_SERIES_ID}]`)
@@ -229,7 +233,7 @@ function intersects(a: Rect, b: Rect): boolean {
 function readDataBounds(svg: SVGSVGElement): Rect | undefined {
   const candidates = Array.from(
     svg.querySelectorAll(
-      `[${SvgAttributeName.ID}^="series:"], [${DATA_SERIES_ID}]`
+      `[${SvgAttributeName.ID}^="series:"], [${SvgAttributeName.ID}^="series-fill:"], [${DATA_SERIES_ID}]`
     )
   )
 

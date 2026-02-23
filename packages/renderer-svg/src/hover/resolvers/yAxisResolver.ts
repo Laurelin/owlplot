@@ -14,16 +14,15 @@ export function createYAxisResolver(): HoverResolver {
     resolve(input) {
       const { mouseSvgX, mouseSvgY, metadata } = input
       const { scales, series } = metadata
-      const isDual = 'yLeft' in metadata.scales
-      const yInvert = isDual
-        ? (metadata as HoverMetadataDual).yInvertLeft
-        : (metadata as HoverMetadataSingle).yInvert
+      const isDual = 'yLeft' in scales
       const yDomain = isDual
         ? (metadata as HoverMetadataDual).yDomainLeft
         : (metadata as HoverMetadataSingle).yDomain
 
       // Invert y coordinate to domain y (canonical: use left axis for slice)
-      const domainY = yInvert(mouseSvgY)
+      const domainY = isDual
+        ? (scales as HoverMetadataDual['scales']).yLeft.invert(mouseSvgY)
+        : (scales as HoverMetadataSingle['scales']).y.invert(mouseSvgY)
       const [yMin, yMax] = yDomain
       const clampedY = Math.max(yMin, Math.min(yMax, domainY))
 
@@ -60,8 +59,10 @@ export function createYAxisResolver(): HoverResolver {
         : null
       const getYScale = (s: (typeof series)[0]): ((v: number) => number) => {
         if (isDual && scalesDual)
-          return s.yAxis === 'right' ? scalesDual.yRight : scalesDual.yLeft
-        return scalesSingle!.y
+          return s.yAxis === 'right'
+            ? scalesDual.yRight.forward.bind(scalesDual.yRight)
+            : scalesDual.yLeft.forward.bind(scalesDual.yLeft)
+        return scalesSingle!.y.forward.bind(scalesSingle!.y)
       }
 
       // Set primaryIndex to point closest in screen-space to cursor
@@ -74,9 +75,9 @@ export function createYAxisResolver(): HoverResolver {
         const yScale = s
           ? getYScale(s)
           : isDual && scalesDual
-            ? scalesDual.yLeft
-            : scalesSingle!.y
-        const pointSvgX = scales.x(point.point.x)
+            ? scalesDual.yLeft.forward.bind(scalesDual.yLeft)
+            : scalesSingle!.y.forward.bind(scalesSingle!.y)
+        const pointSvgX = scales.x.forward(point.point.x)
         const pointSvgY = yScale(point.point.y)
         const dx = pointSvgX - mouseSvgX
         const dy = pointSvgY - mouseSvgY

@@ -1,5 +1,5 @@
 import { resolvePointConfig } from '../../config/helpers'
-import type { LineSeries, PointConfig } from '../../config/types'
+import type { CartesianSeries, PointConfig } from '../../config/types'
 import {
   createSceneTooltip,
   SceneNodeKind,
@@ -15,9 +15,24 @@ import {
 } from '../../paint/helpers'
 import { buildCurvePath, resolveLineCurve } from './curves'
 import type { ScreenPointOrGap } from './curves/types'
+import { buildAreaPath } from '../cartesian2d/buildAreaPath'
+import type { CartesianScales } from '../cartesian2d/layout'
+import {
+  resolveAreaFillOpacity,
+  shouldSerializeFillOpacity,
+} from './areaOpacity'
+
+function resolveAreaBaselineDomain(series: CartesianSeries): number {
+  const baseline = series.type === 'area' ? (series.baseline ?? 'zero') : 'zero'
+  return baseline === 'zero' ? 0 : baseline
+}
+
+function isPaintNone(paint: PaintStyles['stroke'] | undefined): boolean {
+  return paint?.type === 'solid' && paint.color === 'none'
+}
 
 export function resolveSeriesPaint(
-  series: LineSeries,
+  series: CartesianSeries,
   pointsEnabled: boolean
 ): PaintStyles {
   const basePaint = series.color
@@ -35,19 +50,19 @@ export function resolveSeriesPaint(
 }
 
 export function buildSeriesNodes(
-  seriesList: LineSeries[],
-  scales: {
-    x: (value: number) => number
-    y: (value: number) => number
-    yLeft?: (value: number) => number
-    yRight?: (value: number) => number
-  },
+  seriesList: CartesianSeries[],
+  scales: CartesianScales,
   pointsEnabled: boolean,
+  chartAreaFillOpacity: number | undefined,
   defaultPointConfig: PointConfig | undefined
 ): SceneNode[] {
-  const isDualScale = scales.yLeft !== undefined && scales.yRight !== undefined
-  const getYScale = (series: LineSeries): ((v: number) => number) =>
-    isDualScale && series.yAxis === 'right' ? scales.yRight! : scales.y
+  const isDualScale = 'yLeft' in scales && 'yRight' in scales
+  const getYScale = (series: CartesianSeries): ((v: number) => number) =>
+    isDualScale && series.yAxis === 'right'
+      ? scales.yRight.forward.bind(scales.yRight)
+      : isDualScale
+        ? scales.yLeft.forward.bind(scales.yLeft)
+        : scales.y.forward.bind(scales.y)
 
   const children: SceneNode[] = []
 
@@ -58,22 +73,62 @@ export function buildSeriesNodes(
     const projected: ScreenPointOrGap[] = series.points.map(pt =>
       pt.y === null || !Number.isFinite(pt.y) || !Number.isFinite(pt.x)
         ? null
-        : { x: scales.x(pt.x), y: yScaleForSeries(pt.y) }
+        : { x: scales.x.forward(pt.x), y: yScaleForSeries(pt.y) }
     )
 
+    const strokePath = buildCurvePath(projected, curve)
     const strokePaint = paint.stroke ?? DEFAULT_SOLID_CURRENT_COLOR
     const isGradient =
       strokePaint.type === 'linear' || strokePaint.type === 'radial'
-    children.push({
-      kind: SceneNodeKind.PATH,
-      id: `series:${series.id}`,
-      d: buildCurvePath(projected, curve),
-      style: {
-        fill: TRANSPARENT_FILL,
-        stroke: strokePaint,
-        strokeWidth: isGradient ? 4 : 2,
-      },
-    })
+
+    if (series.type === 'area') {
+      const fillPaint =
+        paint.fill ?? paint.stroke ?? DEFAULT_SOLID_CURRENT_COLOR
+      const baselineY = yScaleForSeries(resolveAreaBaselineDomain(series))
+      const fillPath = buildAreaPath({ points: projected, baselineY, curve })
+      const resolvedFillOpacity = resolveAreaFillOpacity(
+        series.fillOpacity,
+        chartAreaFillOpacity
+      )
+      if (fillPath) {
+        const style: SceneNode['style'] = {
+          fill: fillPaint,
+          stroke: { type: 'solid', color: 'none' },
+        }
+        if (shouldSerializeFillOpacity(resolvedFillOpacity)) {
+          style.fillOpacity = resolvedFillOpacity
+        }
+        children.push({
+          kind: SceneNodeKind.PATH,
+          id: `series-fill:${series.id}`,
+          d: fillPath,
+          style,
+        })
+      }
+      if (strokePath && !isPaintNone(strokePaint)) {
+        children.push({
+          kind: SceneNodeKind.PATH,
+          id: `series:${series.id}`,
+          d: strokePath,
+          style: {
+            fill: TRANSPARENT_FILL,
+            stroke: strokePaint,
+            strokeWidth: isGradient ? 4 : 2,
+          },
+        })
+      }
+    } else {
+      children.push({
+        kind: SceneNodeKind.PATH,
+        id: `series:${series.id}`,
+        d: strokePath,
+        style: {
+          fill: TRANSPARENT_FILL,
+          stroke: strokePaint,
+          strokeWidth: isGradient ? 4 : 2,
+        },
+      })
+    }
 
     if (pointsEnabled) {
       const pointConfig = resolvePointConfig(series.point, defaultPointConfig)

@@ -1,4 +1,4 @@
-import type { SceneNode } from '@owlplot/core'
+import type { SceneNode, ContinuousScale } from '@owlplot/core'
 import { SceneNodeKind, TooltipKind } from '@owlplot/core'
 import { createSvgElement } from './svgDom'
 import { setStyle } from './setStyle'
@@ -13,16 +13,14 @@ import {
 } from '../shared/dataAttributes'
 import { buildTrianglePath, buildDiamondPath } from './pointShapePaths'
 
-type Scale = (v: number) => number
-
 /** Single-scale: one y. Dual-scale: yLeft and yRight. No mixing. */
 export type HoverScales =
-  | { x: Scale; y: Scale }
-  | { x: Scale; yLeft: Scale; yRight: Scale }
+  | { x: ContinuousScale; y: ContinuousScale }
+  | { x: ContinuousScale; yLeft: ContinuousScale; yRight: ContinuousScale }
 
 export function isDualScale(
   scales: HoverScales
-): scales is { x: Scale; yLeft: Scale; yRight: Scale } {
+): scales is { x: ContinuousScale; yLeft: ContinuousScale; yRight: ContinuousScale } {
   return 'yLeft' in scales
 }
 
@@ -38,9 +36,11 @@ function getYScaleForSeries(
 ): (v: number) => number {
   const side = ctx.seriesYAxis[seriesId] ?? 'left'
   if (isDualScale(ctx.scales)) {
-    return side === 'right' ? ctx.scales.yRight : ctx.scales.yLeft
+    return side === 'right'
+      ? ctx.scales.yRight.forward.bind(ctx.scales.yRight)
+      : ctx.scales.yLeft.forward.bind(ctx.scales.yLeft)
   }
-  return ctx.scales.y
+  return ctx.scales.y.forward.bind(ctx.scales.y)
 }
 
 function stampPointDataAttributes(
@@ -128,7 +128,7 @@ export function appendNode(
         )
         break
       }
-      const cx = context.scales.x(node.x)
+      const cx = context.scales.x.forward(node.x)
       const yScale = getYScaleForSeries(seriesId, context)
       const cy = yScale(node.y)
       const size = node.point.size

@@ -17,6 +17,7 @@ import type {
   LabelOrientationConfig,
 } from './types/axis'
 import { LabelOrientation } from './types/axis'
+import { createLinearScale } from './scale'
 
 const DEFAULT_TICK_COUNT = 5
 const DEFAULT_TICK_SIZE = 4
@@ -124,10 +125,7 @@ export function computeAxisLayout(
 
   const values = linearTickValues(domainMin, domainMax, tickCount)
   const [rangeMin, rangeMax] = rangePx
-
-  const project = (v: number): number =>
-    rangeMin +
-    ((v - domainMin) / (domainMax - domainMin)) * (rangeMax - rangeMin)
+  const projectionScale = createLinearScale(domain, rangePx)
 
   const tickStep = values.length >= 2 ? Math.abs(values[1]! - values[0]!) : 0
   const tickFormatOptions: AxisTickFormatOptions = {
@@ -144,7 +142,7 @@ export function computeAxisLayout(
     prevLabel = label
     return {
       value,
-      position: project(value),
+      position: projectionScale.forward(value),
       label: showLabel ? label : '',
     }
   })

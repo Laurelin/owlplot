@@ -48,18 +48,41 @@ export type LineCurve =
   | { type: 'monotoneX' }
   | { type: 'catmullRom'; tension?: number }
 
-export type LineSeries = {
+export type CartesianSeriesType = 'line' | 'area'
+
+export type LineSeriesOptions = {
+  type?: 'line'
+  curve?: LineCurve
+}
+
+export type AreaSeriesOptions = {
+  type: 'area'
+  /** Baseline in domain space. Default: 'zero'. */
+  baseline?: 'zero' | number
+  /**
+   * Optional per-series area fill opacity in [0,1].
+   * Applies at path level and multiplies any gradient stop opacity.
+   * Example: stop opacity 0.6 × fillOpacity 0.25 = effective 0.15.
+   */
+  fillOpacity?: number
+  curve?: LineCurve
+}
+
+export type CartesianSeriesOptions = LineSeriesOptions | AreaSeriesOptions
+
+type BaseCartesianSeries = {
   id: string
   points: DataPoint[]
   color?: string // Simple: base color string
   paint?: PaintStyles // Advanced: full paint control
   /** Point mark shape and size (circumradius). Default shape circle, size 2.5. */
   point?: PointConfig
-  /** Per-series line interpolation mode. Defaults to { type: 'monotoneX' }. */
-  curve?: LineCurve
   /** Which Y axis (scale) this series uses. Default 'left'. Used for dual-scale (e.g. °C left, °F right). */
   yAxis?: 'left' | 'right'
 }
+
+export type CartesianSeries = BaseCartesianSeries & CartesianSeriesOptions
+export type LineSeries = CartesianSeries
 
 export type Padding = {
   top: number
@@ -83,6 +106,14 @@ export type Cartesian2DOptions = {
   yAxis?: { position?: 'left' | 'right' }
   showGrid?: boolean
   showPoints?: boolean
+  /** Chart-level area defaults. */
+  area?: {
+    /**
+     * Default area fill opacity in [0,1] for area series without per-series override.
+     * Applies at path level and multiplies any gradient stop opacity.
+     */
+    fillOpacity?: number
+  }
   /** Global default for point shape/size; series can override. */
   point?: PointConfig
   padding?: Partial<Padding>
@@ -200,7 +231,7 @@ export type LineChartOptions = Cartesian2DOptions
 
 export type LineChartConfig = {
   kind: ChartKind.LINE
-  series: LineSeries[]
+  series: CartesianSeries[]
   options?: LineChartOptions
 }
 

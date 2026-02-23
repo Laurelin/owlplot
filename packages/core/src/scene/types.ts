@@ -81,11 +81,14 @@ export type LegendMetadata = {
   entries: LegendEntry[]
 }
 
+export type SceneNodeRole = 'background' | 'band' | 'series' | 'axis'
+
 export type SceneBaseNode = {
   id: string
   style?: SceneStyle
   transform?: string // pull up into base so every node can have it
   metadata?: {
+    role?: SceneNodeRole
     tooltip?: TooltipDatum
     legend?: LegendMetadata
     [key: string]: unknown

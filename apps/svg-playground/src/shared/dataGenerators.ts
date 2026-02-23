@@ -36,3 +36,53 @@ export const PRECOMPUTED_DATASETS = {
   humidity,
   dense,
 } as const
+
+export type SampleFunctionOptions = {
+  yCap?: number
+  yFloor?: number
+  includeInvalid?: boolean
+}
+
+/**
+ * Deterministically sample a function on [xMin, xMax] using step increments.
+ * Defaults are conservative for chart rendering:
+ * - invalid values are skipped
+ * - non-positive y values are skipped (log-scale friendly)
+ */
+export function sampleFunction(
+  fn: (x: number) => number,
+  xMin: number,
+  xMax: number,
+  step: number,
+  options: SampleFunctionOptions = {}
+): DataPoint[] {
+  const { yCap, yFloor = 0, includeInvalid = false } = options
+  const points: DataPoint[] = []
+  if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || step <= 0) {
+    return points
+  }
+
+  const span = xMax - xMin
+  if (span < 0) return points
+  const count = Math.floor(span / step)
+
+  for (let i = 0; i <= count; i++) {
+    const x = xMin + i * step
+    let y = fn(x)
+
+    if (!Number.isFinite(y)) {
+      if (includeInvalid) points.push({ x, y })
+      continue
+    }
+    if (y <= yFloor) {
+      if (includeInvalid) points.push({ x, y })
+      continue
+    }
+    if (yCap !== undefined && y > yCap) {
+      y = yCap
+    }
+    points.push({ x, y })
+  }
+
+  return points
+}

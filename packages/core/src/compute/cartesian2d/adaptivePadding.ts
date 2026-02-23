@@ -1,7 +1,6 @@
 import type { MeasureText } from '../../text/types'
 import { measureTextFont } from '../../text/helpers'
 import {
-  linearTickValues,
   formatAxisTickLabel,
   DEFAULT_TICK_LABEL_OFFSET,
   DEFAULT_TICK_FONT,
@@ -10,6 +9,8 @@ import {
   AXIS_TITLE_ROTATION_BY_POSITION,
   type AxisConfig,
 } from './axis'
+import type { ContinuousScale } from './scale'
+import { generateTicks } from './ticks'
 import { LabelOrientation } from './types/axis'
 import { Position } from '../../config/types'
 
@@ -53,8 +54,8 @@ const MIN_PADDING_BUFFER = 4
 export function computeAdaptivePadding(
   width: number,
   height: number,
-  xDomain: [number, number],
-  yDomain: [number, number],
+  xScale: ContinuousScale,
+  yScale: ContinuousScale,
   measureText: MeasureText,
   bottomAxisConfig: AxisConfig | undefined,
   leftAxisConfig: AxisConfig | undefined,
@@ -65,8 +66,8 @@ export function computeAdaptivePadding(
     axisTickFont?: string
     axisLabelFont?: string
     extraPadding?: number
-    /** When dual-scale, right axis uses this domain for tick values (and thus padding). */
-    yDomainRight?: [number, number]
+    /** When dual-scale, right axis uses this scale for tick values (and thus padding). */
+    yScaleRight?: ContinuousScale
     locale?: string
     compactThreshold?: number
   } = {}
@@ -75,7 +76,7 @@ export function computeAdaptivePadding(
     axisTickFont,
     axisLabelFont,
     extraPadding = 0,
-    yDomainRight,
+    yScaleRight,
     locale,
     compactThreshold,
   } = options
@@ -94,11 +95,7 @@ export function computeAdaptivePadding(
   const showBottomTickLabels = bottomAxisConfig?.showTickLabels !== false
 
   if (showBottomTickLabels) {
-    const bottomAxisTickValues = linearTickValues(
-      xDomain[0],
-      xDomain[1],
-      xTickCount
-    )
+    const bottomAxisTickValues = generateTicks(xScale, xTickCount)
     const bottomTickStep =
       bottomAxisTickValues.length >= 2
         ? Math.abs(bottomAxisTickValues[1]! - bottomAxisTickValues[0]!)
@@ -218,11 +215,7 @@ export function computeAdaptivePadding(
   const showLeftTickLabels = leftAxisConfig?.showTickLabels !== false
 
   if (showLeftTickLabels) {
-    const leftAxisTickValues = linearTickValues(
-      yDomain[0],
-      yDomain[1],
-      yTickCount
-    )
+    const leftAxisTickValues = generateTicks(yScale, yTickCount)
     const leftTickStep =
       leftAxisTickValues.length >= 2
         ? Math.abs(leftAxisTickValues[1]! - leftAxisTickValues[0]!)
@@ -321,14 +314,11 @@ export function computeAdaptivePadding(
   const showRightTickLabels = rightAxisConfig?.showTickLabels !== false
 
   if (showRightTickLabels) {
-    const rightYDomain = yDomainRight ?? yDomain
-    const rightAxisTickValues = rightAxisConfig
-      ? linearTickValues(
-          rightYDomain[0],
-          rightYDomain[1],
-          rightAxisConfig.tickCount ?? yTickCount
-        )
-      : linearTickValues(rightYDomain[0], rightYDomain[1], yTickCount)
+    const rightAxisScale = yScaleRight ?? yScale
+    const rightAxisTickValues = generateTicks(
+      rightAxisScale,
+      rightAxisConfig?.tickCount ?? yTickCount
+    )
     const rightTickStep =
       rightAxisTickValues.length >= 2
         ? Math.abs(rightAxisTickValues[1]! - rightAxisTickValues[0]!)

@@ -97,9 +97,16 @@ export type AxisVisibility = {
   axisLine?: boolean // default: true
 }
 
+export type AxisScaleConfig = {
+  type: 'linear' | 'log'
+  base?: number
+}
+
 import type { NumberFormat } from '../format/number'
 
 export type Cartesian2DOptions = {
+  xScale?: AxisScaleConfig
+  yScale?: AxisScaleConfig
   xLabel?: string
   yLabel?: string
   /** Primary Y-axis position. When 'right' and yAxisRight is set, only the right axis is shown (one scale). Default 'left'. */

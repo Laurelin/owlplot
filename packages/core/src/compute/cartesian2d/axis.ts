@@ -17,7 +17,8 @@ import type {
   LabelOrientationConfig,
 } from './types/axis'
 import { LabelOrientation } from './types/axis'
-import { createLinearScale } from './scale'
+import type { ContinuousScale } from './scale'
+import { generateTicks } from './ticks'
 
 const DEFAULT_TICK_COUNT = 5
 const DEFAULT_TICK_SIZE = 4
@@ -37,22 +38,6 @@ export const AXIS_TITLE_ROTATION_BY_POSITION: Record<
   [Position.RIGHT]: 90, // IF vertical: bottom→top (implemented but less tested)
   [Position.BOTTOM]: undefined, // horizontal default (wired + tested)
   [Position.TOP]: undefined, // horizontal default (implemented but less tested)
-}
-
-// simple linear tick generator
-export function linearTickValues(
-  domainMin: number,
-  domainMax: number,
-  count: number
-): number[] {
-  if (count < 2) return [domainMin, domainMax]
-  const span = domainMax - domainMin
-  const step = span / (count - 1)
-  const ticks: number[] = []
-  for (let i = 0; i < count; i++) {
-    ticks.push(domainMin + step * i)
-  }
-  return ticks
 }
 
 export interface AxisConfig {
@@ -109,8 +94,7 @@ export function formatAxisTickLabel(
  */
 export function computeAxisLayout(
   orientation: Position,
-  domain: [number, number],
-  rangePx: [number, number],
+  scale: ContinuousScale,
   measureText: MeasureText,
   config: AxisConfig | undefined,
   options: {
@@ -121,11 +105,8 @@ export function computeAxisLayout(
   }
 ): AxisLayout {
   const tickCount = config?.tickCount ?? DEFAULT_TICK_COUNT
-  const [domainMin, domainMax] = domain
-
-  const values = linearTickValues(domainMin, domainMax, tickCount)
-  const [rangeMin, rangeMax] = rangePx
-  const projectionScale = createLinearScale(domain, rangePx)
+  const values = generateTicks(scale, tickCount)
+  const [rangeMin, rangeMax] = scale.range
 
   const tickStep = values.length >= 2 ? Math.abs(values[1]! - values[0]!) : 0
   const tickFormatOptions: AxisTickFormatOptions = {
@@ -142,7 +123,7 @@ export function computeAxisLayout(
     prevLabel = label
     return {
       value,
-      position: projectionScale.forward(value),
+      position: scale.forward(value),
       label: showLabel ? label : '',
     }
   })

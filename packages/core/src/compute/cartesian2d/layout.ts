@@ -1,11 +1,15 @@
 import type { MeasureText } from '../../text/types'
-import { Position, type CartesianSeries } from '../../config/types'
+import {
+  Position,
+  type AxisScaleConfig,
+  type CartesianSeries,
+} from '../../config/types'
 import { computeAxisLayout } from './axis'
 import type { AxisLayout } from './types/axis'
 import type { PlotRect } from '../types'
 import { computeAdaptivePadding } from './adaptivePadding'
 import type { AxisConfig } from './axis'
-import { createLinearScale, type ContinuousScale } from './scale'
+import { createScale, type ContinuousScale } from './scale'
 
 export type YDomainPolicy = {
   mode: 'include-zero' | 'data' | 'fixed'
@@ -119,6 +123,8 @@ export function computeCartesianLayout(
     axisLabelFont?: string
     locale?: string
     compactThreshold?: number
+    xScale?: AxisScaleConfig
+    yScale?: AxisScaleConfig
   }
 ): CartesianLayoutResult {
   // 1) X domain and partition series by Y axis
@@ -207,6 +213,11 @@ export function computeCartesianLayout(
   // 3) compute adaptive padding if enabled
   const userPadding = options.padding
   let finalPadding = userPadding
+  const xScaleForPadding = createScale(options.xScale, [xMin, xMax], [0, 1])
+  const yScaleForPadding = createScale(options.yScale, [yMinLeft, yMaxLeft], [0, 1])
+  const yScaleRightForPadding = isDualScale
+    ? createScale(options.yScale, [yMinRight, yMaxRight], [0, 1])
+    : undefined
 
   if (options.enableAdaptivePadding !== false) {
     const xTickCount = options.xAxis?.tickCount
@@ -217,8 +228,8 @@ export function computeCartesianLayout(
     const adaptivePadding = computeAdaptivePadding(
       size.width,
       size.height,
-      [xMin, xMax],
-      [yMinLeft, yMaxLeft],
+      xScaleForPadding,
+      yScaleForPadding,
       measureText,
       options.xAxis,
       options.yAxis ?? undefined,
@@ -228,7 +239,7 @@ export function computeCartesianLayout(
       {
         axisTickFont: options.axisTickFont,
         axisLabelFont: options.axisLabelFont,
-        yDomainRight: isDualScale ? [yMinRight, yMaxRight] : undefined,
+        yScaleRight: yScaleRightForPadding,
         locale: options.locale,
         compactThreshold: options.compactThreshold,
       }
@@ -252,18 +263,36 @@ export function computeCartesianLayout(
   }
 
   // 5) build continuous scales
-  const xScale = createLinearScale([xMin, xMax], [plotRect.x, plotRect.x + plotRect.width])
-  const yScale = createLinearScale(
+  const xScale = createScale(
+    options.xScale,
+    [xMin, xMax],
+    [plotRect.x, plotRect.x + plotRect.width]
+  )
+  const yScale = createScale(
+    options.yScale,
     [yMin, yMax],
     [plotRect.y + plotRect.height, plotRect.y]
   )
-  const yScaleLeft = createLinearScale(
+  const yScaleLeft = createScale(
+    options.yScale,
     [yMinLeft, yMaxLeft],
     [plotRect.y + plotRect.height, plotRect.y]
   )
-  const yScaleRight = createLinearScale(
+  const yScaleRight = createScale(
+    options.yScale,
     [yMinRight, yMaxRight],
     [plotRect.y + plotRect.height, plotRect.y]
+  )
+  const xAxisScale = createScale(options.xScale, [xMin, xMax], [0, plotRect.width])
+  const yAxisLeftScale = createScale(
+    options.yScale,
+    [yMinLeft, yMaxLeft],
+    [plotRect.height, 0]
+  )
+  const yAxisRightScale = createScale(
+    options.yScale,
+    [yMinRight, yMaxRight],
+    [plotRect.height, 0]
   )
 
   // 6) axis layouts (local axis coords)
@@ -275,8 +304,7 @@ export function computeCartesianLayout(
   }
   const xAxis: AxisLayout = computeAxisLayout(
     Position.BOTTOM,
-    [xMin, xMax],
-    [0, plotRect.width],
+    xAxisScale,
     measureText,
     options.xAxis,
     axisLayoutOptions
@@ -286,8 +314,7 @@ export function computeCartesianLayout(
     options.yAxis !== null && options.yAxis !== undefined
       ? computeAxisLayout(
           Position.LEFT,
-          [yMinLeft, yMaxLeft],
-          [plotRect.height, 0],
+          yAxisLeftScale,
           measureText,
           options.yAxis,
           axisLayoutOptions
@@ -297,8 +324,7 @@ export function computeCartesianLayout(
   const yAxisRight: AxisLayout | undefined = options.yAxisRight
     ? computeAxisLayout(
         Position.RIGHT,
-        [yMinRight, yMaxRight],
-        [plotRect.height, 0],
+        yAxisRightScale,
         measureText,
         options.yAxisRight,
         axisLayoutOptions

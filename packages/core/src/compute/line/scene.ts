@@ -51,6 +51,8 @@ export function scene(
     axisLabelFont: config.options?.axisLabelFont,
     locale: config.options?.locale,
     compactThreshold: config.options?.compactThreshold,
+    xScale: config.options?.xScale,
+    yScale: config.options?.yScale,
   })
 
   const children: SceneNode[] = []

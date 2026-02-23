@@ -246,7 +246,7 @@ export function renderSvgScene(
     }
 
     // Data-driven modes (POINT, X_AXIS, Y_AXIS)
-    const resolver = createHoverResolver(explicitHoverMode, hoverMetadata)
+    const resolver = createHoverResolver(explicitHoverMode)
     attachDataHover(
       svg,
       resolver,
@@ -303,10 +303,7 @@ export function renderSvgScene(
   }
 
   // Fallback to POINT (data-driven, no glyphs required)
-  const pointResolver = createHoverResolver(
-    { kind: HoverModeKind.POINT },
-    hoverMetadata
-  )
+  const pointResolver = createHoverResolver({ kind: HoverModeKind.POINT })
   attachDataHover(
     svg,
     pointResolver,

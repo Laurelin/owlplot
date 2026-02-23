@@ -1,4 +1,4 @@
-import type { HoverMode, HoverResolver, HoverMetadata } from '../types'
+import type { HoverMode, HoverResolver } from '../types'
 import { HoverModeKind } from '../../shared/enums'
 import { createPointResolver } from './pointResolver'
 import { createXAxisResolver } from './xAxisResolver'
@@ -7,12 +7,8 @@ import { createYAxisResolver } from './yAxisResolver'
 /**
  * Factory function that creates the appropriate resolver based on hover mode.
  * Note: GLYPH mode does not use resolvers - it uses event delegation via attachGlyphHover.
- * @param _metadata - Reserved for future per-resolver config.
  */
-export function createHoverResolver(
-  mode: HoverMode,
-  _metadata: HoverMetadata
-): HoverResolver {
+export function createHoverResolver(mode: HoverMode): HoverResolver {
   switch (mode.kind) {
     case HoverModeKind.POINT:
       return createPointResolver()

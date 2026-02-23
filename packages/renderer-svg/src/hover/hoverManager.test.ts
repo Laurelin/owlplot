@@ -85,10 +85,7 @@ describe('hover manager', () => {
     })
 
     it('clears data hover listeners when present', () => {
-      const resolver = createHoverResolver(
-        { kind: HoverModeKind.POINT },
-        metadata
-      )
+      const resolver = createHoverResolver({ kind: HoverModeKind.POINT })
       const indicators = createIndicators(
         [{ kind: HoverIndicatorKind.NONE }],
         svg

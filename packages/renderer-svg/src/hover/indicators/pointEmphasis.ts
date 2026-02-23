@@ -55,9 +55,7 @@ export type PointEmphasisResult =
 export function emphasizePoints(
   nearestPoints: Array<{ seriesId: string; point: { x: number; y: number } }>,
   context: PointEmphasisContext,
-  _svg: SVGSVGElement,
-  scaleFactor: number,
-  _animation?: { durationMs?: number; easing?: string } // reserved for future transform animation
+  scaleFactor: number
 ): PointEmphasisResult | null {
   if (!context.pointIndex || context.pointIndex.size === 0) {
     if (process.env.NODE_ENV !== 'production') {

@@ -48,7 +48,6 @@ describe('point emphasis', () => {
       const result = emphasizePoints(
         [{ seriesId: 's1', point: { x: 0, y: 0 } }],
         context,
-        svg,
         2 // scale factor
       )
       expect(result).toBeNull()
@@ -64,7 +63,6 @@ describe('point emphasis', () => {
       const result = emphasizePoints(
         [{ seriesId: 's1', point: { x: 0, y: 0 } }],
         context,
-        svg,
         2 // scale factor
       )
       expect(result).toBeNull()
@@ -85,7 +83,7 @@ describe('point emphasis', () => {
         scales: { x: identityScale, y: identityScale },
         pointIndex,
       }
-      const result = emphasizePoints([], context, svg, 2)
+      const result = emphasizePoints([], context, 2)
       expect(result).not.toBeNull()
       expect((result as PointEmphasisResult).mode).toBe('dom')
       expect((result as PointEmphasisResult).emphasizedPoints).toHaveLength(0)
@@ -112,7 +110,6 @@ describe('point emphasis', () => {
       const result = emphasizePoints(
         [{ seriesId: 's1', point: { x: 1, y: 2 } }],
         context,
-        svg,
         2 // scale factor
       )
       expect(result).not.toBeNull()
@@ -141,12 +138,7 @@ describe('point emphasis', () => {
         scales: { x: identityScale, y: identityScale },
         pointIndex,
       }
-      emphasizePoints(
-        [{ seriesId: 's1', point: { x: 0, y: 0 } }],
-        context,
-        svg,
-        2
-      )
+      emphasizePoints([{ seriesId: 's1', point: { x: 0, y: 0 } }], context, 2)
       expect(svg.querySelector('[data-owlplot-hover-layer]')).toBeNull()
     })
   })

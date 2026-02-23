@@ -57,9 +57,7 @@ export function createIndicators(
                   pointIndex,
                   seriesYAxis: context.seriesYAxis,
                 },
-                context.svg,
-                scaleFactor,
-                indicatorConfig.animation
+                scaleFactor
               )
               return emphasisResult as IndicatorHandle
             }

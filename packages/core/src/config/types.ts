@@ -110,6 +110,13 @@ export type HorizontalBandConfig = {
   yAxis?: 'left' | 'right'
 }
 
+export type RegionBetweenSeriesConfig = {
+  upperSeriesId: string
+  lowerSeriesId: string
+  fill: AnyPaint
+  opacity?: number
+}
+
 export type ChartAnnotationConfig = {
   text: string
   x: number | string
@@ -131,6 +138,7 @@ export type Cartesian2DOptions = {
   xScale?: AxisScaleConfig
   yScale?: AxisScaleConfig
   bands?: HorizontalBandConfig[]
+  regions?: RegionBetweenSeriesConfig[]
   annotations?: ChartAnnotationConfig[]
   xLabel?: string
   yLabel?: string

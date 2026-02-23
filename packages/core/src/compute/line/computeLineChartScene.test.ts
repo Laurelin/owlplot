@@ -61,6 +61,7 @@ function collectSceneNodeIds(node: {
 type TestSceneNode = {
   id?: string
   kind?: string
+  d?: string
   x?: number
   y?: number
   width?: number
@@ -897,6 +898,232 @@ describe('computeChartScene (line)', () => {
           '__annotation__:2'
         )
       ).toBeUndefined()
+    })
+  })
+
+  describe('regions between series', () => {
+    const env = { devicePixelRatio: 2, measureText: approximateMeasureText }
+    const size = { width: 640, height: 360 }
+
+    it('emits region path nodes between bands and series in config order', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'upperA',
+            points: [
+              { x: 0, y: 8 },
+              { x: 2, y: 10 },
+            ],
+          },
+          {
+            id: 'lowerA',
+            points: [
+              { x: 0, y: 4 },
+              { x: 2, y: 5 },
+            ],
+          },
+          {
+            id: 'upperB',
+            points: [
+              { x: 0, y: 6 },
+              { x: 2, y: 7 },
+            ],
+          },
+          {
+            id: 'lowerB',
+            points: [
+              { x: 0, y: 2 },
+              { x: 2, y: 3 },
+            ],
+          },
+        ],
+        options: {
+          bands: [{ yMin: 1, yMax: 2, fill: { type: 'solid', color: '#dcfce7' } }],
+          regions: [
+            {
+              upperSeriesId: 'upperA',
+              lowerSeriesId: 'lowerA',
+              fill: { type: 'solid', color: '#fbbf24' },
+            },
+            {
+              upperSeriesId: 'upperB',
+              lowerSeriesId: 'lowerB',
+              fill: { type: 'solid', color: '#93c5fd' },
+            },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const children = rootChildren(
+        result as unknown as { scene: { children?: TestSceneNode[] } }
+      )
+      const ids = children.map(node => node.id)
+
+      const bandIndex = ids.indexOf('__band__:0')
+      const region0Index = ids.indexOf('__region__:0')
+      const region1Index = ids.indexOf('__region__:1')
+      const seriesIndex = ids.indexOf('series:upperA')
+      const axisIndex = ids.indexOf('axis-group:bottom')
+
+      expect(bandIndex).toBeGreaterThanOrEqual(0)
+      expect(region0Index).toBeGreaterThanOrEqual(0)
+      expect(region1Index).toBeGreaterThanOrEqual(0)
+      expect(seriesIndex).toBeGreaterThanOrEqual(0)
+      expect(axisIndex).toBeGreaterThanOrEqual(0)
+      expect(bandIndex).toBeLessThan(region0Index)
+      expect(region0Index).toBeLessThan(region1Index)
+      expect(region1Index).toBeLessThan(seriesIndex)
+      expect(seriesIndex).toBeLessThan(axisIndex)
+
+      const region0 = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__region__:0'
+      )
+      expect(region0?.kind).toBe('path')
+      expect(region0?.metadata?.role).toBe('region')
+    })
+
+    it('inserts crossing intersection points and emits a closed polygon path', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'upper',
+            points: [
+              { x: 0, y: 0 },
+              { x: 10, y: 10 },
+            ],
+          },
+          {
+            id: 'lower',
+            points: [
+              { x: 0, y: 10 },
+              { x: 10, y: 0 },
+            ],
+          },
+        ],
+        options: {
+          regions: [
+            {
+              upperSeriesId: 'upper',
+              lowerSeriesId: 'lower',
+              fill: { type: 'solid', color: '#fde68a' },
+            },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const region = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__region__:0'
+      )
+
+      expect(region).toBeDefined()
+      const path = region?.d ?? ''
+      expect(path.endsWith(' Z')).toBe(true)
+      const lineSegmentCount = (path.match(/ L /g) ?? []).length
+      // Crossing adds one intersection point per side: 5 L commands vs 3 with no crossing.
+      expect(lineSegmentCount).toBe(5)
+    })
+
+    it('skips invalid regions (missing series, mismatched axis, non-monotone points)', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'leftA',
+            yAxis: 'left',
+            points: [
+              { x: 0, y: 1 },
+              { x: 2, y: 3 },
+            ],
+          },
+          {
+            id: 'rightA',
+            yAxis: 'right',
+            points: [
+              { x: 0, y: 10 },
+              { x: 2, y: 30 },
+            ],
+          },
+          {
+            id: 'nonMono',
+            points: [
+              { x: 0, y: 1 },
+              { x: 2, y: 2 },
+              { x: 1, y: 3 },
+            ],
+          },
+          {
+            id: 'validUpper',
+            points: [
+              { x: 0, y: 4 },
+              { x: 2, y: 6 },
+            ],
+          },
+          {
+            id: 'validLower',
+            points: [
+              { x: 0, y: 2 },
+              { x: 2, y: 3 },
+            ],
+          },
+        ],
+        options: {
+          yAxisRight: { tickCount: 5 },
+          regions: [
+            {
+              upperSeriesId: 'missing',
+              lowerSeriesId: 'validLower',
+              fill: { type: 'solid', color: '#fecaca' },
+            },
+            {
+              upperSeriesId: 'leftA',
+              lowerSeriesId: 'rightA',
+              fill: { type: 'solid', color: '#fdba74' },
+            },
+            {
+              upperSeriesId: 'nonMono',
+              lowerSeriesId: 'validLower',
+              fill: { type: 'solid', color: '#bfdbfe' },
+            },
+            {
+              upperSeriesId: 'validUpper',
+              lowerSeriesId: 'validLower',
+              fill: { type: 'solid', color: '#86efac' },
+            },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__region__:0'
+        )
+      ).toBeUndefined()
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__region__:1'
+        )
+      ).toBeUndefined()
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__region__:2'
+        )
+      ).toBeUndefined()
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__region__:3'
+        )
+      ).toBeDefined()
     })
   })
 })

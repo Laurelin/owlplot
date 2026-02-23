@@ -84,6 +84,7 @@ export type LegendMetadata = {
 export type SceneNodeRole =
   | 'background'
   | 'band'
+  | 'region'
   | 'series'
   | 'axis'
   | 'annotation'

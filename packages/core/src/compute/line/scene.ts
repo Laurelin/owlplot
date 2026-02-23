@@ -11,6 +11,7 @@ import type { ChartSize } from '../types'
 import { axisToSceneNodes } from './axisNodes'
 import { buildAxisConfigs } from './axisConfig'
 import { buildSeriesNodes, resolveSeriesPaint } from './seriesNodes'
+import { buildRegionNodes } from './regionNodes'
 import { buildHoverMetadata } from './hoverMetadata'
 import type { ContinuousScale } from '../cartesian2d/scale'
 import { TextAnchor } from '../../text/types'
@@ -215,6 +216,7 @@ export function scene(
   const pointsEnabled = config.options?.showPoints ?? false
   const chartAreaFillOpacity = config.options?.area?.fillOpacity
   const bandNodes = buildBandNodes(config, scales, plotRect)
+  const regionNodes = buildRegionNodes(config.options?.regions, config.series, scales)
   const seriesNodes = buildSeriesNodes(
     config.series,
     scales,
@@ -254,10 +256,16 @@ export function scene(
       : []),
   ]
 
-  // Layering invariant: bands -> series -> annotations -> axes.
-  children.push(...bandNodes, ...seriesNodes, ...annotationNodes, ...axisNodes)
+  // Layering invariant: bands -> regions -> series -> annotations -> axes.
+  children.push(
+    ...bandNodes,
+    ...regionNodes,
+    ...seriesNodes,
+    ...annotationNodes,
+    ...axisNodes
+  )
 
-  // Bands are intentionally excluded from legend generation in v1.
+  // Bands/regions are intentionally excluded from legend generation in v1.
   // They are contextual background, not semantic series.
   // Annotations are also excluded from legend generation in v1.
   const legendEntries = config.series.map((series, index) => {

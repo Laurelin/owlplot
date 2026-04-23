@@ -117,6 +117,36 @@ export type RegionBetweenSeriesConfig = {
   opacity?: number
 }
 
+export type BoundaryRef =
+  | { type: 'series'; id: string }
+  | { type: 'constant'; value: number }
+  | { type: 'plotTop' }
+  | { type: 'plotBottom' }
+
+export type RegionConfigV2 = {
+  upper: BoundaryRef
+  lower: BoundaryRef
+  fill: AnyPaint
+  opacity?: number
+  yAxis?: 'left' | 'right'
+  /**
+   * Optional x-domain clip for this region in domain units.
+   * Used by derived region compilers (for example dominance slabs).
+   */
+  xMin?: number
+  xMax?: number
+}
+
+export type RegionConfig = RegionConfigV2 | RegionBetweenSeriesConfig
+
+export type DominanceRegionsConfig = {
+  seriesIds: string[]
+  fills: AnyPaint[]
+  opacity?: number
+  yAxis?: 'left' | 'right'
+  tieBreak?: 'stable-input' | 'series-id'
+}
+
 export type ChartAnnotationConfig = {
   text: string
   x: number | string
@@ -138,7 +168,8 @@ export type Cartesian2DOptions = {
   xScale?: AxisScaleConfig
   yScale?: AxisScaleConfig
   bands?: HorizontalBandConfig[]
-  regions?: RegionBetweenSeriesConfig[]
+  regions?: RegionConfig[]
+  dominanceRegions?: DominanceRegionsConfig
   annotations?: ChartAnnotationConfig[]
   xLabel?: string
   yLabel?: string

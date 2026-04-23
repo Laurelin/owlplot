@@ -2,54 +2,50 @@ import { describe, expect, it } from 'vitest'
 import { complexityCharts } from './complexity'
 
 describe('complexity chart data invariants', () => {
-  it('keeps all finite y values within fixed log domain bounds', () => {
+  it('uses linear axis with fixed domain for clipped dominance rendering', () => {
     const demo = complexityCharts[0]
     expect(demo?.id).toBe('big-o-complexity-poster')
-
-    for (const series of demo?.config.series ?? []) {
-      for (const point of series.points) {
-        if (point.y == null || !Number.isFinite(point.y)) continue
-        expect(point.y).toBeGreaterThanOrEqual(1)
-        expect(point.y).toBeLessThanOrEqual(1e7)
-      }
-    }
+    expect(demo?.config.options?.yScale).toEqual({ type: 'linear' })
+    expect(demo?.config.options?.yDomain).toEqual({
+      mode: 'fixed',
+      min: 1,
+      max: 3000,
+    })
   })
 
-  it('caps factorial series at 1e7', () => {
+  it('contains explicit boundary regions and dominance region config', () => {
+    const demo = complexityCharts[0]
+    const regions = demo?.config.options?.regions ?? []
+    expect(regions).toHaveLength(2)
+    expect(regions[0]).toMatchObject({
+      upper: { type: 'plotTop' },
+      lower: { type: 'series', id: 'O(n!)' },
+    })
+    expect(regions[1]).toMatchObject({
+      upper: { type: 'series', id: 'O(log n)' },
+      lower: { type: 'plotBottom' },
+    })
+
+    const dominance = demo?.config.options?.dominanceRegions
+    expect(dominance?.seriesIds).toHaveLength(7)
+    expect(dominance?.fills).toHaveLength(6)
+    expect(dominance?.tieBreak).toBe('stable-input')
+  })
+
+  it('preserves steep growth in fast series (no factorial cap)', () => {
     const demo = complexityCharts[0]
     const factorial = demo?.config.series.find(series => series.id === 'O(n!)')
-    expect(factorial).toBeDefined()
-
-    const yValues = factorial?.points
-      .map(point => point.y)
-      .filter((value): value is number => value != null) ?? []
-    expect(yValues.length).toBeGreaterThan(0)
-    expect(Math.max(...yValues)).toBe(1e7)
-  })
-
-  it('has exponential growth exceeding quadratic by mid-domain', () => {
-    const demo = complexityCharts[0]
     const exponential = demo?.config.series.find(series => series.id === 'O(2^n)')
-    const quadratic = demo?.config.series.find(series => series.id === 'O(n^2)')
+    expect(factorial).toBeDefined()
     expect(exponential).toBeDefined()
-    expect(quadratic).toBeDefined()
 
-    const byXExp = new Map(
-      (exponential?.points ?? [])
-        .filter(point => point.y != null)
-        .map(point => [point.x, point.y as number])
+    const factorialMax = Math.max(
+      ...((factorial?.points ?? [])
+        .map(point => point.y)
+        .filter((value): value is number => value != null))
     )
-    const byXQuad = new Map(
-      (quadratic?.points ?? [])
-        .filter(point => point.y != null)
-        .map(point => [point.x, point.y as number])
-    )
-
-    const checkX = 10
-    const expAt10 = byXExp.get(checkX)
-    const quadAt10 = byXQuad.get(checkX)
-    expect(expAt10).toBeDefined()
-    expect(quadAt10).toBeDefined()
-    expect(expAt10).toBeGreaterThan(quadAt10!)
+    const exponentialAt24 = exponential?.points.find(point => point.x === 24)?.y ?? 0
+    expect(factorialMax).toBeGreaterThan(3000)
+    expect(exponentialAt24).toBeGreaterThan(3000)
   })
 })

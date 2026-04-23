@@ -216,7 +216,12 @@ export function scene(
   const pointsEnabled = config.options?.showPoints ?? false
   const chartAreaFillOpacity = config.options?.area?.fillOpacity
   const bandNodes = buildBandNodes(config, scales, plotRect)
-  const regionNodes = buildRegionNodes(config.options?.regions, config.series, scales)
+  const regionNodes = buildRegionNodes(
+    config.options?.regions,
+    config.options?.dominanceRegions,
+    config.series,
+    scales
+  )
   const seriesNodes = buildSeriesNodes(
     config.series,
     scales,

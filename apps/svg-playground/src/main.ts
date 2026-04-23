@@ -36,14 +36,22 @@ function createChartCard(demo: ChartDemo): HTMLElement {
   description.textContent = demo.description
   card.appendChild(description)
 
+  const plotAlign = document.createElement('div')
+  plotAlign.classList.add('chart-plot-align')
+
+  const plotShell = document.createElement('div')
+  plotShell.classList.add('chart-plot-shell')
+
   const badgeRow = createBadgeLegend(demo)
   if (badgeRow) {
-    card.appendChild(badgeRow)
+    plotShell.appendChild(badgeRow)
   }
 
   const svgContainer = document.createElement('div')
   svgContainer.classList.add('chart-svg-container')
-  card.appendChild(svgContainer)
+  plotShell.appendChild(svgContainer)
+  plotAlign.appendChild(plotShell)
+  card.appendChild(plotAlign)
 
   return card
 }

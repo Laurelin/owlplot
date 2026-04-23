@@ -23,12 +23,23 @@
   line-height: 1.5;
 }
 
+.chart-plot-align {
+  display: block;
+  text-align: center;
+}
+
+.chart-plot-shell {
+  display: inline-block;
+  margin: 0 auto;
+  text-align: center;
+}
+
 .chart-badge-row {
   display: flex;
   gap: 8px;
   justify-content: center;
   align-items: center;
-  margin: -2px 0 12px;
+  margin: 0 0 8px;
 }
 
 .chart-badge {

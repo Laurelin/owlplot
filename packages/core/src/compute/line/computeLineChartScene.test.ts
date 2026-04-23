@@ -1125,5 +1125,169 @@ describe('computeChartScene (line)', () => {
         )
       ).toBeDefined()
     })
+
+    it('supports boundary refs (series/constant/plotTop/plotBottom)', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'curve',
+            points: [
+              { x: 0, y: 2 },
+              { x: 1, y: 4 },
+              { x: 2, y: 6 },
+            ],
+          },
+        ],
+        options: {
+          yDomain: { mode: 'fixed', min: 0, max: 10 },
+          regions: [
+            {
+              upper: { type: 'constant', value: 8 },
+              lower: { type: 'series', id: 'curve' },
+              fill: { type: 'solid', color: '#fca5a5' },
+            },
+            {
+              upper: { type: 'plotTop' },
+              lower: { type: 'constant', value: 8 },
+              fill: { type: 'solid', color: '#fde68a' },
+            },
+            {
+              upper: { type: 'series', id: 'curve' },
+              lower: { type: 'plotBottom' },
+              fill: { type: 'solid', color: '#86efac' },
+            },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__region__:0'
+        )
+      ).toBeDefined()
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__region__:1'
+        )
+      ).toBeDefined()
+      expect(
+        findSceneNodeById(
+          result.scene as unknown as TestSceneNode,
+          '__region__:2'
+        )
+      ).toBeDefined()
+    })
+
+    it('clips a region to xMin/xMax domain bounds', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'upper',
+            points: [
+              { x: 0, y: 6 },
+              { x: 10, y: 6 },
+            ],
+          },
+          {
+            id: 'lower',
+            points: [
+              { x: 0, y: 2 },
+              { x: 10, y: 2 },
+            ],
+          },
+        ],
+        options: {
+          regions: [
+            {
+              upper: { type: 'series', id: 'upper' },
+              lower: { type: 'series', id: 'lower' },
+              xMin: 2,
+              xMax: 4,
+              fill: { type: 'solid', color: '#93c5fd' },
+            },
+          ],
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const region = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__region__:0'
+      )
+      const path = region?.d ?? ''
+      const xs = [...path.matchAll(/(?:M|L)\s+([-\d.]+)\s+[-\d.]+/g)].map(match =>
+        Number(match[1])
+      )
+      const minX = Math.min(...xs)
+      const maxX = Math.max(...xs)
+      const plotRect = (result.scene.metadata as { hover?: { plotRect?: { x: number; width: number } } }).hover?.plotRect
+      expect(plotRect).toBeDefined()
+      if (!plotRect) return
+      const width = plotRect.width
+      const left = plotRect.x + width * 0.2
+      const right = plotRect.x + width * 0.4
+      expect(minX).toBeGreaterThanOrEqual(left - 1e-6)
+      expect(maxX).toBeLessThanOrEqual(right + 1e-6)
+    })
+
+    it('supports dominanceRegions and emits adjacent rank regions', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'A',
+            points: [
+              { x: 0, y: 2 },
+              { x: 2, y: 2.5 },
+            ],
+          },
+          {
+            id: 'B',
+            points: [
+              { x: 0, y: 3 },
+              { x: 2, y: 3.5 },
+            ],
+          },
+          {
+            id: 'C',
+            points: [
+              { x: 0, y: 5 },
+              { x: 2, y: 5 },
+            ],
+          },
+        ],
+        options: {
+          dominanceRegions: {
+            seriesIds: ['A', 'B', 'C'],
+            fills: [
+              { type: 'solid', color: '#bbf7d0' },
+              { type: 'solid', color: '#fde68a' },
+            ],
+            tieBreak: 'stable-input',
+          },
+        },
+      }
+
+      const result = computeChartScene(config, size, env)
+      const region0 = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__region__:0'
+      )
+      const region1 = findSceneNodeById(
+        result.scene as unknown as TestSceneNode,
+        '__region__:1'
+      )
+      expect(region0).toBeDefined()
+      expect(region1).toBeDefined()
+      expect(region0?.metadata?.lower?.id).toBe('A')
+      expect(region0?.metadata?.upper?.id).toBe('B')
+      expect(region1?.metadata?.lower?.id).toBe('B')
+      expect(region1?.metadata?.upper?.id).toBe('C')
+    })
   })
 })

@@ -17,15 +17,16 @@ describe('chart groups', () => {
 
     const demo = complexity?.demos[0]
     expect(demo?.id).toBe('big-o-complexity-poster')
-    expect(demo?.config.options?.yScale?.type).toBe('log')
+    expect(demo?.config.options?.yScale?.type).toBe('linear')
     expect(demo?.config.options?.yDomain).toEqual({
       mode: 'fixed',
       min: 1,
-      max: 1e7,
+      max: 3000,
     })
     expect(demo?.config.options?.bands).toBeUndefined()
-    expect(demo?.config.options?.regions).toBeUndefined()
-    expect(demo?.sceneTransforms).toHaveLength(2)
+    expect(demo?.config.options?.regions).toHaveLength(2)
+    expect(demo?.config.options?.dominanceRegions).toBeDefined()
+    expect(demo?.sceneTransforms).toBeUndefined()
     expect(demo?.config.options?.annotations).toHaveLength(6)
 
     const seriesIds = demo?.config.series.map(series => series.id) ?? []

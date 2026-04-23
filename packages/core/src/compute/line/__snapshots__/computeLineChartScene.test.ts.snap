@@ -444,7 +444,11 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       ],
       "id": "axis-group:bottom",
       "kind": "group",
-      "transform": "translate(40,332)",
+      "transform": {
+        "kind": "translate",
+        "x": 40,
+        "y": 332,
+      },
     },
     {
       "children": [
@@ -579,7 +583,11 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       ],
       "id": "axis-group:left",
       "kind": "group",
-      "transform": "translate(40,24)",
+      "transform": {
+        "kind": "translate",
+        "x": 40,
+        "y": 24,
+      },
     },
   ],
   "id": "root",

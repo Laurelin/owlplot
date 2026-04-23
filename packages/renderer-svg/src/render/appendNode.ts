@@ -1,4 +1,4 @@
-import type { SceneNode, ContinuousScale } from '@owlplot/core'
+import type { SceneNode, ContinuousScale, SceneTransform } from '@owlplot/core'
 import { SceneNodeKind, TooltipKind } from '@owlplot/core'
 import { createSvgElement } from './svgDom'
 import { setStyle } from './setStyle'
@@ -28,6 +28,34 @@ export function isDualScale(
 export type AppendNodeContext = {
   scales: HoverScales
   seriesYAxis: Record<string, 'left' | 'right'>
+}
+
+function serializeSceneTransformValue(
+  transform: SceneTransform
+): string | undefined {
+  if (transform.kind === 'translate') {
+    return `translate(${transform.x},${transform.y})`
+  }
+
+  if (transform.kind === 'rotate') {
+    if (transform.originX != null && transform.originY != null) {
+      return `rotate(${transform.degrees} ${transform.originX} ${transform.originY})`
+    }
+    return `rotate(${transform.degrees})`
+  }
+
+  return undefined
+}
+
+function serializeSceneTransform(
+  transform: SceneTransform | SceneTransform[] | undefined
+): string | undefined {
+  if (transform == null) return undefined
+  const transforms = Array.isArray(transform) ? transform : [transform]
+  const parts = transforms
+    .map(serializeSceneTransformValue)
+    .filter((value): value is string => value != null && value !== '')
+  return parts.length > 0 ? parts.join(' ') : undefined
 }
 
 function getYScaleForSeries(
@@ -82,8 +110,10 @@ export function appendNode(
   switch (node.kind) {
     case SceneNodeKind.GROUP: {
       el = createSvgElement('g')
-      if (node.transform)
-        el.setAttribute(SvgAttributeName.TRANSFORM, node.transform)
+      const serializedTransform = serializeSceneTransform(node.transform)
+      if (serializedTransform) {
+        el.setAttribute(SvgAttributeName.TRANSFORM, serializedTransform)
+      }
       const rootSvg =
         svg ?? (parent instanceof SVGSVGElement ? parent : undefined)
       node.children.forEach((child: SceneNode) =>
@@ -193,8 +223,9 @@ export function appendNode(
           SvgAttributeName.DOMINANT_BASELINE,
           node.dominantBaseline
         )
-      if (node.transform) {
-        el.setAttribute(SvgAttributeName.TRANSFORM, node.transform)
+      const serializedTransform = serializeSceneTransform(node.transform)
+      if (serializedTransform) {
+        el.setAttribute(SvgAttributeName.TRANSFORM, serializedTransform)
       }
       break
     }

@@ -1,5 +1,9 @@
 import { Position } from '../../config/types'
-import { SceneNodeKind, type SceneNode } from '../../scene/types'
+import {
+  SceneNodeKind,
+  type SceneNode,
+  type SceneTransform,
+} from '../../scene/types'
 import type { AxisConfig } from '../cartesian2d/axis'
 import { DEFAULT_LABEL_FONT, DEFAULT_TICK_FONT } from '../cartesian2d/axis'
 import { type AxisLayout } from '../cartesian2d/types/axis'
@@ -48,7 +52,7 @@ export function axisToSceneNodes(
     ty = plotRect.y
   }
 
-  const transform = `translate(${tx},${ty})`
+  const transform: SceneTransform = { kind: 'translate', x: tx, y: ty }
   const children: SceneNode[] = []
 
   if (showAxis) {
@@ -93,7 +97,12 @@ export function axisToSceneNodes(
     if (lbl && showTickLabels && lbl.text !== '') {
       const textTransform =
         lbl.rotation !== undefined
-          ? `rotate(${lbl.rotation} ${lbl.x} ${lbl.y})`
+          ? ({
+              kind: 'rotate',
+              degrees: lbl.rotation,
+              originX: lbl.x,
+              originY: lbl.y,
+            } satisfies SceneTransform)
           : undefined
       const fontSizePx = extractFontSizePx(tickFont ?? DEFAULT_TICK_FONT)
       children.push({
@@ -115,7 +124,12 @@ export function axisToSceneNodes(
     const fontSizePx = extractFontSizePx(labelFont ?? DEFAULT_LABEL_FONT)
     const textTransform =
       al.rotation !== undefined
-        ? `rotate(${al.rotation} ${al.x} ${al.y})`
+        ? ({
+            kind: 'rotate',
+            degrees: al.rotation,
+            originX: al.x,
+            originY: al.y,
+          } satisfies SceneTransform)
         : undefined
     children.push({
       kind: SceneNodeKind.TEXT,

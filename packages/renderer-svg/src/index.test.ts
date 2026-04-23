@@ -73,6 +73,37 @@ it('renders a line path', () => {
   expect(svg.innerHTML).toContain('<path')
 })
 
+it('serializes typed scene transforms for groups and text nodes', () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  const scene: SceneNode = {
+    kind: SceneNodeKind.GROUP,
+    id: 'root',
+    transform: { kind: 'translate', x: 12, y: 34 },
+    children: [
+      {
+        kind: SceneNodeKind.TEXT,
+        id: 'label',
+        x: 10,
+        y: 20,
+        text: 'Axis',
+        transform: {
+          kind: 'rotate',
+          degrees: -45,
+          originX: 10,
+          originY: 20,
+        },
+      },
+    ],
+  }
+
+  renderSvgScene(scene, svg)
+
+  const group = svg.querySelector('[id="root"]') as SVGGElement | null
+  const text = svg.querySelector('[id="label"]') as SVGTextElement | null
+  expect(group?.getAttribute('transform')).toBe('translate(12,34)')
+  expect(text?.getAttribute('transform')).toBe('rotate(-45 10 20)')
+})
+
 it('renders fill-opacity for area fill paths', () => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.setAttribute('width', '200')

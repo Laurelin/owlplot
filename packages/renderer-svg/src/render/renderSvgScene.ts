@@ -1,4 +1,8 @@
-import type { SceneNode, PointShape, ContinuousScale } from '@owlplot/core'
+import type {
+  SceneNode,
+  PointShape,
+  ContinuousScale,
+} from '@owlplot/core'
 import { SceneNodeKind } from '@owlplot/core'
 import type {
   TooltipRenderer,
@@ -38,7 +42,6 @@ import {
   HIDDEN_SERIES_IDS_SYMBOL,
 } from '../shared/symbols'
 import {
-  SceneMetadataKey,
   HoverModeKind,
   HoverIndicatorKind,
 } from '../shared/enums'
@@ -143,7 +146,7 @@ export function renderSvgScene(
   extendedSvg[HIDDEN_SERIES_IDS_SYMBOL] = hiddenSeriesIds
 
   clearSvg(svg)
-  const hoverMeta = scene.metadata?.[SceneMetadataKey.HOVER] as
+  const hoverMeta = scene.metadata?.hover as
     | {
         scales:
           | { x: ContinuousScale; y: ContinuousScale }
@@ -201,7 +204,7 @@ export function renderSvgScene(
       : (options?.tooltip ?? defaultTooltipRenderer)
 
   // Get hover metadata
-  const hoverMetadata = scene.metadata?.[SceneMetadataKey.HOVER]
+  const hoverMetadata = scene.metadata?.hover
   if (!isHoverMetadata(hoverMetadata)) {
     // No hover metadata available - cannot attach hover
     return

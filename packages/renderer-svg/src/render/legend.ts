@@ -9,7 +9,7 @@ import {
   DATA_SERIES_ID,
   DATA_LEGEND_ITEM_SERIES_ID,
 } from '../shared/dataAttributes'
-import { SceneMetadataKey, SvgAttributeName } from '../shared/enums'
+import { SvgAttributeName } from '../shared/enums'
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
 import {
   BASE_SVG_HEIGHT_SYMBOL,
@@ -94,9 +94,7 @@ function paintToSwatchColor(paint: AnyPaint): string {
 }
 
 function getLegendMetadata(scene: SceneNode): LegendMetadata | undefined {
-  const metadata = scene.metadata?.[SceneMetadataKey.LEGEND] as
-    | LegendMetadata
-    | undefined
+  const metadata = scene.metadata?.legend
   if (
     !metadata ||
     !Array.isArray(metadata.entries) ||

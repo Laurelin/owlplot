@@ -45,8 +45,3 @@ export enum CssClassName {
 export enum ContainerId {
   OWLPLOT_TOOLTIP = 'owlplot-tooltip',
 }
-
-export enum SceneMetadataKey {
-  HOVER = 'hover',
-  LEGEND = 'legend',
-}

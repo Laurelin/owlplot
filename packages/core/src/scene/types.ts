@@ -81,6 +81,29 @@ export type LegendMetadata = {
   entries: LegendEntry[]
 }
 
+export type SceneTranslateTransform = {
+  kind: 'translate'
+  x: number
+  y: number
+}
+
+export type SceneRotateTransform = {
+  kind: 'rotate'
+  degrees: number
+  originX?: number
+  originY?: number
+}
+
+export type SceneTransform = SceneTranslateTransform | SceneRotateTransform
+
+export type SceneMetadata = {
+  role?: SceneNodeRole
+  tooltip?: TooltipDatum
+  hover?: unknown
+  legend?: LegendMetadata
+  [key: string]: unknown
+}
+
 export type SceneNodeRole =
   | 'background'
   | 'band'
@@ -92,13 +115,8 @@ export type SceneNodeRole =
 export type SceneBaseNode = {
   id: string
   style?: SceneStyle
-  transform?: string // pull up into base so every node can have it
-  metadata?: {
-    role?: SceneNodeRole
-    tooltip?: TooltipDatum
-    legend?: LegendMetadata
-    [key: string]: unknown
-  }
+  transform?: SceneTransform | SceneTransform[]
+  metadata?: SceneMetadata
 }
 
 export type SceneGroupNode = SceneBaseNode & {

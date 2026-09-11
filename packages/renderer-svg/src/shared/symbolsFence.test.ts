@@ -29,18 +29,22 @@ describe('Symbol bag fence', () => {
     const roots = [join(repoRoot, 'packages', 'core'), join(repoRoot, 'apps')]
     const offenders: string[] = []
     for (const root of roots) {
+      let files: string[]
       try {
-        for (const file of walkSourceFiles(root)) {
-          const text = readFileSync(file, 'utf8')
-          if (
-            text.includes('shared/symbols') ||
-            /from ['"][^'"]*renderer-svg[^'"]*symbols['"]/.test(text)
-          ) {
-            offenders.push(relative(repoRoot, file))
-          }
+        files = walkSourceFiles(root)
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code
+        if (code === 'ENOENT') continue
+        throw err
+      }
+      for (const file of files) {
+        const text = readFileSync(file, 'utf8')
+        if (
+          text.includes('shared/symbols') ||
+          /from ['"][^'"]*renderer-svg[^'"]*symbols['"]/.test(text)
+        ) {
+          offenders.push(relative(repoRoot, file))
         }
-      } catch {
-        // Missing apps/core path should not fail the fence for this package layout.
       }
     }
     expect(offenders).toEqual([])

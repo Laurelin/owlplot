@@ -260,9 +260,16 @@ export function renderSvgScene(
     return
   }
 
-  // Default behavior: try GLYPH → POINT fallback chain
-  // Build point index if needed (optional optimization)
-  const needsPointIndex = indicatorConfigs.some(
+  // Default: POINT from scene metadata (sortedPoints). Glyph is opt-in only.
+  let finalIndicatorConfigs = indicatorConfigs
+  if (
+    !hasExplicitIndicator &&
+    finalIndicatorConfigs.length === 1 &&
+    finalIndicatorConfigs[0]!.kind === HoverIndicatorKind.NONE
+  ) {
+    finalIndicatorConfigs = [{ kind: HoverIndicatorKind.POINT_EMPHASIS }]
+  }
+  const needsPointIndex = finalIndicatorConfigs.some(
     config => config.kind === HoverIndicatorKind.POINT_EMPHASIS
   )
   if (needsPointIndex) {
@@ -275,37 +282,7 @@ export function renderSvgScene(
       )
     }
   }
-
-  // Set default indicator for POINT mode fallback (POINT_EMPHASIS)
-  let finalIndicatorConfigs = indicatorConfigs
-  if (
-    finalIndicatorConfigs.length === 1 &&
-    finalIndicatorConfigs[0]!.kind === HoverIndicatorKind.NONE
-  ) {
-    finalIndicatorConfigs = [{ kind: HoverIndicatorKind.POINT_EMPHASIS }]
-    const pointIndex = buildPointIndexFromRenderedElements(svg)
-    ;(svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] = pointIndex
-    if (process.env.NODE_ENV !== 'production' && pointIndex.size === 0) {
-      console.warn(
-        '[owlplot] Hover requested point emphasis, but no glyphs were indexed. ' +
-          'Check data-owlplot-* attributes.'
-      )
-    }
-  }
   const finalIndicators = createIndicators(finalIndicatorConfigs, svg)
-
-  // Try GLYPH first
-  const hasGlyphs = attachGlyphHover(
-    svg,
-    tooltipRenderer,
-    hoverMetadata,
-    finalIndicators
-  )
-  if (hasGlyphs) {
-    return
-  }
-
-  // Fallback to POINT (data-driven, no glyphs required)
   const pointResolver = createHoverResolver({ kind: HoverModeKind.POINT })
   attachDataHover(
     svg,
@@ -314,7 +291,4 @@ export function renderSvgScene(
     tooltipRenderer,
     hoverMetadata
   )
-
-  // Note: X_AXIS is available as an explicit mode option.
-  // POINT should always work if there's data, so X_AXIS fallback is not needed here.
 }

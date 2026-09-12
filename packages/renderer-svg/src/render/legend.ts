@@ -11,11 +11,7 @@ import {
 } from '../shared/dataAttributes'
 import { SvgAttributeName } from '../shared/enums'
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
-import {
-  BASE_SVG_HEIGHT_SYMBOL,
-  BASE_SVG_WIDTH_SYMBOL,
-  EXTERNAL_LEGEND_ELEMENT_SYMBOL,
-} from '../shared/symbols'
+import { EXTERNAL_LEGEND_ELEMENT_SYMBOL } from '../shared/symbols'
 import {
   computeLegendLayout,
   type LegendAnchor,
@@ -129,39 +125,6 @@ function readSvgDimension(
   return 0
 }
 
-function ensureBaseSvgSize(svg: SVGSVGElement): {
-  width: number
-  height: number
-} {
-  const extended = svg as ExtendedSVGSVGElement
-
-  if (extended[BASE_SVG_WIDTH_SYMBOL] == null) {
-    extended[BASE_SVG_WIDTH_SYMBOL] = readSvgDimension(svg, 'width', 2)
-  }
-  if (extended[BASE_SVG_HEIGHT_SYMBOL] == null) {
-    extended[BASE_SVG_HEIGHT_SYMBOL] = readSvgDimension(svg, 'height', 3)
-  }
-
-  return {
-    width: extended[BASE_SVG_WIDTH_SYMBOL]!,
-    height: extended[BASE_SVG_HEIGHT_SYMBOL]!,
-  }
-}
-
-function setSvgSize(svg: SVGSVGElement, width: number, height: number): void {
-  if (Number.isFinite(width) && width > 0) {
-    svg.setAttribute('width', String(width))
-  }
-  if (Number.isFinite(height) && height > 0) {
-    svg.setAttribute('height', String(height))
-  }
-}
-
-export function restoreLegendLayout(svg: SVGSVGElement): void {
-  const base = ensureBaseSvgSize(svg)
-  setSvgSize(svg, base.width, base.height)
-}
-
 function clearExternalLegend(svg: SVGSVGElement): void {
   const extended = svg as ExtendedSVGSVGElement
   const external = extended[EXTERNAL_LEGEND_ELEMENT_SYMBOL]
@@ -183,7 +146,6 @@ function clearExternalLegend(svg: SVGSVGElement): void {
 
 export function clearLegendArtifacts(svg: SVGSVGElement): void {
   clearExternalLegend(svg)
-  restoreLegendLayout(svg)
 }
 
 function estimateLabelWidthPx(label: string): number {
@@ -576,12 +538,11 @@ function renderInsideSvgLegend(
   const rowHeight = Math.max(options.legendRowHeightPx, swatchSize)
   const textOffsetX = swatchSize + SWATCH_TO_LABEL_GAP
 
-  const baseSize = ensureBaseSvgSize(svg)
   const chartRect = {
     x: 0,
     y: 0,
-    width: baseSize.width,
-    height: baseSize.height,
+    width: readSvgDimension(svg, 'width', 2),
+    height: readSvgDimension(svg, 'height', 3),
   }
   const labelMetricsCache = new Map<string, LabelMetrics>()
   const labelMetrics = entries.map(entry =>
@@ -744,7 +705,6 @@ export function renderLegend(
   const legendMetadata = getLegendMetadata(scene)
   const resolvedOptions = resolveOptions(options)
   if (resolvedOptions.placement === 'none' || !legendMetadata) {
-    restoreLegendLayout(svg)
     return
   }
 
@@ -755,7 +715,6 @@ export function renderLegend(
   const typography = resolveTypography(svg, resolvedOptions.typography)
 
   if (resolvedOptions.placement === 'outside') {
-    restoreLegendLayout(svg)
     const host = legendHost ?? (svg.parentElement as HTMLElement | null)
     if (host == null) {
       if (

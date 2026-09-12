@@ -606,8 +606,6 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
             0,
             3,
           ],
-          "forward": [Function],
-          "invert": [Function],
           "range": [
             40,
             606.4,
@@ -619,8 +617,6 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
             0,
             2,
           ],
-          "forward": [Function],
-          "invert": [Function],
           "range": [
             332,
             24,

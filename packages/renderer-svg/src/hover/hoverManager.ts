@@ -1,7 +1,7 @@
 import type {
   HoverResolver,
   HoverResolutionResult,
-  HoverMetadata,
+  RuntimeHoverMetadata,
 } from './types'
 import type {
   HoverIndicator,
@@ -103,7 +103,7 @@ export function attachDataHover(
   resolver: HoverResolver,
   indicators: HoverIndicator[],
   tooltipRenderer: TooltipRenderer | null,
-  metadata: HoverMetadata
+  metadata: RuntimeHoverMetadata
 ): void {
   let framePending = false
   const previousHandles = new Map<string, IndicatorHandle>()
@@ -235,7 +235,7 @@ export function detachAllHoverListeners(svg: SVGSVGElement): void {
 export function attachGlyphHover(
   svg: SVGSVGElement,
   tooltipRenderer: TooltipRenderer | null,
-  metadata: HoverMetadata,
+  metadata: RuntimeHoverMetadata,
   indicators: HoverIndicator[]
 ): boolean {
   const extendedSvg = svg as ExtendedSVGSVGElement

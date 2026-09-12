@@ -1,9 +1,5 @@
-import type {
-  SceneNode,
-  PointShape,
-  ContinuousScale,
-} from '@owlplot/core'
-import { SceneNodeKind } from '@owlplot/core'
+import type { SceneNode, PointShape } from '@owlplot/core'
+import { SceneNodeKind, isHoverMetadata } from '@owlplot/core'
 import type {
   TooltipRenderer,
   TooltipContext,
@@ -30,7 +26,7 @@ import {
 } from '../hover/hoverManager'
 import { createHoverResolver } from '../hover/resolvers'
 import { createIndicators } from '../hover/indicators/indicators'
-import { isHoverMetadata } from '../hover/types'
+import { hydrateHoverMetadata } from '../hover/hydrateHoverMetadata'
 import { buildPointIndexFromRenderedElements } from '../hover/pointIndex'
 
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
@@ -146,26 +142,17 @@ export function renderSvgScene(
   extendedSvg[HIDDEN_SERIES_IDS_SYMBOL] = hiddenSeriesIds
 
   clearSvg(svg)
-  const hoverMeta = scene.metadata?.hover as
-    | {
-        scales:
-          | { x: ContinuousScale; y: ContinuousScale }
-          | {
-              x: ContinuousScale
-              yLeft: ContinuousScale
-              yRight: ContinuousScale
-            }
-        series: Array<{ id: string; yAxis: 'left' | 'right' }>
-        plotRect: { x: number; y: number; width: number; height: number }
-      }
-    | undefined
+  const rawHover = scene.metadata?.hover
+  const hydratedHover = isHoverMetadata(rawHover)
+    ? hydrateHoverMetadata(rawHover)
+    : undefined
   const seriesYAxis =
-    hoverMeta?.series != null
-      ? Object.fromEntries(hoverMeta.series.map(s => [s.id, s.yAxis]))
+    hydratedHover?.series != null
+      ? Object.fromEntries(hydratedHover.series.map(s => [s.id, s.yAxis]))
       : undefined
   const appendContext: AppendNodeContext | undefined =
-    hoverMeta?.scales != null
-      ? { scales: hoverMeta.scales, seriesYAxis: seriesYAxis ?? {} }
+    hydratedHover?.scales != null
+      ? { scales: hydratedHover.scales, seriesYAxis: seriesYAxis ?? {} }
       : undefined
   appendNode(scene, svg, undefined, appendContext)
   const legendOption = options?.legend
@@ -181,7 +168,7 @@ export function renderSvgScene(
       svg,
       hiddenSeriesIds,
       legendOptions,
-      hoverMeta?.plotRect,
+      hydratedHover?.plotRect,
       options?.legendHost
     )
   } else {
@@ -203,9 +190,9 @@ export function renderSvgScene(
       ? null
       : (options?.tooltip ?? defaultTooltipRenderer)
 
-  // Get hover metadata
-  const hoverMetadata = scene.metadata?.hover
-  if (!isHoverMetadata(hoverMetadata)) {
+  // Hydrated hover metadata (validated earlier for appendContext)
+  const hoverMetadata = hydratedHover
+  if (!hoverMetadata) {
     // No hover metadata available - cannot attach hover
     return
   }

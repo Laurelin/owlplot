@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { ChartConfig, ChartKind } from '../../config/types'
 import { computeChartScene } from '../computeChartScene'
 import { approximateMeasureText } from '../../text/helpers'
+import { createScaleFromDescriptor } from '../cartesian2d/scale'
+import type { ContinuousScaleDescriptor } from '../cartesian2d/scale'
 
 function getYDomain(result: {
   scene: { metadata?: { hover?: { yDomain?: [number, number] } } }
@@ -734,11 +736,12 @@ describe('computeChartScene (line)', () => {
         result.scene as unknown as TestSceneNode,
         '__band__:0'
       )
-      const yScale = (
+      const yDesc = (
         result.scene.metadata as {
-          hover: { scales: { y: { forward: (v: number) => number } } }
+          hover: { scales: { y: ContinuousScaleDescriptor } }
         }
       ).hover.scales.y
+      const yScale = createScaleFromDescriptor(yDesc)
       const expectedTop = Math.min(yScale.forward(10), yScale.forward(100))
       const expectedBottom = Math.max(yScale.forward(10), yScale.forward(100))
 

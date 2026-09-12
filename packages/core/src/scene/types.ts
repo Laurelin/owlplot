@@ -1,6 +1,7 @@
 import type { TextAnchor, DominantBaseline } from '../text/types'
 import type { AnyPaint } from '../paint/types'
 import type { PointShape } from '../config/types'
+import type { HoverMetadata } from '../compute/line/hoverMetadata'
 
 // -----------------------------------
 // enums (never use hardcoded strings)
@@ -99,7 +100,7 @@ export type SceneTransform = SceneTranslateTransform | SceneRotateTransform
 export type SceneMetadata = {
   role?: SceneNodeRole
   tooltip?: TooltipDatum
-  hover?: unknown
+  hover?: HoverMetadata
   legend?: LegendMetadata
   [key: string]: unknown
 }

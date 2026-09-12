@@ -1,4 +1,4 @@
-import type { HoverResolutionResult, HoverMetadata } from '../types'
+import type { HoverResolutionResult, RuntimeHoverMetadata } from '../types'
 import type { ExtendedSVGElement } from '../../shared/extendedElements'
 import { TOOLTIP_DATUM_SYMBOL } from '../../shared/symbols'
 import { DATA_X, DATA_Y } from '../../shared/dataAttributes'
@@ -12,7 +12,7 @@ import { DATA_X, DATA_Y } from '../../shared/dataAttributes'
  */
 export function resolveGlyphFromElement(
   element: Element | null,
-  _metadata: HoverMetadata
+  _metadata: RuntimeHoverMetadata
 ): HoverResolutionResult {
   if (!element) return { kind: 'none' }
 

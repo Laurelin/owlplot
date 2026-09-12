@@ -15,13 +15,11 @@ const testGlobal = globalThis as unknown as {
   Element: typeof Element
 }
 
-function identityScale() {
+function scaleDescriptor() {
   return {
     type: 'linear' as const,
-    domain: [0, 1] as const,
-    range: [0, 1] as const,
-    forward: (v: number) => v,
-    invert: (v: number) => v,
+    domain: [0, 1] as [number, number],
+    range: [0, 1] as [number, number],
   }
 }
 
@@ -406,7 +404,7 @@ it('supports inside top-right legend without expanding svg height', () => {
         ],
       },
       hover: {
-        scales: { x: identityScale(), y: identityScale() },
+        scales: { x: scaleDescriptor(), y: scaleDescriptor() },
         plotRect: { x: 40, y: 20, width: 220, height: 120 },
         xDomain: [0, 10] as [number, number],
         yDomain: [0, 10] as [number, number],

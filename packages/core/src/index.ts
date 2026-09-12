@@ -7,8 +7,19 @@ export * from './text/helpers'
 export type { HoverSeries } from './compute/line/scene'
 export type {
   ContinuousScale,
+  ContinuousScaleDescriptor,
   ScaleType,
 } from './compute/cartesian2d/scale'
+export {
+  toScaleDescriptor,
+  createScaleFromDescriptor,
+} from './compute/cartesian2d/scale'
+export type {
+  HoverMetadata,
+  HoverMetadataSingle,
+  HoverMetadataDual,
+} from './compute/line/hoverMetadata'
+export { isHoverMetadata, buildHoverMetadata } from './compute/line/hoverMetadata'
 
 // Paint types and helpers
 export * from './paint/types'

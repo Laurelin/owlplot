@@ -126,3 +126,47 @@ export function createScale(
   }
   return createLogScale(domain, range, config.base ?? 10)
 }
+
+export type LinearScaleDescriptor = {
+  readonly type: 'linear'
+  readonly domain: readonly [number, number]
+  readonly range: readonly [number, number]
+}
+
+export type LogScaleDescriptor = {
+  readonly type: 'log'
+  readonly base: number
+  readonly domain: readonly [number, number]
+  readonly range: readonly [number, number]
+}
+
+export type ContinuousScaleDescriptor =
+  | LinearScaleDescriptor
+  | LogScaleDescriptor
+
+export function toScaleDescriptor(
+  scale: ContinuousScale
+): ContinuousScaleDescriptor {
+  if (scale.type === 'log') {
+    return {
+      type: 'log',
+      base: scale.base,
+      domain: scale.domain,
+      range: scale.range,
+    }
+  }
+  return {
+    type: 'linear',
+    domain: scale.domain,
+    range: scale.range,
+  }
+}
+
+export function createScaleFromDescriptor(
+  d: ContinuousScaleDescriptor
+): ContinuousScale {
+  if (d.type === 'log') {
+    return createLogScale(d.domain, d.range, d.base)
+  }
+  return createLinearScale(d.domain, d.range)
+}

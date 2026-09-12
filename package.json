@@ -17,7 +17,8 @@
     "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
     "ci": "npm run build && npm run check:exports && npm run test",
     "check:exports": "node scripts/check-exports.mjs",
-    "export:svg": "node scripts/export-chart-svg.mjs"
+    "export:svg": "node scripts/export-chart-svg.mjs",
+    "measure:dense-line": "node scripts/dense-line-cost.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

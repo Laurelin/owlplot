@@ -80,6 +80,7 @@ No hidden DOM dependence. No renderer state leaking back into compute.
 
 Today the repo includes:
 
+- two public packages — `@owlplot/core` and `@owlplot/renderer-svg` — private, not on npm yet (see [Packages](#packages-public-product))
 - core compute logic for line charts
 - deterministic scene generation with snapshot tests
 - an SVG renderer with modular rendering, tooltip, and hover systems
@@ -99,6 +100,89 @@ Near-term expansion is still what the architecture already points toward:
 - more projections built on the same scene model
 - more renderers and integration surfaces
 - more scene-transform examples in the playground
+
+## Packages (public product)
+
+The public product is two workspace packages. They are **not on npm yet** (`private: true`, version `0.0.0`). Do not `npm publish`.
+
+| Package | Role |
+| --- | --- |
+| `@owlplot/core` | `data → layout → scene` |
+| `@owlplot/renderer-svg` | `scene → SVG` (DOM mount + Node string) |
+
+Host apps under `apps/` (`svg-playground`, `react-playground`) are demos. They are not import targets and are not a third product package. There is no `@owlplot/react`.
+
+### Consume today (workspace)
+
+```sh
+git clone https://github.com/Laurelin/owlplot
+cd owlplot
+npm install
+npm run build
+```
+
+Import by **package name** only (workspace links resolve after install + build):
+
+```ts
+import { ChartKind, computeChartScene } from '@owlplot/core'
+import { renderSvgScene, sceneToSvgString } from '@owlplot/renderer-svg'
+```
+
+Deep paths (`packages/*/src/...`, `@owlplot/core/src/...`, or reaching into `dist/` files) are **unsupported**. Use the `.` export only.
+
+Dev apps:
+
+```sh
+npm run dev:demo    # apps/svg-playground
+npm run dev:react   # apps/react-playground
+```
+
+### Later (`npm i` shape)
+
+When the packages are published (not this repo state), the same import paths stay:
+
+```sh
+npm i @owlplot/core @owlplot/renderer-svg
+```
+
+```ts
+import { computeChartScene } from '@owlplot/core'
+import { renderSvgScene } from '@owlplot/renderer-svg'
+```
+
+### Public API
+
+Each package exposes a single `exports` entry: `.` (types + import). No subpath exports.
+
+**`@owlplot/core`** (from `packages/core/src/index.ts`):
+
+- `computeChartScene`
+- Config: `ChartKind`, `ChartConfig`, series / axis / region / annotation types
+- Text measure: `approximateMeasureText`, `measureTextFont`, `MeasureText`, `TextMetrics`
+- Scene: `SceneNode`, `SceneNodeKind`, legend / tooltip scene types
+- Hover metadata: `buildHoverMetadata`, `isHoverMetadata`, `HoverMetadata`, scale descriptors (`toScaleDescriptor`, `createScaleFromDescriptor`)
+- Paint: `AnyPaint`, gradient helpers (`normalizeGradientPaint`, `derivePaintStylesFromColor`, …)
+- Number format helpers (`formatNumber`, …)
+
+**`@owlplot/renderer-svg`** (from `packages/renderer-svg/src/index.ts`):
+
+- `renderSvgScene` — browser SVG mount (tooltip / hover / legend options)
+- `sceneToSvgString` — Node/SSR markup from the same scene
+- `createCanvasMeasureText` / `canvasMeasureText`
+- `formatValue`
+- Types / enums: `LegendOptions`, `TooltipRenderer`, `HoverMode`, `HoverModeKind`, `HoverIndicatorKind`, `AnimationEasing`, `SvgStringSize`
+
+Verify resolution after build:
+
+```sh
+npm run check:exports
+```
+
+That runs `scripts/check-exports.mjs` → vitest project `exports`. It is part of `npm run ci`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ## Recipes
 
@@ -297,17 +381,4 @@ If we drift from scene-first, compute-first design, we are building a more typed
 
 ## Quickstart
 
-```sh
-git clone https://github.com/Laurelin/owlplot
-cd owlplot
-npm install
-npm run build
-```
-
-Workspace packages (`@owlplot/core`, `@owlplot/renderer-svg`) expose a single public entry via `exports` (`.` + types). After build, verify package-name resolution:
-
-```sh
-npm run check:exports
-```
-
-That runs `scripts/check-exports.mjs` → vitest project `exports` (`test/exports.resolve.test.ts`), which dynamic-imports both package names. It is also part of `npm run ci`.
+See [Packages (public product)](#packages-public-product) for clone / install / build, workspace imports, the later `npm i` shape, and the public API list.

@@ -87,6 +87,7 @@ Today the repo includes:
 - a Node export sample under `scripts/` that writes a `.svg` file with no `document` and no Chromium
 - playground text measure via `createCanvasMeasureText` in the browser (`approximateMeasureText` remains the Node/test fallback)
 - a demo playground for exploring scene output and renderer behavior
+- a React playground app (`apps/react-playground`) that mounts SVG from props (not a published `@owlplot/react` package)
 
 Current interaction work includes:
 
@@ -265,6 +266,68 @@ renderSvgScene(transformed, svg)
 ```
 
 The SVG playground wires the same pattern via `sceneTransforms` on a demo (see **Scene Transforms** tab). Helpers stay in the app or a README snippet — there is no `@owlplot/transforms` package.
+
+
+### React host (playground)
+
+The React playground is a thin host: props → `computeChartScene` → `renderSvgScene`. Updates are new props. There is no `@owlplot/react` package and no `renderer=` slot.
+
+```tsx
+import { useEffect, useMemo, useRef } from 'react'
+import { computeChartScene, type ChartConfig } from '@owlplot/core'
+import {
+  createCanvasMeasureText,
+  renderSvgScene,
+} from '@owlplot/renderer-svg'
+
+type OwlplotChartProps = {
+  config: ChartConfig
+  width: number
+  height: number
+}
+
+function OwlplotChart({ config, width, height }: OwlplotChartProps) {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const measureText = useMemo(() => createCanvasMeasureText(), [])
+
+  useEffect(() => {
+    const host = hostRef.current
+    const svg = svgRef.current
+    if (!host || !svg) return
+
+    svg.setAttribute('width', String(width))
+    svg.setAttribute('height', String(height))
+
+    const { scene } = computeChartScene(
+      config,
+      { width, height },
+      {
+        devicePixelRatio: window.devicePixelRatio || 1,
+        measureText,
+      }
+    )
+
+    renderSvgScene(scene, svg, {
+      legendHost: host,
+    })
+  }, [config, width, height, measureText])
+
+  return (
+    <div ref={hostRef}>
+      <svg ref={svgRef} role="img" aria-label="owlplot chart" />
+    </div>
+  )
+}
+```
+
+Runnable app (after `npm run build`):
+
+```sh
+npm run dev:react
+```
+
+Full host with legend toggle and hover options: [`apps/react-playground/src/OwlplotChart.tsx`](apps/react-playground/src/OwlplotChart.tsx).
 
 ## Example
 

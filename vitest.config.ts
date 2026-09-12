@@ -6,9 +6,19 @@ export default defineConfig({
       {
         test: {
           include: ['**/packages/renderer-svg/**/*.{test,spec}.ts'],
+          exclude: ['**/packages/renderer-svg/**/serialize/**'],
           name: 'renderer-svg',
           environment: 'jsdom',
           setupFiles: ['./packages/renderer-svg/vitest.setup.ts'],
+        },
+      },
+      {
+        test: {
+          include: [
+            '**/packages/renderer-svg/**/serialize/**/*.{test,spec}.ts',
+          ],
+          name: 'renderer-svg-serialize',
+          environment: 'node',
         },
       },
       {

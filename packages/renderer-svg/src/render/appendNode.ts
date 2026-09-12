@@ -1,4 +1,4 @@
-import type { SceneNode, ContinuousScale, SceneTransform } from '@owlplot/core'
+import type { SceneNode } from '@owlplot/core'
 import { SceneNodeKind, TooltipKind } from '@owlplot/core'
 import { createSvgElement } from './svgDom'
 import { setStyle } from './setStyle'
@@ -11,65 +11,17 @@ import {
   DATA_X,
   DATA_Y,
 } from '../shared/dataAttributes'
-import { buildTrianglePath, buildDiamondPath } from './pointShapePaths'
+import { serializeSceneTransform } from '../shared/sceneTransform'
+import {
+  realizePointNode,
+  isDualScale,
+  type PointRenderContext,
+  type HoverScales,
+} from './realizePoint'
 
-/** Single-scale: one y. Dual-scale: yLeft and yRight. No mixing. */
-export type HoverScales =
-  | { x: ContinuousScale; y: ContinuousScale }
-  | { x: ContinuousScale; yLeft: ContinuousScale; yRight: ContinuousScale }
-
-export function isDualScale(
-  scales: HoverScales
-): scales is { x: ContinuousScale; yLeft: ContinuousScale; yRight: ContinuousScale } {
-  return 'yLeft' in scales
-}
-
-/** Render context: scales + series→axis map. Scale resolution by seriesId only. */
-export type AppendNodeContext = {
-  scales: HoverScales
-  seriesYAxis: Record<string, 'left' | 'right'>
-}
-
-function serializeSceneTransformValue(
-  transform: SceneTransform
-): string | undefined {
-  if (transform.kind === 'translate') {
-    return `translate(${transform.x},${transform.y})`
-  }
-
-  if (transform.kind === 'rotate') {
-    if (transform.originX != null && transform.originY != null) {
-      return `rotate(${transform.degrees} ${transform.originX} ${transform.originY})`
-    }
-    return `rotate(${transform.degrees})`
-  }
-
-  return undefined
-}
-
-function serializeSceneTransform(
-  transform: SceneTransform | SceneTransform[] | undefined
-): string | undefined {
-  if (transform == null) return undefined
-  const transforms = Array.isArray(transform) ? transform : [transform]
-  const parts = transforms
-    .map(serializeSceneTransformValue)
-    .filter((value): value is string => value != null && value !== '')
-  return parts.length > 0 ? parts.join(' ') : undefined
-}
-
-function getYScaleForSeries(
-  seriesId: string,
-  ctx: AppendNodeContext
-): (v: number) => number {
-  const side = ctx.seriesYAxis[seriesId] ?? 'left'
-  if (isDualScale(ctx.scales)) {
-    return side === 'right'
-      ? ctx.scales.yRight.forward.bind(ctx.scales.yRight)
-      : ctx.scales.yLeft.forward.bind(ctx.scales.yLeft)
-  }
-  return ctx.scales.y.forward.bind(ctx.scales.y)
-}
+export type { HoverScales, PointRenderContext }
+export { isDualScale }
+export type AppendNodeContext = PointRenderContext
 
 function stampPointDataAttributes(
   el: SVGElement,
@@ -151,62 +103,34 @@ export function appendNode(
         }
         break
       }
-      const seriesId = (node as unknown as { seriesId: string }).seriesId
-      if (seriesId == null && process.env.NODE_ENV !== 'production') {
-        console.warn(
-          '[owlplot] ScenePointNode requires seriesId; skipping point.'
-        )
-        break
-      }
-      const cx = context.scales.x.forward(node.x)
-      const yScale = getYScaleForSeries(seriesId, context)
-      const cy = yScale(node.y)
-      const size = node.point.size
-      const shape = node.point.shape
-
-      if (shape.kind === 'circle') {
+      const realized = realizePointNode(node, context)
+      if (!realized) break
+      if (realized.tag === 'circle') {
         el = createSvgElement('circle')
-        el.setAttribute(SvgAttributeName.CX, String(cx))
-        el.setAttribute(SvgAttributeName.CY, String(cy))
-        el.setAttribute(SvgAttributeName.R, String(size))
-      } else if (shape.kind === 'square') {
-        // Circumradius = size => half-diagonal = size => side = size * sqrt(2)
-        const halfSide = size * Math.SQRT1_2
+        el.setAttribute(SvgAttributeName.CX, String(realized.cx))
+        el.setAttribute(SvgAttributeName.CY, String(realized.cy))
+        el.setAttribute(SvgAttributeName.R, String(realized.r))
+      } else if (realized.tag === 'rect') {
         el = createSvgElement('rect')
-        el.setAttribute(SvgAttributeName.X, String(cx - halfSide))
-        el.setAttribute(SvgAttributeName.Y, String(cy - halfSide))
-        el.setAttribute('width', String(2 * halfSide))
-        el.setAttribute('height', String(2 * halfSide))
-      } else if (shape.kind === 'triangle') {
+        el.setAttribute(SvgAttributeName.X, String(realized.x))
+        el.setAttribute(SvgAttributeName.Y, String(realized.y))
+        el.setAttribute('width', String(realized.width))
+        el.setAttribute('height', String(realized.height))
+      } else if (realized.tag === 'path') {
         el = createSvgElement('path')
-        el.setAttribute(SvgAttributeName.D, buildTrianglePath(size))
-        el.setAttribute(SvgAttributeName.TRANSFORM, `translate(${cx},${cy})`)
-      } else if (shape.kind === 'diamond') {
-        el = createSvgElement('path')
-        el.setAttribute(SvgAttributeName.D, buildDiamondPath(size))
-        el.setAttribute(SvgAttributeName.TRANSFORM, `translate(${cx},${cy})`)
-      } else if (shape.kind === 'symbol') {
-        // No registry yet; fall back to circle
-        el = createSvgElement('circle')
-        el.setAttribute(SvgAttributeName.CX, String(cx))
-        el.setAttribute(SvgAttributeName.CY, String(cy))
-        el.setAttribute(SvgAttributeName.R, String(size))
-      } else if (shape.kind === 'emoji') {
-        el = createSvgElement('text')
-        el.setAttribute(SvgAttributeName.X, String(cx))
-        el.setAttribute(SvgAttributeName.Y, String(cy))
-        el.setAttribute(SvgAttributeName.TEXT_ANCHOR, 'middle')
-        el.setAttribute(SvgAttributeName.DOMINANT_BASELINE, 'central')
-        el.setAttribute(
-          SvgAttributeName.FONT_SIZE,
-          String(Math.round(size * 2))
-        )
-        el.textContent = shape.value
+        el.setAttribute(SvgAttributeName.D, realized.d)
+        el.setAttribute(SvgAttributeName.TRANSFORM, realized.transform)
       } else {
-        el = createSvgElement('circle')
-        el.setAttribute(SvgAttributeName.CX, String(cx))
-        el.setAttribute(SvgAttributeName.CY, String(cy))
-        el.setAttribute(SvgAttributeName.R, String(size))
+        el = createSvgElement('text')
+        el.setAttribute(SvgAttributeName.X, String(realized.x))
+        el.setAttribute(SvgAttributeName.Y, String(realized.y))
+        el.setAttribute(SvgAttributeName.TEXT_ANCHOR, realized.textAnchor)
+        el.setAttribute(
+          SvgAttributeName.DOMINANT_BASELINE,
+          realized.dominantBaseline
+        )
+        el.setAttribute(SvgAttributeName.FONT_SIZE, String(realized.fontSize))
+        el.textContent = realized.text
       }
       if (el) stampPointDataAttributes(el, node)
       break

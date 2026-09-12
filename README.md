@@ -83,6 +83,7 @@ Today the repo includes:
 - core compute logic for line charts
 - deterministic scene generation with snapshot tests
 - an SVG renderer with modular rendering, tooltip, and hover systems
+- `sceneToSvgString` for Node/SSR markup from the same scene (tooltip, hover, and legend overlay are out of string v1)
 - a demo playground for exploring scene output and renderer behavior
 
 Current interaction work includes:

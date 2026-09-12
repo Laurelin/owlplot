@@ -23,3 +23,5 @@ export {
   createCanvasMeasureText,
   canvasMeasureText,
 } from './measure/canvasMeasureText'
+export { sceneToSvgString } from './serialize/sceneToSvgString'
+export type { SvgStringSize } from './serialize/sceneToSvgString'

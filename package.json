@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "lint": "eslint . --ignore-pattern '**/dist/**'",
     "dev:demo": "npm --workspace apps/svg-playground run dev",
+    "dev:react": "npm --workspace apps/react-playground run dev",
     "build:demo": "npm --workspace apps/svg-playground run build",
     "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
     "ci": "npm run build && npm run check:exports && npm run test",

@@ -1,11 +1,11 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { fileURLToPath } from 'node:url'
 
-const here = fileURLToPath(new URL('.', import.meta.url))
-const rendererSrc = join(here, '..')
-const repoRoot = join(rendererSrc, '../../..')
+// Resolve from repo root (vitest cwd). Avoid import.meta.url — vitest can
+// surface a non-file scheme and crash the suite at load (ERR_INVALID_URL_SCHEME).
+const repoRoot = process.cwd()
+const rendererSrc = join(repoRoot, 'packages/renderer-svg/src')
 
 function walkSourceFiles(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

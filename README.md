@@ -98,7 +98,7 @@ Near-term expansion is still what the architecture already points toward:
 
 - more projections built on the same scene model
 - more renderers and integration surfaces
-- better docs and examples around scene transforms
+- more scene-transform examples in the playground
 
 ## Recipes
 
@@ -191,6 +191,80 @@ npm run export:svg -- ./out/chart.svg
 ```
 
 That runs `scripts/export-chart-svg.ts` via `scripts/export-chart-svg.mjs`.
+
+
+### Scene transform (customize the scene)
+
+Customization is a pure `scene → scene` function. Compute the scene, transform it, then render. Do not add a new chart option for a one-off visual change.
+
+```ts
+import { ChartKind, SceneNodeKind, computeChartScene } from '@owlplot/core'
+import {
+  createCanvasMeasureText,
+  renderSvgScene,
+  sceneToSvgString,
+} from '@owlplot/renderer-svg'
+import type { SceneNode } from '@owlplot/core'
+
+/** Drop path/fill/point nodes for one series id. Pure: no SVG, Symbols, or DOM. */
+function dropSeriesNodes(seriesId: string) {
+  return (scene: SceneNode): SceneNode => {
+    if (scene.kind !== SceneNodeKind.GROUP) return scene
+    return {
+      ...scene,
+      children: scene.children.filter(
+        node =>
+          node.id !== `series:${seriesId}` &&
+          node.id !== `series-fill:${seriesId}` &&
+          !node.id.startsWith(`point:${seriesId}:`)
+      ),
+    }
+  }
+}
+
+const size = { width: 640, height: 360 }
+const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+svg.setAttribute('width', String(size.width))
+svg.setAttribute('height', String(size.height))
+document.body.appendChild(svg)
+
+const { scene } = computeChartScene(
+  {
+    kind: ChartKind.LINE,
+    series: [
+      {
+        id: 'revenue',
+        points: [
+          { x: 0, y: 100 },
+          { x: 1, y: 120 },
+          { x: 2, y: 110 },
+        ],
+      },
+      {
+        id: 'expenses',
+        points: [
+          { x: 0, y: 80 },
+          { x: 1, y: 85 },
+          { x: 2, y: 90 },
+        ],
+      },
+    ],
+  },
+  size,
+  {
+    devicePixelRatio: window.devicePixelRatio || 1,
+    measureText: createCanvasMeasureText(),
+  }
+)
+
+const transformed = dropSeriesNodes('expenses')(scene)
+renderSvgScene(transformed, svg)
+
+// Same transform before Node export:
+// sceneToSvgString(transformed, size)
+```
+
+The SVG playground wires the same pattern via `sceneTransforms` on a demo (see **Scene Transforms** tab). Helpers stay in the app or a README snippet — there is no `@owlplot/transforms` package.
 
 ## Example
 

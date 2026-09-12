@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { SceneNodeKind, type SceneNode } from '@owlplot/core'
-import { applySceneTransforms, type SceneTransform } from './sceneTransforms'
+import {
+  applySceneTransforms,
+  dropSeriesNodes,
+  type SceneTransform,
+} from './sceneTransforms'
+import { transformCharts } from '../charts/transforms'
 
 function makeRoot(id: string): SceneNode {
   return {
@@ -71,5 +76,78 @@ describe('applySceneTransforms', () => {
     expect(() => applySceneTransforms(scene, [invalidTransform])).toThrow(
       'SceneTransform must return a GROUP root node'
     )
+  })
+})
+
+describe('dropSeriesNodes', () => {
+  it('drops series path, fill, and point nodes for the given series id', () => {
+    const scene: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'root',
+      children: [
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:revenue',
+          d: 'M 0 0',
+        },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:expenses',
+          d: 'M 1 1',
+        },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series-fill:expenses',
+          d: 'M 2 2',
+        },
+        {
+          kind: SceneNodeKind.POINT,
+          id: 'point:expenses:0',
+          seriesId: 'expenses',
+          x: 0,
+          y: 1,
+          point: { shape: { kind: 'circle' }, size: 3 },
+        },
+        {
+          kind: SceneNodeKind.POINT,
+          id: 'point:revenue:0',
+          seriesId: 'revenue',
+          x: 0,
+          y: 2,
+          point: { shape: { kind: 'circle' }, size: 3 },
+        },
+      ],
+    }
+
+    const result = dropSeriesNodes('expenses')(scene)
+
+    expect(result.kind).toBe(SceneNodeKind.GROUP)
+    expect(result.children.map(child => child.id)).toEqual([
+      'series:revenue',
+      'point:revenue:0',
+    ])
+  })
+})
+
+describe('scene-transform demo wiring', () => {
+  it('wires dropSeriesNodes into sceneTransforms on the drop-series demo', () => {
+    const demo = transformCharts.find(
+      entry => entry.id === 'scene-transform-drop-series'
+    )
+    expect(demo).toBeDefined()
+    expect(demo?.sceneTransforms).toHaveLength(1)
+
+    const scene: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'root',
+      children: [
+        { kind: SceneNodeKind.PATH, id: 'series:revenue', d: 'M 0 0' },
+        { kind: SceneNodeKind.PATH, id: 'series:expenses', d: 'M 1 1' },
+      ],
+    }
+    const transformed = applySceneTransforms(scene, demo?.sceneTransforms)
+    expect(transformed.children.map(child => child.id)).toEqual([
+      'series:revenue',
+    ])
   })
 })

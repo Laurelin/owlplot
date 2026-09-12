@@ -5,6 +5,7 @@ import { dataCharts } from './data'
 import { colorCharts } from './colors'
 import { legendsCharts } from './legends'
 import { complexityCharts } from './complexity'
+import { transformCharts } from './transforms'
 import type { ChartGroup } from '../shared/types'
 
 export const chartGroups: readonly ChartGroup[] = [
@@ -15,4 +16,5 @@ export const chartGroups: readonly ChartGroup[] = [
   { id: 'colors', label: 'Colors & Paint', demos: colorCharts },
   { id: 'legends', label: 'Legends', demos: legendsCharts },
   { id: 'complexity', label: 'Complexity Charts', demos: complexityCharts },
+  { id: 'transforms', label: 'Scene Transforms', demos: transformCharts },
 ] as const

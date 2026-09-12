@@ -297,6 +297,9 @@ export type Cartesian2DOptions = {
     x?: Partial<AxisVisibility>
     y?: Partial<AxisVisibility>
   }
+
+  /** Series ids omitted from geometry/hover; still listed in legend. */
+  hiddenSeriesIds?: readonly string[]
 }
 
 export type LineChartOptions = Cartesian2DOptions

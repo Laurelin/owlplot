@@ -50,9 +50,15 @@ export type LegendOptions = {
     fontWeight?: string | number
     letterSpacingPx?: number
   }
+  /** Current hidden ids (legend dimming only). */
+  hiddenSeriesIds?: ReadonlySet<string> | readonly string[]
+  /** App must recompute scene when this fires. */
+  onToggleSeries?: (seriesId: string) => void
 }
 
-const DEFAULT_OPTIONS: Required<LegendOptions> = {
+const DEFAULT_OPTIONS: Required<
+  Omit<LegendOptions, 'hiddenSeriesIds' | 'onToggleSeries'>
+> = {
   placement: 'outside',
   anchor: 'bottom-center',
   direction: 'row',
@@ -103,41 +109,6 @@ function getLegendMetadata(scene: SceneNode): LegendMetadata | undefined {
     return undefined
   }
   return metadata
-}
-
-function collectSeriesElements(
-  svg: SVGSVGElement,
-  seriesId: string
-): SVGElement[] {
-  const elements: SVGElement[] = []
-
-  const linePath = svg.querySelector(
-    `[${SvgAttributeName.ID}="series:${seriesId}"]`
-  ) as SVGElement | null
-  if (linePath) elements.push(linePath)
-  const areaFillPath = svg.querySelector(
-    `[${SvgAttributeName.ID}="series-fill:${seriesId}"]`
-  ) as SVGElement | null
-  if (areaFillPath) elements.push(areaFillPath)
-
-  const bySeries = Array.from(
-    svg.querySelectorAll(`[${DATA_SERIES_ID}]`)
-  ).filter(el => el.getAttribute(DATA_SERIES_ID) === seriesId) as SVGElement[]
-  elements.push(...bySeries)
-
-  return elements
-}
-
-export function applySeriesVisibility(
-  svg: SVGSVGElement,
-  seriesId: string,
-  hiddenSeriesIds: ReadonlySet<string>
-): void {
-  const hidden = hiddenSeriesIds.has(seriesId)
-  const elements = collectSeriesElements(svg, seriesId)
-  for (const element of elements) {
-    element.style.display = hidden ? 'none' : ''
-  }
 }
 
 function readSvgDimension(
@@ -443,7 +414,7 @@ function renderExternalLegend(
   svg: SVGSVGElement,
   legendHost: HTMLElement,
   entries: LegendMetadata['entries'],
-  hiddenSeriesIds: Set<string>,
+  hiddenSeriesIds: ReadonlySet<string>,
   options: ResolvedLegendOptions,
   typography: {
     fontSizePx: number
@@ -451,7 +422,8 @@ function renderExternalLegend(
     fontFamily: string
     fontWeight: string | number
     letterSpacingPx: number
-  }
+  },
+  onToggleSeries?: (seriesId: string) => void
 ): boolean {
   const axisToLegendGap =
     options.axisToLegendGap ??
@@ -540,13 +512,7 @@ function renderExternalLegend(
     }
 
     item.addEventListener('click', () => {
-      if (hiddenSeriesIds.has(entry.seriesId)) {
-        hiddenSeriesIds.delete(entry.seriesId)
-      } else {
-        hiddenSeriesIds.add(entry.seriesId)
-      }
-      applySeriesVisibility(svg, entry.seriesId, hiddenSeriesIds)
-      syncItemVisualState()
+      onToggleSeries?.(entry.seriesId)
     })
 
     syncItemVisualState()
@@ -590,7 +556,7 @@ function renderExternalLegend(
 function renderInsideSvgLegend(
   svg: SVGSVGElement,
   entries: LegendMetadata['entries'],
-  hiddenSeriesIds: Set<string>,
+  hiddenSeriesIds: ReadonlySet<string>,
   options: ResolvedLegendOptions,
   typography: {
     fontSizePx: number
@@ -599,7 +565,8 @@ function renderInsideSvgLegend(
     fontWeight: string | number
     letterSpacingPx: number
   },
-  plotRect?: { x: number; y: number; width: number; height: number }
+  plotRect?: { x: number; y: number; width: number; height: number },
+  onToggleSeries?: (seriesId: string) => void
 ): void {
   const swatchSize = clamp(
     Math.round(typography.fontSizePx * SWATCH_EM),
@@ -743,13 +710,7 @@ function renderInsideSvgLegend(
     }
 
     item.addEventListener('click', () => {
-      if (hiddenSeriesIds.has(entry.seriesId)) {
-        hiddenSeriesIds.delete(entry.seriesId)
-      } else {
-        hiddenSeriesIds.add(entry.seriesId)
-      }
-      applySeriesVisibility(svg, entry.seriesId, hiddenSeriesIds)
-      syncItemVisualState()
+      onToggleSeries?.(entry.seriesId)
     })
 
     syncItemVisualState()
@@ -763,10 +724,17 @@ function renderInsideSvgLegend(
   svg.appendChild(root)
 }
 
+function toHiddenSet(
+  hidden?: ReadonlySet<string> | readonly string[]
+): ReadonlySet<string> {
+  if (hidden == null) return new Set()
+  if (hidden instanceof Set) return hidden
+  return new Set(hidden)
+}
+
 export function renderLegend(
   scene: SceneNode,
   svg: SVGSVGElement,
-  hiddenSeriesIds: Set<string>,
   options?: LegendOptions,
   plotRect?: { x: number; y: number; width: number; height: number },
   legendHost?: HTMLElement
@@ -781,15 +749,8 @@ export function renderLegend(
   }
 
   const entries = [...legendMetadata.entries].sort((a, b) => a.order - b.order)
-  const allowedSeriesIds = new Set(entries.map(entry => entry.seriesId))
-
-  for (const hiddenId of Array.from(hiddenSeriesIds)) {
-    if (!allowedSeriesIds.has(hiddenId)) hiddenSeriesIds.delete(hiddenId)
-  }
-
-  for (const entry of entries) {
-    applySeriesVisibility(svg, entry.seriesId, hiddenSeriesIds)
-  }
+  const hiddenSeriesIds = toHiddenSet(options?.hiddenSeriesIds)
+  const onToggleSeries = options?.onToggleSeries
 
   const typography = resolveTypography(svg, resolvedOptions.typography)
 
@@ -813,7 +774,8 @@ export function renderLegend(
       entries,
       hiddenSeriesIds,
       resolvedOptions,
-      typography
+      typography,
+      onToggleSeries
     )
     return
   }
@@ -824,6 +786,7 @@ export function renderLegend(
     hiddenSeriesIds,
     resolvedOptions,
     typography,
-    plotRect
+    plotRect,
+    onToggleSeries
   )
 }

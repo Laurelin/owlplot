@@ -2,10 +2,7 @@ import { JSDOM } from 'jsdom'
 import { SceneNodeKind, TooltipKind, type SceneNode } from '@owlplot/core'
 import { renderSvgScene } from '../src/index'
 import { expect, it, beforeEach, vi } from 'vitest'
-import {
-  DATA_SERIES_ID,
-  DATA_LEGEND_ITEM_SERIES_ID,
-} from '../src/shared/dataAttributes'
+import { DATA_LEGEND_ITEM_SERIES_ID } from '../src/shared/dataAttributes'
 
 const testGlobal = globalThis as unknown as {
   window: Window & typeof globalThis
@@ -194,11 +191,12 @@ it('omits fill-opacity when style.fillOpacity is not provided', () => {
   expect(path?.hasAttribute('fill-opacity')).toBe(false)
 })
 
-it('toggles series visibility from legend item clicks by series id', () => {
+it('legend click invokes onToggleSeries without display:none hide', () => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.setAttribute('width', '300')
   svg.setAttribute('height', '180')
   const host = createChartHost(svg)
+  const onToggleSeries = vi.fn()
   const scene: SceneNode = {
     kind: SceneNodeKind.GROUP,
     id: 'root',
@@ -231,22 +229,6 @@ it('toggles series visibility from legend item clicks by series id', () => {
         d: 'M0,40L100,10',
         style: { stroke: { type: 'solid', color: '#0000ff' } },
       },
-      {
-        kind: SceneNodeKind.CIRCLE,
-        id: 'point:b:0',
-        cx: 20,
-        cy: 30,
-        r: 2,
-        metadata: {
-          tooltip: {
-            kind: TooltipKind.POINT,
-            seriesId: 'b',
-            values: { b: 1, x: 0 },
-            points: [{ seriesId: 'b', x: 0, y: 1 }],
-            x: 0,
-          },
-        },
-      },
     ],
     metadata: {
       legend: {
@@ -268,7 +250,10 @@ it('toggles series visibility from legend item clicks by series id', () => {
     },
   }
 
-  renderSvgScene(scene, svg, { legendHost: host })
+  renderSvgScene(scene, svg, {
+    legendHost: host,
+    legend: { onToggleSeries },
+  })
 
   const legendItem = host.querySelector(
     `[${DATA_LEGEND_ITEM_SERIES_ID}="a"]`
@@ -278,24 +263,56 @@ it('toggles series visibility from legend item clicks by series id', () => {
   const seriesPath = svg.querySelector('[id="series:a"]') as SVGElement | null
   expect(seriesPath).not.toBeNull()
 
-  const seriesGlyphs = Array.from(
-    svg.querySelectorAll(`[${DATA_SERIES_ID}]`)
-  ).filter(el => el.getAttribute(DATA_SERIES_ID) === 'a') as SVGElement[]
-  expect(seriesGlyphs.length).toBeGreaterThan(0)
-
   legendItem?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
 
-  expect(seriesPath?.style.display).toBe('none')
-  for (const glyph of seriesGlyphs) {
-    expect(glyph.style.display).toBe('none')
+  expect(onToggleSeries).toHaveBeenCalledTimes(1)
+  expect(onToggleSeries).toHaveBeenCalledWith('a')
+  expect(seriesPath?.style.display).not.toBe('none')
+})
+
+it('dims legend swatch from hiddenSeriesIds options without DOM unload', () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('width', '300')
+  svg.setAttribute('height', '180')
+  const host = createChartHost(svg)
+  const scene: SceneNode = {
+    kind: SceneNodeKind.GROUP,
+    id: 'root',
+    children: [
+      {
+        kind: SceneNodeKind.PATH,
+        id: 'series:a',
+        d: 'M0,10L100,40',
+        style: { stroke: { type: 'solid', color: '#ff0000' } },
+      },
+    ],
+    metadata: {
+      legend: {
+        entries: [
+          {
+            seriesId: 'a',
+            label: 'a',
+            paint: { type: 'solid', color: '#ff0000' },
+            order: 0,
+          },
+        ],
+      },
+    },
   }
 
-  legendItem?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+  renderSvgScene(scene, svg, {
+    legendHost: host,
+    legend: { hiddenSeriesIds: ['a'] },
+  })
 
-  expect(seriesPath?.style.display).toBe('')
-  for (const glyph of seriesGlyphs) {
-    expect(glyph.style.display).toBe('')
-  }
+  const legendItem = host.querySelector(
+    `[${DATA_LEGEND_ITEM_SERIES_ID}="a"]`
+  ) as HTMLButtonElement | null
+  const swatch = legendItem?.querySelector('span') as HTMLElement | null
+  expect(swatch?.style.opacity).toBe('0.35')
+
+  const seriesPath = svg.querySelector('[id="series:a"]') as SVGElement | null
+  expect(seriesPath?.style.display).not.toBe('none')
 })
 
 it('supports disabling legend rendering', () => {

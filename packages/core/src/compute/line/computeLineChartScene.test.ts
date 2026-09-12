@@ -1294,3 +1294,71 @@ describe('computeChartScene (line)', () => {
     })
   })
 })
+
+
+describe('hiddenSeriesIds (recompute hide)', () => {
+  const env = { devicePixelRatio: 2, measureText: approximateMeasureText }
+  const size = { width: 640, height: 360 }
+
+  it('omits hidden series from geometry and hover but keeps legend entries', () => {
+    const config: ChartConfig = {
+      kind: ChartKind.LINE,
+      series: [
+        {
+          id: 'a',
+          points: [
+            { x: 0, y: 1 },
+            { x: 1, y: 2 },
+          ],
+        },
+        {
+          id: 'b',
+          points: [
+            { x: 0, y: 2 },
+            { x: 1, y: 1 },
+          ],
+        },
+      ],
+      options: { hiddenSeriesIds: ['b'], showPoints: true },
+    }
+
+    const result = computeChartScene(config, size, env)
+    const ids = collectSceneNodeIds(result.scene)
+    expect(ids.some(id => id === 'series:a' || id.startsWith('series:a'))).toBe(
+      true
+    )
+    expect(ids.some(id => id === 'series:b' || id.startsWith('series:b'))).toBe(
+      false
+    )
+    expect(ids.some(id => id.startsWith('point:b:'))).toBe(false)
+
+    const legend = getLegendEntries(result)
+    expect(legend?.map(e => e.seriesId)).toEqual(['a', 'b'])
+
+    const hoverSeries = result.scene.metadata?.hover?.series ?? []
+    expect(hoverSeries.map((s: { id: string }) => s.id)).toEqual(['a'])
+  })
+
+  it('still produces a valid scene when all series are hidden', () => {
+    const config: ChartConfig = {
+      kind: ChartKind.LINE,
+      series: [
+        {
+          id: 'a',
+          points: [
+            { x: 0, y: 1 },
+            { x: 1, y: 2 },
+          ],
+        },
+      ],
+      options: { hiddenSeriesIds: ['a'] },
+    }
+
+    const result = computeChartScene(config, size, env)
+    expect(result.scene.kind).toBeDefined()
+    expect(result.scene.id).toBe('root')
+    const ids = collectSceneNodeIds(result.scene)
+    expect(ids.some(id => id.startsWith('series:'))).toBe(false)
+    expect(getLegendEntries(result)?.map(e => e.seriesId)).toEqual(['a'])
+  })
+})

@@ -35,7 +35,6 @@ import {
   TOOLTIP_CONTEXT_SYMBOL,
   SERIES_STYLES_SYMBOL,
   SERIES_POINT_SHAPES_SYMBOL,
-  HIDDEN_SERIES_IDS_SYMBOL,
 } from '../shared/symbols'
 import {
   HoverModeKind,
@@ -138,8 +137,6 @@ export function renderSvgScene(
   extendedSvg[SERIES_STYLES_SYMBOL] = buildSeriesStylesFromScene(scene)
   extendedSvg[SERIES_POINT_SHAPES_SYMBOL] =
     buildSeriesPointShapesFromScene(scene)
-  const hiddenSeriesIds = extendedSvg[HIDDEN_SERIES_IDS_SYMBOL] ?? new Set()
-  extendedSvg[HIDDEN_SERIES_IDS_SYMBOL] = hiddenSeriesIds
 
   clearSvg(svg)
   const rawHover = scene.metadata?.hover
@@ -162,11 +159,12 @@ export function renderSvgScene(
     (typeof legendOption === 'object' && legendOption.placement === 'none')
   if (!legendDisabled) {
     const legendOptions: LegendOptions =
-      typeof legendOption === 'object' ? legendOption : {}
+      typeof legendOption === 'object' && legendOption != null
+        ? legendOption
+        : {}
     renderLegend(
       scene,
       svg,
-      hiddenSeriesIds,
       legendOptions,
       hydratedHover?.plotRect,
       options?.legendHost

@@ -1,6 +1,6 @@
 import { computeChartScene, approximateMeasureText } from '@owlplot/core'
-import { renderSvgScene } from '@owlplot/renderer-svg'
-import type { ChartDemo } from './types'
+import { renderSvgScene, type LegendOptions } from '@owlplot/renderer-svg'
+import type { ChartDemo, RenderOptions } from './types'
 import { applySceneTransforms } from './sceneTransforms'
 
 // Sizing token - exported for future use (small multiples, responsive, export)
@@ -11,6 +11,8 @@ export const DEFAULT_CHART_SIZE = {
 
 const MAX_CHART_WIDTH = 1200
 const CHART_ASPECT_RATIO = 0.56
+
+const hiddenSeriesIdsByContainer = new WeakMap<HTMLElement, string[]>()
 
 function resolveChartSize(container: HTMLElement): { width: number; height: number } {
   const alignHost =
@@ -24,7 +26,25 @@ function resolveChartSize(container: HTMLElement): { width: number; height: numb
   return { width, height }
 }
 
+function mergeLegendOptions(
+  demoLegend: RenderOptions['legend'],
+  hiddenSeriesIds: readonly string[],
+  onToggleSeries: (seriesId: string) => void
+): LegendOptions | boolean | null {
+  if (demoLegend === null || demoLegend === false) return demoLegend
+  const base: LegendOptions =
+    typeof demoLegend === 'object' && demoLegend != null ? { ...demoLegend } : {}
+  return {
+    ...base,
+    hiddenSeriesIds,
+    onToggleSeries,
+  }
+}
+
 export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
+  const hiddenSeriesIds = hiddenSeriesIdsByContainer.get(container) ?? []
+  container.replaceChildren()
+
   const size = resolveChartSize(container)
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.setAttribute('width', String(size.width))
@@ -32,16 +52,33 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
   svg.classList.add('chart-svg')
   container.appendChild(svg)
 
-  const result = computeChartScene(
-    demo.config,
-    size,
-    {
-      devicePixelRatio: window.devicePixelRatio || 1,
-      measureText: approximateMeasureText,
-    }
-  )
+  const config = {
+    ...demo.config,
+    options: {
+      ...demo.config.options,
+      hiddenSeriesIds,
+    },
+  }
+
+  const result = computeChartScene(config, size, {
+    devicePixelRatio: window.devicePixelRatio || 1,
+    measureText: approximateMeasureText,
+  })
   const baseScene = result.scene
   const scene = applySceneTransforms(baseScene, demo.sceneTransforms)
+
+  const legend = mergeLegendOptions(
+    demo.renderOptions?.legend,
+    hiddenSeriesIds,
+    (seriesId: string) => {
+      const current = hiddenSeriesIdsByContainer.get(container) ?? []
+      const next = current.includes(seriesId)
+        ? current.filter(id => id !== seriesId)
+        : [...current, seriesId]
+      hiddenSeriesIdsByContainer.set(container, next)
+      renderChartInto(container, demo)
+    }
+  )
 
   renderSvgScene(scene, svg, {
     tooltip: demo.renderOptions?.tooltip,
@@ -52,7 +89,7 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
     },
     hoverMode: demo.renderOptions?.hoverMode,
     hoverIndicator: demo.renderOptions?.hoverIndicator,
-    legend: demo.renderOptions?.legend,
+    legend,
     legendHost: container,
   })
 }

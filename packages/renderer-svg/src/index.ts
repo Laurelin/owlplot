@@ -18,3 +18,8 @@ export {
   HoverIndicatorKind,
   AnimationEasing,
 } from './shared/enums'
+
+export {
+  createCanvasMeasureText,
+  canvasMeasureText,
+} from './measure/canvasMeasureText'

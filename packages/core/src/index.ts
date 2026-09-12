@@ -4,6 +4,7 @@ export * from './env/types'
 export * from './format/number'
 export * from './scene/types'
 export * from './text/helpers'
+export type { MeasureText, TextMetrics } from './text/types'
 export type { HoverSeries } from './compute/line/scene'
 export type {
   ContinuousScale,

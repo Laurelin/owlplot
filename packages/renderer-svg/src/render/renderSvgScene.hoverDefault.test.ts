@@ -22,19 +22,18 @@ const testGlobal = globalThis as unknown as {
   document: Document
 }
 
-function identityScale() {
+/** Serializable scale descriptor (scene hover metadata shape). */
+function scaleDescriptor() {
   return {
     type: 'linear' as const,
-    domain: [0, 10] as const,
-    range: [0, 200] as const,
-    forward: (v: number) => v * 20,
-    invert: (v: number) => v / 20,
+    domain: [0, 10] as [number, number],
+    range: [0, 200] as [number, number],
   }
 }
 
 /** Production-shaped scene: POINT node with TooltipKind.POINT so glyphs get data-owlplot-* attrs. */
 function sceneWithStampedGlyphs(): SceneNode {
-  const scale = identityScale()
+  const scale = scaleDescriptor()
   return {
     id: 'root',
     kind: SceneNodeKind.GROUP,

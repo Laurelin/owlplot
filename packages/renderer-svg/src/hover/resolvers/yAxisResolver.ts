@@ -1,7 +1,7 @@
 import type {
   HoverResolver,
-  HoverMetadataSingle,
-  HoverMetadataDual,
+  RuntimeHoverMetadataSingle,
+  RuntimeHoverMetadataDual,
 } from '../types'
 
 /**
@@ -16,13 +16,13 @@ export function createYAxisResolver(): HoverResolver {
       const { scales, series } = metadata
       const isDual = 'yLeft' in scales
       const yDomain = isDual
-        ? (metadata as HoverMetadataDual).yDomainLeft
-        : (metadata as HoverMetadataSingle).yDomain
+        ? (metadata as RuntimeHoverMetadataDual).yDomainLeft
+        : (metadata as RuntimeHoverMetadataSingle).yDomain
 
       // Invert y coordinate to domain y (canonical: use left axis for slice)
       const domainY = isDual
-        ? (scales as HoverMetadataDual['scales']).yLeft.invert(mouseSvgY)
-        : (scales as HoverMetadataSingle['scales']).y.invert(mouseSvgY)
+        ? (scales as RuntimeHoverMetadataDual['scales']).yLeft.invert(mouseSvgY)
+        : (scales as RuntimeHoverMetadataSingle['scales']).y.invert(mouseSvgY)
       const [yMin, yMax] = yDomain
       const clampedY = Math.max(yMin, Math.min(yMax, domainY))
 
@@ -53,9 +53,9 @@ export function createYAxisResolver(): HoverResolver {
 
       if (points.length === 0) return { kind: 'none' }
 
-      const scalesDual = isDual ? (scales as HoverMetadataDual['scales']) : null
+      const scalesDual = isDual ? (scales as RuntimeHoverMetadataDual['scales']) : null
       const scalesSingle = !isDual
-        ? (scales as HoverMetadataSingle['scales'])
+        ? (scales as RuntimeHoverMetadataSingle['scales'])
         : null
       const getYScale = (s: (typeof series)[0]): ((v: number) => number) => {
         if (isDual && scalesDual)

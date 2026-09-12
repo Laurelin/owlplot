@@ -17,7 +17,7 @@ import {
 } from '../shared/symbols'
 import { HoverModeKind, HoverIndicatorKind } from '../shared/enums'
 import { SvgAttributeName } from '../shared/enums'
-import type { HoverMetadata } from './types'
+import type { RuntimeHoverMetadata } from './types'
 import * as svgCoordinates from '../shared/svgCoordinates'
 import * as glyphResolver from './resolvers/glyphResolver'
 import type { TooltipRenderer } from '../tooltip/types'
@@ -40,7 +40,7 @@ function identityScale() {
 describe('hover manager', () => {
   let svg: SVGSVGElement
   const plotRect = { x: 0, y: 0, width: 200, height: 100 }
-  const metadata: HoverMetadata = {
+  const metadata: RuntimeHoverMetadata = {
     scales: { x: identityScale(), y: identityScale() },
     plotRect,
     xDomain: [0, 10],
@@ -189,7 +189,7 @@ describe('hover manager', () => {
 
   describe('bands are non-hoverable context', () => {
     it('point hover resolution is unchanged when a full-plot band rect is present', async () => {
-      const metadataWithSeries: HoverMetadata = {
+      const metadataWithSeries: RuntimeHoverMetadata = {
         scales: { x: identityScale(), y: identityScale() },
         plotRect,
         xDomain: [0, 10],

@@ -25,6 +25,13 @@ export default defineConfig({
           environment: 'node',
         },
       },
+      {
+        test: {
+          include: ['**/test/**/*.{test,spec}.ts'],
+          name: 'exports',
+          environment: 'node',
+        },
+      },
     ],
     include: ['**/test/**/*.{test,spec}.ts', '**/*.{test,spec}.ts'],
     globals: true,

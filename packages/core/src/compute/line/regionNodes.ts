@@ -343,47 +343,47 @@ function emitNodes(
   axis: 'left' | 'right'
 ): SceneNode[] {
   const yScale = resolveYScale(scales, axis)
-  return polygons
-    .map((polygon, polygonIndex) => {
-      const projectedPoints = polygon.map(point => ({
-        x: scales.x.forward(point.x),
-        y: yScale.forward(point.y),
-      }))
-      if (
-        projectedPoints.some(
-          point => !Number.isFinite(point.x) || !Number.isFinite(point.y)
-        )
-      ) {
-        return null
-      }
-      const d = buildPolygonPath(projectedPoints)
-      if (d.length === 0) return null
+  const nodes: SceneNode[] = []
+  polygons.forEach((polygon, polygonIndex) => {
+    const projectedPoints = polygon.map(point => ({
+      x: scales.x.forward(point.x),
+      y: yScale.forward(point.y),
+    }))
+    if (
+      projectedPoints.some(
+        point => !Number.isFinite(point.x) || !Number.isFinite(point.y)
+      )
+    ) {
+      return
+    }
+    const d = buildPolygonPath(projectedPoints)
+    if (d.length === 0) return
 
-      const id =
-        polygonIndex === 0
-          ? `__region__:${regionIndex}`
-          : `__region__:${regionIndex}:${polygonIndex}`
+    const id =
+      polygonIndex === 0
+        ? `__region__:${regionIndex}`
+        : `__region__:${regionIndex}:${polygonIndex}`
 
-      return {
-        kind: SceneNodeKind.PATH,
-        id,
-        d,
-        style: {
-          fill: region.fill,
-          opacity: region.opacity,
-          stroke: { type: 'solid', color: 'none' },
-        },
-        metadata: {
-          role: 'region',
-          upper: region.upper,
-          lower: region.lower,
-          upperSeriesId: region.legacySeries?.upperSeriesId,
-          lowerSeriesId: region.legacySeries?.lowerSeriesId,
-          yAxis: axis,
-        },
-      } satisfies SceneNode
+    nodes.push({
+      kind: SceneNodeKind.PATH,
+      id,
+      d,
+      style: {
+        fill: region.fill,
+        opacity: region.opacity,
+        stroke: { type: 'solid', color: 'none' },
+      },
+      metadata: {
+        role: 'region',
+        upper: region.upper,
+        lower: region.lower,
+        upperSeriesId: region.legacySeries?.upperSeriesId,
+        lowerSeriesId: region.legacySeries?.lowerSeriesId,
+        yAxis: axis,
+      },
     })
-    .filter((node): node is SceneNode => node != null)
+  })
+  return nodes
 }
 
 export function compileDominanceRegions(

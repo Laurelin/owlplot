@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.4;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+
+.lede {
+  margin: 0 0 1.25rem;
+  color: color-mix(in srgb, CanvasText 70%, Canvas);
+  max-width: 42rem;
+}
+
+.chart-host {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.chart-svg {
+  display: block;
+  background: color-mix(in srgb, Canvas 92%, CanvasText 8%);
+  border-radius: 8px;
+}

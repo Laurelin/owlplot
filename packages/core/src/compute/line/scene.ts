@@ -154,6 +154,9 @@ export function scene(
   size: ChartSize,
   env: ChartEnvironment
 ): { scene: SceneNode } {
+  const hidden = new Set(config.options?.hiddenSeriesIds ?? [])
+  const seriesForCompute = config.series.filter(s => !hidden.has(s.id))
+
   const padding = mergePadding(config.options?.padding)
   const { bottomAxisConfig, leftAxisConfig, rightAxisConfig, layoutYAxis } =
     buildAxisConfigs(config)
@@ -167,7 +170,7 @@ export function scene(
     yDomain,
     yDomainLeft,
     yDomainRight,
-  } = computeCartesianLayout(config.series, size, env.measureText, {
+  } = computeCartesianLayout(seriesForCompute, size, env.measureText, {
     padding,
     xAxis: bottomAxisConfig,
     yAxis: layoutYAxis,
@@ -219,11 +222,11 @@ export function scene(
   const regionNodes = buildRegionNodes(
     config.options?.regions,
     config.options?.dominanceRegions,
-    config.series,
+    seriesForCompute,
     scales
   )
   const seriesNodes = buildSeriesNodes(
-    config.series,
+    seriesForCompute,
     scales,
     pointsEnabled,
     chartAreaFillOpacity,
@@ -290,7 +293,7 @@ export function scene(
   })
 
   const hover = buildHoverMetadata(
-    config.series,
+    seriesForCompute,
     scales,
     plotRect,
     xDomain,

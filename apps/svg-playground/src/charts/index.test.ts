@@ -57,4 +57,13 @@ describe('chart groups', () => {
 
     expect(demo?.meta?.badges).toHaveLength(5)
   })
+
+  it('registers a transforms tab with one drop-series demo', () => {
+    const transforms = chartGroups.find(group => group.id === 'transforms')
+    expect(transforms).toBeDefined()
+    expect(transforms?.label).toBe('Scene Transforms')
+    expect(transforms?.demos).toHaveLength(1)
+    expect(transforms?.demos[0]?.id).toBe('scene-transform-drop-series')
+    expect(transforms?.demos[0]?.sceneTransforms).toHaveLength(1)
+  })
 })

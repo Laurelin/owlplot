@@ -71,3 +71,4 @@ package-lock.json
 .cursor
 apps/svg-playground/SVGDemoQualityBar.md
 /chart.svg
+.tmp-dense-line-cost/

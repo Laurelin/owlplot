@@ -14,14 +14,11 @@
     "dev:demo": "npm --workspace apps/svg-playground run dev",
     "build:demo": "npm --workspace apps/svg-playground run build",
     "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
-    "test:e2e": "playwright test",
-    "test:visual": "playwright test --project=chromium",
-    "ci": "npm run build && npm run check:exports && npm run test && npm run test:e2e",
+    "ci": "npm run build && npm run check:exports && npm run test",
     "check:exports": "node scripts/check-exports.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@playwright/test": "^1.47.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.0",

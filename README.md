@@ -132,4 +132,13 @@ If we drift from scene-first, compute-first design, we are building a more typed
 git clone https://github.com/Laurelin/owlplot
 cd owlplot
 npm install
+npm run build
 ```
+
+Workspace packages (`@owlplot/core`, `@owlplot/renderer-svg`) expose a single public entry via `exports` (`.` + types). After build, verify package-name resolution:
+
+```sh
+npm run check:exports
+```
+
+That runs `scripts/check-exports.mjs` → vitest project `exports` (`test/exports.resolve.test.ts`), which dynamic-imports both package names. It is also part of `npm run ci`.

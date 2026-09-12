@@ -16,7 +16,8 @@
     "build:demo": "npm --workspace apps/svg-playground run build",
     "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
     "ci": "npm run build && npm run check:exports && npm run test",
-    "check:exports": "node scripts/check-exports.mjs"
+    "check:exports": "node scripts/check-exports.mjs",
+    "export:svg": "node scripts/export-chart-svg.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

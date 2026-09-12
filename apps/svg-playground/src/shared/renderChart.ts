@@ -1,7 +1,14 @@
-import { computeChartScene, approximateMeasureText } from '@owlplot/core'
-import { renderSvgScene, type LegendOptions } from '@owlplot/renderer-svg'
+import { computeChartScene } from '@owlplot/core'
+import {
+  createCanvasMeasureText,
+  renderSvgScene,
+  type LegendOptions,
+} from '@owlplot/renderer-svg'
 import type { ChartDemo, RenderOptions } from './types'
 import { applySceneTransforms } from './sceneTransforms'
+
+// Browser: canvas MeasureText. Node/tests keep approximateMeasureText from core.
+const measureText = createCanvasMeasureText()
 
 // Sizing token - exported for future use (small multiples, responsive, export)
 export const DEFAULT_CHART_SIZE = {
@@ -14,7 +21,10 @@ const CHART_ASPECT_RATIO = 0.56
 
 const hiddenSeriesIdsByContainer = new WeakMap<HTMLElement, string[]>()
 
-function resolveChartSize(container: HTMLElement): { width: number; height: number } {
+function resolveChartSize(container: HTMLElement): {
+  width: number
+  height: number
+} {
   const alignHost =
     (container.closest('.chart-plot-align') as HTMLElement | null) ?? container
   const containerWidth = alignHost.clientWidth || DEFAULT_CHART_SIZE.width
@@ -33,7 +43,9 @@ function mergeLegendOptions(
 ): LegendOptions | boolean | null {
   if (demoLegend === null || demoLegend === false) return demoLegend
   const base: LegendOptions =
-    typeof demoLegend === 'object' && demoLegend != null ? { ...demoLegend } : {}
+    typeof demoLegend === 'object' && demoLegend != null
+      ? { ...demoLegend }
+      : {}
   return {
     ...base,
     hiddenSeriesIds,
@@ -62,7 +74,7 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
 
   const result = computeChartScene(config, size, {
     devicePixelRatio: window.devicePixelRatio || 1,
-    measureText: approximateMeasureText,
+    measureText,
   })
   const baseScene = result.scene
   const scene = applySceneTransforms(baseScene, demo.sceneTransforms)

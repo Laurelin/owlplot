@@ -395,10 +395,12 @@ it('reserves footer space for default bottom legend to avoid overlap', () => {
   expect(host.querySelector('[data-owlplot-legend-root]')).not.toBeNull()
 })
 
-it('supports inside top-right legend without expanding svg height', () => {
+it('inside legend overlays without changing caller-set svg width/height', () => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.setAttribute('width', '300')
   svg.setAttribute('height', '180')
+  const widthBefore = svg.getAttribute('width')
+  const heightBefore = svg.getAttribute('height')
   const scene: SceneNode = {
     kind: SceneNodeKind.GROUP,
     id: 'root',
@@ -438,7 +440,13 @@ it('supports inside top-right legend without expanding svg height', () => {
     },
   })
 
+  expect(svg.getAttribute('width')).toBe(widthBefore)
+  expect(svg.getAttribute('height')).toBe(heightBefore)
+  expect(svg.getAttribute('width')).toBe('300')
   expect(svg.getAttribute('height')).toBe('180')
+  const legendRoot = svg.querySelector('[id="legend-root"]')
+  expect(legendRoot).not.toBeNull()
+  expect(legendRoot?.tagName.toLowerCase()).toBe('g')
   const legendItem = svg.querySelector(
     `[${DATA_LEGEND_ITEM_SERIES_ID}="circles"]`
   ) as SVGGElement | null

@@ -7,7 +7,12 @@
  * Out of string v1: tooltip, hover listeners, legend overlay, and gradient paints
  * (solid fill/stroke only; gradients are skipped).
  */
-import type { AnyPaint, SceneNode, SceneStyle } from '@owlplot/core'
+import type {
+  AnyPaint,
+  SceneNode,
+  ScenePointNode,
+  SceneStyle,
+} from '@owlplot/core'
 import {
   SceneNodeKind,
   isHoverMetadata,
@@ -36,25 +41,32 @@ function attrs(parts: Array<string | false | null | undefined>): string {
   return joined ? ` ${joined}` : ''
 }
 
+function serializePaintStyle(
+  key: 'fill' | 'stroke',
+  paint: AnyPaint
+): string | undefined {
+  if (paint.type !== 'solid') return undefined
+  return `${key}="${escapeXml(paint.color)}"`
+}
+
+function serializeStyleEntry(key: string, value: unknown): string | undefined {
+  if (value == null) return undefined
+  if (key === 'fontSizePx') {
+    return `font-size="${escapeXml(String(value))}px"`
+  }
+  if (key === 'fill' || key === 'stroke') {
+    return serializePaintStyle(key, value as AnyPaint)
+  }
+  const attr = key.replace(/([A-Z])/g, '-$1').toLowerCase()
+  return `${attr}="${escapeXml(String(value))}"`
+}
+
 function styleAttrs(style: SceneStyle | undefined): string {
   if (!style) return ''
   const parts: string[] = []
-  for (const [key, val] of Object.entries(style)) {
-    if (val == null) continue
-    if (key === 'fontSizePx') {
-      parts.push(`font-size="${escapeXml(String(val))}px"`)
-      continue
-    }
-    if (key === 'fill' || key === 'stroke') {
-      const paint = val as AnyPaint
-      if (paint.type === 'solid') {
-        parts.push(`${key}="${escapeXml(paint.color)}"`)
-      }
-      // Gradients skipped in string v1 (see file comment).
-      continue
-    }
-    const attr = key.replace(/([A-Z])/g, '-$1').toLowerCase()
-    parts.push(`${attr}="${escapeXml(String(val))}"`)
+  for (const [key, value] of Object.entries(style)) {
+    const part = serializeStyleEntry(key, value)
+    if (part) parts.push(part)
   }
   return parts.length > 0 ? ` ${parts.join(' ')}` : ''
 }
@@ -86,24 +98,103 @@ function buildPointContext(scene: SceneNode): PointRenderContext | undefined {
   return { scales, seriesYAxis }
 }
 
-function serializeNode(
-  node: SceneNode,
+function serializeRealizedPoint(
+  idAttr: string,
+  style: string,
+  realized: NonNullable<ReturnType<typeof realizePointNode>>
+): string {
+  switch (realized.tag) {
+    case 'circle':
+      return `<circle${attrs([
+        idAttr,
+        `cx="${realized.cx}"`,
+        `cy="${realized.cy}"`,
+        `r="${realized.r}"`,
+      ])}${style}/>`
+    case 'rect':
+      return `<rect${attrs([
+        idAttr,
+        `x="${realized.x}"`,
+        `y="${realized.y}"`,
+        `width="${realized.width}"`,
+        `height="${realized.height}"`,
+      ])}${style}/>`
+    case 'path':
+      return `<path${attrs([
+        idAttr,
+        `d="${escapeXml(realized.d)}"`,
+        `transform="${escapeXml(realized.transform)}"`,
+      ])}${style}/>`
+    case 'text':
+      return `<text${attrs([
+        idAttr,
+        `x="${realized.x}"`,
+        `y="${realized.y}"`,
+        `text-anchor="${realized.textAnchor}"`,
+        `dominant-baseline="${realized.dominantBaseline}"`,
+        `font-size="${realized.fontSize}"`,
+      ])}${style}>${escapeXml(realized.text)}</text>`
+  }
+}
+
+function serializePointNode(
+  node: ScenePointNode,
   context: PointRenderContext | undefined
 ): string {
   const idAttr = `id="${escapeXml(node.id)}"`
   const style = styleAttrs(node.style)
-
-  switch (node.kind) {
-    case SceneNodeKind.GROUP: {
-      const transform = serializeSceneTransform(node.transform)
-      const transformAttr = transform
-        ? `transform="${escapeXml(transform)}"`
-        : undefined
-      const children = node.children
-        .map(child => serializeNode(child, context))
-        .join('')
-      return `<g${attrs([idAttr, transformAttr])}${style}>${children}</g>`
+  if (!context) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[owlplot] ScenePointNode requires render context with scales and seriesYAxis; skipping point.'
+      )
     }
+    return ''
+  }
+  const realized = realizePointNode(node, context)
+  return realized ? serializeRealizedPoint(idAttr, style, realized) : ''
+}
+
+function serializeGroupNode(
+  node: Extract<SceneNode, { kind: 'group' }>,
+  context: PointRenderContext | undefined,
+  idAttr: string,
+  style: string
+): string {
+  const transform = serializeSceneTransform(node.transform)
+  const transformAttr = transform
+    ? `transform="${escapeXml(transform)}"`
+    : undefined
+  const children = node.children
+    .map(child => serializeNode(child, context))
+    .join('')
+  return `<g${attrs([idAttr, transformAttr])}${style}>${children}</g>`
+}
+
+function serializeTextNode(
+  node: Extract<SceneNode, { kind: 'text' }>,
+  idAttr: string,
+  style: string
+): string {
+  const transform = serializeSceneTransform(node.transform)
+  return `<text${attrs([
+    idAttr,
+    `x="${node.x}"`,
+    `y="${node.y}"`,
+    node.textAnchor ? `text-anchor="${escapeXml(node.textAnchor)}"` : undefined,
+    node.dominantBaseline
+      ? `dominant-baseline="${escapeXml(node.dominantBaseline)}"`
+      : undefined,
+    transform ? `transform="${escapeXml(transform)}"` : undefined,
+  ])}${style}>${escapeXml(node.text)}</text>`
+}
+
+function serializeShapeNode(
+  node: SceneNode,
+  idAttr: string,
+  style: string
+): string {
+  switch (node.kind) {
     case SceneNodeKind.PATH: {
       return `<path${attrs([idAttr, `d="${escapeXml(node.d)}"`])}${style}/>`
     }
@@ -124,69 +215,33 @@ function serializeNode(
         `r="${node.r}"`,
       ])}${style}/>`
     }
-    case SceneNodeKind.POINT: {
-      if (!context) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(
-            '[owlplot] ScenePointNode requires render context with scales and seriesYAxis; skipping point.'
-          )
-        }
-        return ''
-      }
-      const realized = realizePointNode(node, context)
-      if (!realized) return ''
-      if (realized.tag === 'circle') {
-        return `<circle${attrs([
-          idAttr,
-          `cx="${realized.cx}"`,
-          `cy="${realized.cy}"`,
-          `r="${realized.r}"`,
-        ])}${style}/>`
-      }
-      if (realized.tag === 'rect') {
-        return `<rect${attrs([
-          idAttr,
-          `x="${realized.x}"`,
-          `y="${realized.y}"`,
-          `width="${realized.width}"`,
-          `height="${realized.height}"`,
-        ])}${style}/>`
-      }
-      if (realized.tag === 'path') {
-        return `<path${attrs([
-          idAttr,
-          `d="${escapeXml(realized.d)}"`,
-          `transform="${escapeXml(realized.transform)}"`,
-        ])}${style}/>`
-      }
-      return `<text${attrs([
-        idAttr,
-        `x="${realized.x}"`,
-        `y="${realized.y}"`,
-        `text-anchor="${realized.textAnchor}"`,
-        `dominant-baseline="${realized.dominantBaseline}"`,
-        `font-size="${realized.fontSize}"`,
-      ])}${style}>${escapeXml(realized.text)}</text>`
-    }
-    case SceneNodeKind.TEXT: {
-      const transform = serializeSceneTransform(node.transform)
-      return `<text${attrs([
-        idAttr,
-        `x="${node.x}"`,
-        `y="${node.y}"`,
-        node.textAnchor
-          ? `text-anchor="${escapeXml(node.textAnchor)}"`
-          : undefined,
-        node.dominantBaseline
-          ? `dominant-baseline="${escapeXml(node.dominantBaseline)}"`
-          : undefined,
-        transform ? `transform="${escapeXml(transform)}"` : undefined,
-      ])}${style}>${escapeXml(node.text)}</text>`
-    }
-    default: {
+    default:
       return ''
-    }
   }
+}
+
+function serializeStandardNode(
+  node: SceneNode,
+  context: PointRenderContext | undefined
+): string {
+  const idAttr = `id="${escapeXml(node.id)}"`
+  const style = styleAttrs(node.style)
+  if (node.kind === SceneNodeKind.GROUP) {
+    return serializeGroupNode(node, context, idAttr, style)
+  }
+  if (node.kind === SceneNodeKind.TEXT) {
+    return serializeTextNode(node, idAttr, style)
+  }
+  return serializeShapeNode(node, idAttr, style)
+}
+
+function serializeNode(
+  node: SceneNode,
+  context: PointRenderContext | undefined
+): string {
+  return node.kind === SceneNodeKind.POINT
+    ? serializePointNode(node, context)
+    : serializeStandardNode(node, context)
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { ContinuousScale, ScenePointNode } from '@owlplot/core'
+import type { ContinuousScale, PointShape, ScenePointNode } from '@owlplot/core'
 import { buildTrianglePath, buildDiamondPath } from './pointShapePaths'
 
 /** Single-scale: one y. Dual-scale: yLeft and yRight. No mixing. */
@@ -6,9 +6,7 @@ export type HoverScales =
   | { x: ContinuousScale; y: ContinuousScale }
   | { x: ContinuousScale; yLeft: ContinuousScale; yRight: ContinuousScale }
 
-export function isDualScale(
-  scales: HoverScales
-): scales is {
+export function isDualScale(scales: HoverScales): scales is {
   x: ContinuousScale
   yLeft: ContinuousScale
   yRight: ContinuousScale
@@ -49,6 +47,59 @@ function getYScaleForSeries(
   return ctx.scales.y.forward.bind(ctx.scales.y)
 }
 
+function resolveSeriesId(node: ScenePointNode): string | null {
+  if (node.seriesId != null) return node.seriesId
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('[owlplot] ScenePointNode requires seriesId; skipping point.')
+  }
+  return null
+}
+
+function realizePointShape(
+  shape: PointShape,
+  size: number,
+  cx: number,
+  cy: number
+): RealizedPointElement {
+  switch (shape.kind) {
+    case 'square': {
+      const halfSide = size * Math.SQRT1_2
+      return {
+        tag: 'rect',
+        x: cx - halfSide,
+        y: cy - halfSide,
+        width: 2 * halfSide,
+        height: 2 * halfSide,
+      }
+    }
+    case 'triangle':
+      return {
+        tag: 'path',
+        d: buildTrianglePath(size),
+        transform: `translate(${cx},${cy})`,
+      }
+    case 'diamond':
+      return {
+        tag: 'path',
+        d: buildDiamondPath(size),
+        transform: `translate(${cx},${cy})`,
+      }
+    case 'emoji':
+      return {
+        tag: 'text',
+        x: cx,
+        y: cy,
+        text: shape.value,
+        fontSize: Math.round(size * 2),
+        textAnchor: 'middle',
+        dominantBaseline: 'central',
+      }
+    case 'circle':
+    default:
+      return { tag: 'circle', cx, cy, r: size }
+  }
+}
+
 /**
  * Realize a ScenePointNode into concrete SVG geometry (no DOM).
  * Returns null when seriesId is missing.
@@ -57,61 +108,10 @@ export function realizePointNode(
   node: ScenePointNode,
   context: PointRenderContext
 ): RealizedPointElement | null {
-  const seriesId = node.seriesId
-  if (seriesId == null) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[owlplot] ScenePointNode requires seriesId; skipping point.'
-      )
-    }
-    return null
-  }
-
+  const seriesId = resolveSeriesId(node)
+  if (seriesId == null) return null
   const cx = context.scales.x.forward(node.x)
   const yScale = getYScaleForSeries(seriesId, context)
   const cy = yScale(node.y)
-  const size = node.point.size
-  const shape = node.point.shape
-
-  if (shape.kind === 'circle') {
-    return { tag: 'circle', cx, cy, r: size }
-  }
-  if (shape.kind === 'square') {
-    // Circumradius = size => half-diagonal = size => side = size * sqrt(2)
-    const halfSide = size * Math.SQRT1_2
-    return {
-      tag: 'rect',
-      x: cx - halfSide,
-      y: cy - halfSide,
-      width: 2 * halfSide,
-      height: 2 * halfSide,
-    }
-  }
-  if (shape.kind === 'triangle') {
-    return {
-      tag: 'path',
-      d: buildTrianglePath(size),
-      transform: `translate(${cx},${cy})`,
-    }
-  }
-  if (shape.kind === 'diamond') {
-    return {
-      tag: 'path',
-      d: buildDiamondPath(size),
-      transform: `translate(${cx},${cy})`,
-    }
-  }
-  if (shape.kind === 'emoji') {
-    return {
-      tag: 'text',
-      x: cx,
-      y: cy,
-      text: shape.value,
-      fontSize: Math.round(size * 2),
-      textAnchor: 'middle',
-      dominantBaseline: 'central',
-    }
-  }
-  // symbol (no registry yet) and unknown → circle fallback
-  return { tag: 'circle', cx, cy, r: size }
+  return realizePointShape(node.point.shape, node.point.size, cx, cy)
 }

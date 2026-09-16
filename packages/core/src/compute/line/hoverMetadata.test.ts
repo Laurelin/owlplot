@@ -102,4 +102,32 @@ describe('isHoverMetadata', () => {
     expect(isHoverMetadata(null)).toBe(false)
     expect(isHoverMetadata(undefined)).toBe(false)
   })
+
+  it('validates dual-scale metadata and rejects an incomplete side', () => {
+    const dual = buildHoverMetadata(
+      [
+        {
+          id: 'right',
+          yAxis: 'right',
+          points: [{ x: 1, y: 10 }],
+        },
+      ],
+      {
+        x: createLinearScale([0, 2], [10, 110]),
+        yLeft: createLinearScale([0, 20], [100, 20]),
+        yRight: createLinearScale([0, 200], [100, 20]),
+      },
+      plotRect,
+      [0, 2],
+      [0, 20],
+      [0, 20],
+      [0, 200]
+    )
+
+    expect(isHoverMetadata(dual)).toBe(true)
+    const incomplete = structuredClone(dual) as Record<string, unknown>
+    const scales = incomplete.scales as Record<string, unknown>
+    scales.yRight = { type: 'linear', domain: [0, 200] }
+    expect(isHoverMetadata(incomplete)).toBe(false)
+  })
 })

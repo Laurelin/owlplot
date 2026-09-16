@@ -6,6 +6,37 @@ import type { PointIndex } from './types'
 // Re-export for convenience
 export type { HoverPointRef }
 
+function isValidPointRef(
+  seriesId: string | null,
+  x: number,
+  y: number
+): seriesId is string {
+  if (!seriesId) return false
+  return Number.isFinite(x) && Number.isFinite(y)
+}
+
+function readPointRef(element: Element): HoverPointRef | null {
+  const seriesId = element.getAttribute(DATA_SERIES_ID)
+  const x = parseFloat(element.getAttribute(DATA_X) ?? '')
+  const y = parseFloat(element.getAttribute(DATA_Y) ?? '')
+  if (!isValidPointRef(seriesId, x, y)) return null
+  return { element: element as SVGElement, seriesId, x, y }
+}
+
+function addPointRef(index: PointIndex, ref: HoverPointRef): void {
+  const refs = index.get(ref.seriesId) ?? []
+  refs.push(ref)
+  index.set(ref.seriesId, refs)
+}
+
+function warnIfNothingIndexed(skipped: number, index: PointIndex): void {
+  if (process.env.NODE_ENV === 'production') return
+  if (skipped === 0 || index.size > 0) return
+  console.warn(
+    `[owlplot] Point index: ${skipped} element(s) had ${DATA_SERIES_ID} but missing or invalid ${DATA_X}/${DATA_Y}; none indexed.`
+  )
+}
+
 /**
  * Build point index from any rendered point glyph (circle, rect, path, text).
  * Index is semantic only: element, seriesId, domain x, y.
@@ -19,40 +50,15 @@ export function buildPointIndexFromRenderedElements(
   let skipped = 0
 
   elements.forEach(el => {
-    const seriesId = el.getAttribute(DATA_SERIES_ID)
-    const domainX = parseFloat(el.getAttribute(DATA_X) ?? '')
-    const domainY = parseFloat(el.getAttribute(DATA_Y) ?? '')
-
-    if (
-      seriesId == null ||
-      seriesId === '' ||
-      Number.isNaN(domainX) ||
-      Number.isNaN(domainY)
-    ) {
+    const ref = readPointRef(el)
+    if (!ref) {
       skipped++
       return
     }
-
-    const seriesRefs = index.get(seriesId) ?? []
-    seriesRefs.push({
-      element: el as SVGElement,
-      seriesId,
-      x: domainX,
-      y: domainY,
-    })
-    index.set(seriesId, seriesRefs)
+    addPointRef(index, ref)
   })
 
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    skipped > 0 &&
-    index.size === 0
-  ) {
-    console.warn(
-      `[owlplot] Point index: ${skipped} element(s) had ${DATA_SERIES_ID} but missing or invalid ${DATA_X}/${DATA_Y}; none indexed.`
-    )
-  }
-
+  warnIfNothingIndexed(skipped, index)
   for (const refs of index.values()) refs.sort((a, b) => a.x - b.x)
   return index
 }
@@ -60,43 +66,67 @@ export function buildPointIndexFromRenderedElements(
 /** Hit slop in SVG units so small glyphs are easier to hover; default 4px. */
 const HIT_SLOP_PX = 4
 
-/** Get SVG-space center and hit radius for a point glyph element. */
-function getGlyphCenterAndHitRadius(
-  el: SVGElement
-): { cx: number; cy: number; hitRadius: number } | null {
-  const tag = el.tagName.toLowerCase()
-  if (tag === 'circle') {
-    const cx = parseFloat(el.getAttribute(SvgAttributeName.CX) ?? '')
-    const cy = parseFloat(el.getAttribute(SvgAttributeName.CY) ?? '')
-    const r = parseFloat(el.getAttribute(SvgAttributeName.R) ?? '')
-    if (Number.isNaN(cx) || Number.isNaN(cy) || Number.isNaN(r)) return null
-    return { cx, cy, hitRadius: r + HIT_SLOP_PX }
+type GlyphGeometry = { cx: number; cy: number; hitRadius: number }
+
+function numericAttribute(
+  element: Element,
+  name: string,
+  fallback = ''
+): number {
+  return parseFloat(element.getAttribute(name) ?? fallback)
+}
+
+function circleGeometry(element: SVGElement): GlyphGeometry | null {
+  const cx = numericAttribute(element, SvgAttributeName.CX)
+  const cy = numericAttribute(element, SvgAttributeName.CY)
+  const radius = numericAttribute(element, SvgAttributeName.R)
+  if (![cx, cy, radius].every(Number.isFinite)) return null
+  return { cx, cy, hitRadius: radius + HIT_SLOP_PX }
+}
+
+function rectGeometry(element: SVGElement): GlyphGeometry | null {
+  const x = numericAttribute(element, SvgAttributeName.X, '0')
+  const y = numericAttribute(element, SvgAttributeName.Y, '0')
+  const width = numericAttribute(element, 'width', '0')
+  const height = numericAttribute(element, 'height', '0')
+  if (![x, y, width, height].every(Number.isFinite)) return null
+  return {
+    cx: x + width / 2,
+    cy: y + height / 2,
+    hitRadius: Math.hypot(width, height) / 2 + HIT_SLOP_PX,
   }
-  if (tag === 'rect') {
-    const x = parseFloat(el.getAttribute(SvgAttributeName.X) ?? '0')
-    const y = parseFloat(el.getAttribute(SvgAttributeName.Y) ?? '0')
-    const w = parseFloat(el.getAttribute('width') ?? '0')
-    const h = parseFloat(el.getAttribute('height') ?? '0')
-    const cx = x + w / 2
-    const cy = y + h / 2
-    // Point rects are squares: circumradius = half diagonal = width / sqrt(2)
-    const circumradius = w / Math.SQRT2
-    const hitRadius = circumradius + HIT_SLOP_PX
-    return { cx, cy, hitRadius }
-  }
-  // path, text: use getBBox; hit radius = half diagonal (covers shape, consistent with circumradius idea)
+}
+
+function boundingBoxGeometry(element: SVGElement): GlyphGeometry | null {
   try {
-    const bbox = (el as SVGGraphicsElement).getBBox()
-    const cx = bbox.x + bbox.width / 2
-    const cy = bbox.y + bbox.height / 2
-    const halfDiagonal = Math.sqrt(
-      (bbox.width / 2) ** 2 + (bbox.height / 2) ** 2
-    )
-    const hitRadius = halfDiagonal + HIT_SLOP_PX
-    return { cx, cy, hitRadius }
+    const box = (element as SVGGraphicsElement).getBBox()
+    return {
+      cx: box.x + box.width / 2,
+      cy: box.y + box.height / 2,
+      hitRadius: Math.hypot(box.width, box.height) / 2 + HIT_SLOP_PX,
+    }
   } catch {
     return null
   }
+}
+
+/** Get SVG-space center and hit radius for a point glyph element. */
+function getGlyphCenterAndHitRadius(el: SVGElement): GlyphGeometry | null {
+  const tag = el.tagName.toLowerCase()
+  if (tag === 'circle') return circleGeometry(el)
+  if (tag === 'rect') return rectGeometry(el)
+  return boundingBoxGeometry(el)
+}
+
+function distanceIfHit(
+  ref: HoverPointRef,
+  mouseSvgX: number,
+  mouseSvgY: number
+): number | null {
+  const geometry = getGlyphCenterAndHitRadius(ref.element)
+  if (!geometry) return null
+  const distance = Math.hypot(mouseSvgX - geometry.cx, mouseSvgY - geometry.cy)
+  return distance <= geometry.hitRadius ? distance : null
 }
 
 /**
@@ -113,16 +143,10 @@ export function findGlyphAtPoint(
 
   for (const refs of pointIndex.values()) {
     for (const ref of refs) {
-      const center = getGlyphCenterAndHitRadius(ref.element)
-      if (!center) continue
-      const { cx, cy, hitRadius } = center
-      const dx = mouseSvgX - cx
-      const dy = mouseSvgY - cy
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist <= hitRadius && dist < closestDist) {
-        closest = ref
-        closestDist = dist
-      }
+      const distance = distanceIfHit(ref, mouseSvgX, mouseSvgY)
+      if (distance == null || distance >= closestDist) continue
+      closest = ref
+      closestDist = distance
     }
   }
 

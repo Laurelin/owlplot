@@ -1,10 +1,6 @@
 import { JSDOM } from 'jsdom'
 import { describe, it, expect, beforeEach } from 'vitest'
-import {
-  SceneNodeKind,
-  TooltipKind,
-  createSceneTooltip,
-} from '@owlplot/core'
+import { SceneNodeKind, TooltipKind, createSceneTooltip } from '@owlplot/core'
 import type { SceneNode } from '@owlplot/core'
 import { renderSvgScene } from './renderSvgScene'
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
@@ -13,7 +9,7 @@ import {
   GLYPH_HOVER_LISTENERS_SYMBOL,
   POINT_INDEX_SYMBOL,
 } from '../shared/symbols'
-import { HoverModeKind } from '../shared/enums'
+import { HoverIndicatorKind, HoverModeKind } from '../shared/enums'
 import { DATA_SERIES_ID } from '../shared/dataAttributes'
 import { buildPointIndexFromRenderedElements } from '../hover/pointIndex'
 
@@ -90,7 +86,9 @@ describe('renderSvgScene hover default', () => {
     renderSvgScene(sceneWithStampedGlyphs(), svg, { tooltip: null })
 
     // Lock: glyphs were actually indexed (soft-trap case), not empty-index fallback.
-    expect(svg.querySelectorAll(`[${DATA_SERIES_ID}]`).length).toBeGreaterThan(0)
+    expect(svg.querySelectorAll(`[${DATA_SERIES_ID}]`).length).toBeGreaterThan(
+      0
+    )
     const index =
       (svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL] ??
       buildPointIndexFromRenderedElements(svg)
@@ -107,7 +105,9 @@ describe('renderSvgScene hover default', () => {
       hoverMode: { kind: HoverModeKind.GLYPH },
     })
 
-    expect(svg.querySelectorAll(`[${DATA_SERIES_ID}]`).length).toBeGreaterThan(0)
+    expect(svg.querySelectorAll(`[${DATA_SERIES_ID}]`).length).toBeGreaterThan(
+      0
+    )
     const extended = svg as ExtendedSVGSVGElement
     const index =
       extended[POINT_INDEX_SYMBOL] ?? buildPointIndexFromRenderedElements(svg)
@@ -115,5 +115,24 @@ describe('renderSvgScene hover default', () => {
 
     expect(extended[GLYPH_HOVER_LISTENERS_SYMBOL]).toBeDefined()
     expect(extended[DATA_HOVER_LISTENERS_SYMBOL]).toBeUndefined()
+  })
+
+  it('honors explicit single and array indicator configurations', () => {
+    renderSvgScene(sceneWithStampedGlyphs(), svg, {
+      tooltip: null,
+      hoverIndicator: { kind: HoverIndicatorKind.NONE },
+    })
+    expect((svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL]).toBeUndefined()
+
+    renderSvgScene(sceneWithStampedGlyphs(), svg, {
+      tooltip: null,
+      hoverIndicator: [
+        { kind: HoverIndicatorKind.NONE },
+        { kind: HoverIndicatorKind.POINT_EMPHASIS },
+      ],
+    })
+    expect(
+      (svg as ExtendedSVGSVGElement)[POINT_INDEX_SYMBOL]?.size
+    ).toBeGreaterThan(0)
   })
 })

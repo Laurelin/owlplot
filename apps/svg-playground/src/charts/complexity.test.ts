@@ -1,5 +1,33 @@
 import { describe, expect, it } from 'vitest'
-import { complexityCharts } from './complexity'
+import { complexityCharts, getYAtX } from './complexity'
+
+describe('getYAtX', () => {
+  it('returns exact and interpolated values', () => {
+    const points = [
+      { x: 1, y: 10 },
+      { x: 3, y: 30 },
+    ]
+
+    expect(getYAtX(points, 1)).toBe(10)
+    expect(getYAtX(points, 2)).toBe(20)
+  })
+
+  it('skips null segments and falls back to the rightmost defined value', () => {
+    const points = [
+      { x: 1, y: 10 },
+      { x: 2, y: null },
+      { x: 3, y: 30 },
+    ]
+
+    expect(getYAtX(points, 2.5)).toBe(30)
+    expect(getYAtX(points, 0)).toBe(30)
+  })
+
+  it('uses the lower domain bound when no defined value exists', () => {
+    expect(getYAtX([], 2)).toBe(1)
+    expect(getYAtX([{ x: 1, y: null }], 1)).toBe(1)
+  })
+})
 
 describe('complexity chart data invariants', () => {
   it('uses linear axis with fixed domain for clipped dominance rendering', () => {
@@ -35,16 +63,19 @@ describe('complexity chart data invariants', () => {
   it('preserves steep growth in fast series (no factorial cap)', () => {
     const demo = complexityCharts[0]
     const factorial = demo?.config.series.find(series => series.id === 'O(n!)')
-    const exponential = demo?.config.series.find(series => series.id === 'O(2^n)')
+    const exponential = demo?.config.series.find(
+      series => series.id === 'O(2^n)'
+    )
     expect(factorial).toBeDefined()
     expect(exponential).toBeDefined()
 
     const factorialMax = Math.max(
-      ...((factorial?.points ?? [])
+      ...(factorial?.points ?? [])
         .map(point => point.y)
-        .filter((value): value is number => value != null))
+        .filter((value): value is number => value != null)
     )
-    const exponentialAt24 = exponential?.points.find(point => point.x === 24)?.y ?? 0
+    const exponentialAt24 =
+      exponential?.points.find(point => point.x === 24)?.y ?? 0
     expect(factorialMax).toBeGreaterThan(3000)
     expect(exponentialAt24).toBeGreaterThan(3000)
   })

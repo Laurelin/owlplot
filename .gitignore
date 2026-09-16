@@ -68,7 +68,11 @@ package-lock.json
 # Build outputs
 **/dist/
 *.tsbuildinfo
-.cursor
+.cursor/*
+!.cursor/hooks.json
+!.cursor/hooks/
+!.cursor/hooks/**
+.crap-report.json
 apps/svg-playground/SVGDemoQualityBar.md
 /chart.svg
 .tmp-dense-line-cost/

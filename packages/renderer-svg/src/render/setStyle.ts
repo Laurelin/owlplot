@@ -1,6 +1,66 @@
-import type { AnyPaint, SceneStyle } from '@owlplot/core'
+import type { AnyPaint, GradientPaint, SceneStyle } from '@owlplot/core'
 import { SvgAttributeName } from '../shared/enums'
 import { ensureGradientDef } from './gradientDefs'
+
+type StyleEffect =
+  | { kind: 'attribute'; name: string; value: string }
+  | { kind: 'gradient'; name: 'fill' | 'stroke'; paint: GradientPaint }
+
+function toKebabCase(key: string): string {
+  return key.replace(/([A-Z])/g, '-$1').toLowerCase()
+}
+
+function resolvePaintEffect(
+  name: 'fill' | 'stroke',
+  paint: AnyPaint
+): StyleEffect | null {
+  if (paint.type === 'solid') {
+    return { kind: 'attribute', name, value: paint.color }
+  }
+  if (paint.type === 'linear' || paint.type === 'radial') {
+    return { kind: 'gradient', name, paint }
+  }
+  return null
+}
+
+function resolveStyleEffect(key: string, value: unknown): StyleEffect | null {
+  if (value == null) return null
+  if (key === 'fontSizePx') {
+    return {
+      kind: 'attribute',
+      name: SvgAttributeName.FONT_SIZE,
+      value: `${String(value)}px`,
+    }
+  }
+  if (key === 'fill' || key === 'stroke') {
+    return resolvePaintEffect(key, value as AnyPaint)
+  }
+  return {
+    kind: 'attribute',
+    name: toKebabCase(key),
+    value: String(value),
+  }
+}
+
+function applyStyleEffect(
+  el: Element,
+  effect: StyleEffect,
+  svg?: SVGSVGElement
+): void {
+  if (effect.kind === 'attribute') {
+    el.setAttribute(effect.name, effect.value)
+    return
+  }
+  if (!svg) {
+    throw new Error(
+      'Gradient paint requires SVG element for defs, but svg was not provided'
+    )
+  }
+  const url = ensureGradientDef(svg, effect.paint, {
+    isStroke: effect.name === 'stroke',
+  })
+  el.setAttribute(effect.name, url)
+}
 
 /**
  * Sets style on an SVG element, handling AnyPaint for fill and stroke.
@@ -13,38 +73,8 @@ export function setStyle(
 ) {
   if (!style) return
 
-  for (const [key, val] of Object.entries(style)) {
-    if (val == null) continue
-
-    // Special handling for fontSizePx: convert to font-size with "px" unit
-    if (key === 'fontSizePx') {
-      el.setAttribute(SvgAttributeName.FONT_SIZE, `${val}px`)
-      continue
-    }
-
-    // Handle fill and stroke as AnyPaint
-    if (key === 'fill' || key === 'stroke') {
-      const paint = val as AnyPaint
-      if (paint.type === 'solid') {
-        el.setAttribute(key, paint.color)
-      } else if (paint.type === 'linear' || paint.type === 'radial') {
-        // Gradient paint requires SVG element for defs
-        if (!svg) {
-          throw new Error(
-            `Gradient paint requires SVG element for defs, but svg was not provided`
-          )
-        }
-        // Pass isStroke flag so stroke gradients use userSpaceOnUse to follow the path
-        const url = ensureGradientDef(svg, paint, {
-          isStroke: key === 'stroke',
-        })
-        el.setAttribute(key, url)
-      }
-      continue
-    }
-
-    // Other style properties (strokeWidth, opacity, etc.)
-    const attr = key.replace(/([A-Z])/g, '-$1').toLowerCase()
-    el.setAttribute(attr, String(val))
+  for (const [key, value] of Object.entries(style)) {
+    const effect = resolveStyleEffect(key, value)
+    if (effect) applyStyleEffect(el, effect, svg)
   }
 }

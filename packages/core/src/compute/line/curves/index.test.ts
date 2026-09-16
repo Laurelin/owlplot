@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { buildCatmullRomSubpaths } from './catmullRom'
 import { buildCurvePath } from './index'
 import { buildMonotoneXSubpaths } from './monotoneX'
 import type { ScreenPointOrGap } from './types'
@@ -62,6 +63,25 @@ describe('curve path builders', () => {
     expect(countCommands(path, 'L')).toBe(3)
   })
 
+  it('monotoneX handles empty, singleton, pair, and plateau segments', () => {
+    expect(buildMonotoneXSubpaths([])).toEqual([])
+    expect(buildMonotoneXSubpaths([{ x: 2, y: 3 }])).toEqual(['M 2 3'])
+    expect(
+      buildMonotoneXSubpaths([
+        { x: 0, y: 1 },
+        { x: 2, y: 3 },
+      ])
+    ).toEqual(['M 0 1 L 2 3'])
+
+    const plateau = buildMonotoneXSubpaths([
+      { x: 0, y: 1 },
+      { x: 1, y: 1 },
+      { x: 2, y: 3 },
+    ])[0]!
+    expect(countCommands(plateau, 'C')).toBe(2)
+    expect(plateau).not.toContain('NaN')
+  })
+
   it('monotoneX control-point y values stay within neighboring y bounds', () => {
     const segment = [
       { x: 0, y: 2 },
@@ -98,5 +118,24 @@ describe('curve path builders', () => {
     const path = buildCurvePath(points, { type: 'catmullRom' })
     expect(countCommands(path, 'M')).toBe(1)
     expect(countCommands(path, 'C')).toBe(3)
+  })
+
+  it('catmullRom handles empty, singleton, pair, gaps, and custom tension', () => {
+    expect(buildCatmullRomSubpaths([])).toEqual([])
+    expect(buildCatmullRomSubpaths([{ x: 2, y: 3 }])).toEqual(['M 2 3'])
+    expect(
+      buildCatmullRomSubpaths([
+        { x: 0, y: 1 },
+        { x: 2, y: 3 },
+      ])
+    ).toEqual(['M 0 1 L 2 3'])
+
+    const paths = buildCatmullRomSubpaths(
+      [{ x: 0, y: 0 }, { x: 1, y: 2 }, { x: 2, y: 0 }, null, { x: 4, y: 1 }],
+      0
+    )
+    expect(paths).toHaveLength(2)
+    expect(countCommands(paths[0]!, 'C')).toBe(2)
+    expect(paths[1]).toBe('M 4 1')
   })
 })

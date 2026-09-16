@@ -13,6 +13,29 @@ export type FormatValueContext = {
   stripCompactInTooltip?: boolean
 }
 
+function shouldStripCompact(
+  format: NumberFormat | undefined,
+  context: FormatValueContext | undefined
+): boolean {
+  if (context?.stripCompactInTooltip !== true) return false
+  return format?.mode === 'compact'
+}
+
+function resolveFormat(
+  format: NumberFormat | undefined,
+  context: FormatValueContext | undefined
+): NumberFormat {
+  if (shouldStripCompact(format, context)) return { mode: 'raw' }
+  return format ?? { mode: 'raw' }
+}
+
+function resolveFormatContext(
+  context: FormatValueContext | undefined
+): FormatContext | undefined {
+  if (!context?.locale) return undefined
+  return { locale: context.locale }
+}
+
 /**
  * Format a value for display (e.g. tooltips). Default: raw (no rounding).
  * Only apply formatting if caller passes a format (e.g. from tooltipFormat).
@@ -25,14 +48,9 @@ export function formatValue(
   context?: FormatValueContext
 ): string {
   if (typeof value !== 'number') return String(value)
-  const effectiveFormat =
-    context?.stripCompactInTooltip && format?.mode === 'compact'
-      ? { mode: 'raw' as const }
-      : format
-  const formatContext: FormatContext | undefined =
-    context?.locale !== undefined && context.locale !== ''
-      ? { locale: context.locale }
-      : undefined
-  const mode = effectiveFormat ?? { mode: 'raw' as const }
-  return formatNumber(value, mode, formatContext)
+  return formatNumber(
+    value,
+    resolveFormat(format, context),
+    resolveFormatContext(context)
+  )
 }

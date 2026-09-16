@@ -72,22 +72,28 @@ function dedupeSorted(values: number[]): number[] {
   return deduped
 }
 
-function pointsToStrictlyIncreasing(points: CartesianSeries['points']): DomainPoint[] | null {
+function isFiniteDomainPoint(
+  point: CartesianSeries['points'][number]
+): point is DomainPoint {
+  return (
+    point.y !== null && Number.isFinite(point.x) && Number.isFinite(point.y)
+  )
+}
+
+function hasStrictlyIncreasingX(points: DomainPoint[]): boolean {
+  for (let index = 1; index < points.length; index += 1) {
+    if (points[index]!.x <= points[index - 1]!.x) return false
+  }
+  return true
+}
+
+function pointsToStrictlyIncreasing(
+  points: CartesianSeries['points']
+): DomainPoint[] | null {
   if (points.length < 2) return null
-  const normalized: DomainPoint[] = []
-  for (const point of points) {
-    if (
-      point.y == null ||
-      !Number.isFinite(point.x) ||
-      !Number.isFinite(point.y)
-    ) {
-      return null
-    }
-    normalized.push({ x: point.x, y: point.y })
-  }
-  for (let i = 1; i < normalized.length; i += 1) {
-    if (normalized[i]!.x <= normalized[i - 1]!.x) return null
-  }
+  if (!points.every(isFiniteDomainPoint)) return null
+  const normalized = points.map(point => ({ x: point.x, y: point.y }))
+  if (!hasStrictlyIncreasingX(normalized)) return null
   return normalized
 }
 
@@ -104,6 +110,27 @@ function buildSegments(points: DomainPoint[]): BoundarySegment[] {
   return segments
 }
 
+type SegmentEvaluation = { type: 'outside' } | { type: 'value'; value: number }
+
+function evaluateSegment(
+  segment: BoundarySegment,
+  x: number
+): SegmentEvaluation {
+  if (x < segment.x1 - EPSILON || x > segment.x2 + EPSILON) {
+    return { type: 'outside' }
+  }
+  if (Math.abs(x - segment.x1) <= EPSILON) {
+    return { type: 'value', value: segment.y1 }
+  }
+  if (Math.abs(x - segment.x2) <= EPSILON) {
+    return { type: 'value', value: segment.y2 }
+  }
+  return {
+    type: 'value',
+    value: segment.y1 + segment.slope * (x - segment.x1),
+  }
+}
+
 function evaluateSegmentsAtX(
   segments: BoundarySegment[],
   xDomain: DomainRange,
@@ -112,20 +139,15 @@ function evaluateSegmentsAtX(
   if (x < xDomain[0] - EPSILON || x > xDomain[1] + EPSILON) return null
 
   for (const segment of segments) {
-    if (x < segment.x1 - EPSILON || x > segment.x2 + EPSILON) continue
-    if (Math.abs(x - segment.x1) <= EPSILON) return segment.y1
-    if (Math.abs(x - segment.x2) <= EPSILON) return segment.y2
-    return segment.y1 + segment.slope * (x - segment.x1)
-  }
-
-  if (Math.abs(x - xDomain[1]) <= EPSILON) {
-    const last = segments[segments.length - 1]
-    return last?.y2 ?? null
+    const evaluation = evaluateSegment(segment, x)
+    if (evaluation.type === 'value') return evaluation.value
   }
   return null
 }
 
-function isLegacyRegion(region: RegionConfig): region is RegionBetweenSeriesConfig {
+function isLegacyRegion(
+  region: RegionConfig
+): region is RegionBetweenSeriesConfig {
   return 'upperSeriesId' in region && 'lowerSeriesId' in region
 }
 
@@ -145,46 +167,137 @@ function normalizeRegionConfig(region: RegionConfig): NormalizedRegionConfig {
   return region
 }
 
-function resolveBoundary(
-  boundary: BoundaryRef,
+function resolveSeriesBoundary(
+  boundary: Extract<BoundaryRef, { type: 'series' }>,
+  byId: Map<string, CartesianSeries>
+): ResolvedBoundary | null {
+  const series = byId.get(boundary.id)
+  if (!series) return null
+  const points = pointsToStrictlyIncreasing(series.points)
+  if (!points) return null
+  const segments = buildSegments(points)
+  if (segments.length === 0) return null
+  const domain: DomainRange = [points[0]!.x, points[points.length - 1]!.x]
+  return {
+    ref: boundary,
+    yAxis: resolveSeriesYAxis(series),
+    xDomain: domain,
+    evaluate: x => evaluateSegmentsAtX(segments, domain, x),
+    segments,
+  }
+}
+
+function resolveConstantValue(
+  boundary: Exclude<BoundaryRef, { type: 'series' }>,
+  yDomain: DomainRange
+): number {
+  switch (boundary.type) {
+    case 'plotTop':
+      return yDomain[1]
+    case 'plotBottom':
+      return yDomain[0]
+    case 'constant':
+      return boundary.value
+  }
+}
+
+function resolveConstantBoundary(
+  boundary: Exclude<BoundaryRef, { type: 'series' }>,
   requestedAxis: 'left' | 'right' | undefined,
-  byId: Map<string, CartesianSeries>,
   scales: CartesianScales
 ): ResolvedBoundary | null {
-  const xDomain = normalizeRange(scales.x.domain[0], scales.x.domain[1])
-  if (boundary.type === 'series') {
-    const series = byId.get(boundary.id)
-    if (!series) return null
-    const points = pointsToStrictlyIncreasing(series.points)
-    if (!points) return null
-    const segments = buildSegments(points)
-    if (segments.length === 0) return null
-    const axis = resolveSeriesYAxis(series)
-    const domain: DomainRange = [points[0]!.x, points[points.length - 1]!.x]
-    return {
-      ref: boundary,
-      yAxis: axis,
-      xDomain: domain,
-      evaluate: x => evaluateSegmentsAtX(segments, domain, x),
-      segments,
-    }
-  }
-
   const axis = requestedAxis ?? 'left'
   const yScale = resolveYScale(scales, axis)
   const yDomain = normalizeRange(yScale.domain[0], yScale.domain[1])
-  const yValue = boundary.type === 'plotTop' ? yDomain[1] : boundary.type === 'plotBottom' ? yDomain[0] : boundary.value
+  const yValue = resolveConstantValue(boundary, yDomain)
   if (!Number.isFinite(yValue)) return null
-
-  const constantSegments: BoundarySegment[] = [
+  const xDomain = normalizeRange(scales.x.domain[0], scales.x.domain[1])
+  const segments: BoundarySegment[] = [
     { x1: xDomain[0], x2: xDomain[1], y1: yValue, y2: yValue, slope: 0 },
   ]
   return {
     ref: boundary,
     yAxis: axis,
     xDomain,
-    evaluate: x => evaluateSegmentsAtX(constantSegments, xDomain, x),
-    segments: constantSegments,
+    evaluate: x => evaluateSegmentsAtX(segments, xDomain, x),
+    segments,
+  }
+}
+
+function resolveBoundary(
+  boundary: BoundaryRef,
+  requestedAxis: 'left' | 'right' | undefined,
+  byId: Map<string, CartesianSeries>,
+  scales: CartesianScales
+): ResolvedBoundary | null {
+  if (boundary.type === 'series') {
+    return resolveSeriesBoundary(boundary, byId)
+  }
+  return resolveConstantBoundary(boundary, requestedAxis, scales)
+}
+
+function resolveClippedOverlap(
+  upper: ResolvedBoundary,
+  lower: ResolvedBoundary,
+  xMin: number | undefined,
+  xMax: number | undefined
+): DomainRange | null {
+  const overlap = rangeOverlap(upper.xDomain, lower.xDomain)
+  if (!overlap) return null
+  const clip = normalizeRange(xMin ?? overlap[0], xMax ?? overlap[1])
+  return rangeOverlap(overlap, clip)
+}
+
+function collectSegmentEdges(
+  values: number[],
+  segments: BoundarySegment[],
+  overlap: DomainRange
+): void {
+  for (const segment of segments) {
+    if (
+      segment.x1 > overlap[1] + EPSILON ||
+      segment.x2 < overlap[0] - EPSILON
+    ) {
+      continue
+    }
+    values.push(
+      Math.max(overlap[0], Math.min(overlap[1], segment.x1)),
+      Math.max(overlap[0], Math.min(overlap[1], segment.x2))
+    )
+  }
+}
+
+function findSegmentIntersection(
+  upper: BoundarySegment,
+  lower: BoundarySegment,
+  overlap: DomainRange
+): number | null {
+  const localMin = Math.max(overlap[0], upper.x1, lower.x1)
+  const localMax = Math.min(overlap[1], upper.x2, lower.x2)
+  if (localMax - localMin <= EPSILON) return null
+  const slopeDiff = upper.slope - lower.slope
+  if (Math.abs(slopeDiff) <= EPSILON) return null
+  const upperIntercept = upper.y1 - upper.slope * upper.x1
+  const lowerIntercept = lower.y1 - lower.slope * lower.x1
+  const x = (lowerIntercept - upperIntercept) / slopeDiff
+  return x > localMin + EPSILON && x < localMax - EPSILON ? x : null
+}
+
+function collectIntersections(
+  values: number[],
+  upper: BoundarySegment[],
+  lower: BoundarySegment[],
+  overlap: DomainRange
+): void {
+  for (const upperSegment of upper) {
+    for (const lowerSegment of lower) {
+      const intersection = findSegmentIntersection(
+        upperSegment,
+        lowerSegment,
+        overlap
+      )
+      if (intersection !== null) values.push(intersection)
+    }
   }
 }
 
@@ -194,50 +307,107 @@ function collectBreakpoints(
   xMin: number | undefined,
   xMax: number | undefined
 ): number[] {
-  const overlapUL = rangeOverlap(upper.xDomain, lower.xDomain)
-  if (!overlapUL) return []
-
-  const clip = xMin != null && xMax != null ? normalizeRange(xMin, xMax) : xMin != null ? normalizeRange(xMin, overlapUL[1]) : xMax != null ? normalizeRange(overlapUL[0], xMax) : null
-  const overlap = clip ? rangeOverlap(overlapUL, clip) : overlapUL
+  const overlap = resolveClippedOverlap(upper, lower, xMin, xMax)
   if (!overlap) return []
-
   const values: number[] = [overlap[0], overlap[1]]
-
-  const collectSegmentEdges = (segments: BoundarySegment[]): void => {
-    for (const segment of segments) {
-      if (segment.x1 > overlap[1] + EPSILON || segment.x2 < overlap[0] - EPSILON) {
-        continue
-      }
-      values.push(
-        Math.max(overlap[0], Math.min(overlap[1], segment.x1)),
-        Math.max(overlap[0], Math.min(overlap[1], segment.x2))
-      )
-    }
-  }
-  collectSegmentEdges(upper.segments)
-  collectSegmentEdges(lower.segments)
-
-  for (const upperSegment of upper.segments) {
-    for (const lowerSegment of lower.segments) {
-      const localMin = Math.max(overlap[0], upperSegment.x1, lowerSegment.x1)
-      const localMax = Math.min(overlap[1], upperSegment.x2, lowerSegment.x2)
-      if (localMax - localMin <= EPSILON) continue
-
-      const slopeDiff = upperSegment.slope - lowerSegment.slope
-      if (Math.abs(slopeDiff) <= EPSILON) continue
-      const upperIntercept = upperSegment.y1 - upperSegment.slope * upperSegment.x1
-      const lowerIntercept = lowerSegment.y1 - lowerSegment.slope * lowerSegment.x1
-      const intersectionX = (lowerIntercept - upperIntercept) / slopeDiff
-      if (
-        intersectionX > localMin + EPSILON &&
-        intersectionX < localMax - EPSILON
-      ) {
-        values.push(intersectionX)
-      }
-    }
-  }
-
+  collectSegmentEdges(values, upper.segments, overlap)
+  collectSegmentEdges(values, lower.segments, overlap)
+  collectIntersections(values, upper.segments, lower.segments, overlap)
   return dedupeSorted(values)
+}
+
+type Slab =
+  | { type: 'invalid' }
+  | { type: 'zero-area' }
+  | {
+      type: 'valid'
+      xLeft: number
+      xRight: number
+      upperLeft: number
+      upperRight: number
+      lowerLeft: number
+      lowerRight: number
+    }
+
+type PolygonPaths = {
+  upper: DomainPoint[]
+  lower: DomainPoint[]
+}
+
+function areFiniteValues(values: Array<number | null>): values is number[] {
+  return values.every(value => value !== null && Number.isFinite(value))
+}
+
+function evaluateSlab(
+  upper: ResolvedBoundary,
+  lower: ResolvedBoundary,
+  xLeft: number,
+  xRight: number
+): Slab {
+  const values = [
+    upper.evaluate(xLeft),
+    upper.evaluate(xRight),
+    lower.evaluate(xLeft),
+    lower.evaluate(xRight),
+  ]
+  if (!areFiniteValues(values)) return { type: 'invalid' }
+  const [upperLeft, upperRight, lowerLeft, lowerRight] = values
+  if (
+    Math.abs(upperLeft! - lowerLeft!) <= EPSILON &&
+    Math.abs(upperRight! - lowerRight!) <= EPSILON
+  ) {
+    return { type: 'zero-area' }
+  }
+  return {
+    type: 'valid',
+    xLeft,
+    xRight,
+    upperLeft: upperLeft!,
+    upperRight: upperRight!,
+    lowerLeft: lowerLeft!,
+    lowerRight: lowerRight!,
+  }
+}
+
+function startPolygonPaths(
+  slab: Extract<Slab, { type: 'valid' }>
+): PolygonPaths {
+  return {
+    upper: [
+      { x: slab.xLeft, y: slab.upperLeft },
+      { x: slab.xRight, y: slab.upperRight },
+    ],
+    lower: [
+      { x: slab.xLeft, y: slab.lowerLeft },
+      { x: slab.xRight, y: slab.lowerRight },
+    ],
+  }
+}
+
+function flushPolygon(
+  polygons: DomainPoint[][],
+  paths: PolygonPaths
+): PolygonPaths {
+  if (paths.upper.length >= 2 && paths.lower.length >= 2) {
+    polygons.push([...paths.upper, ...paths.lower.slice().reverse()])
+  }
+  return { upper: [], lower: [] }
+}
+
+function appendSlab(
+  polygons: DomainPoint[][],
+  paths: PolygonPaths,
+  slab: Extract<Slab, { type: 'valid' }>
+): PolygonPaths {
+  if (paths.upper.length === 0) return startPolygonPaths(slab)
+  const previousX = paths.upper[paths.upper.length - 1]!.x
+  if (Math.abs(previousX - slab.xLeft) > EPSILON) {
+    flushPolygon(polygons, paths)
+    return startPolygonPaths(slab)
+  }
+  paths.upper.push({ x: slab.xRight, y: slab.upperRight })
+  paths.lower.push({ x: slab.xRight, y: slab.lowerRight })
+  return paths
 }
 
 function buildSlabPolygons(
@@ -246,82 +416,19 @@ function buildSlabPolygons(
   breakpoints: number[]
 ): DomainPoint[][] {
   const polygons: DomainPoint[][] = []
-  let upperPath: DomainPoint[] = []
-  let lowerPath: DomainPoint[] = []
-
-  const flush = (): void => {
-    if (upperPath.length < 2 || lowerPath.length < 2) {
-      upperPath = []
-      lowerPath = []
-      return
-    }
-    polygons.push([...upperPath, ...lowerPath.slice().reverse()])
-    upperPath = []
-    lowerPath = []
-  }
-
+  let paths: PolygonPaths = { upper: [], lower: [] }
   for (let i = 1; i < breakpoints.length; i += 1) {
     const xLeft = breakpoints[i - 1]!
     const xRight = breakpoints[i]!
     if (xRight - xLeft <= EPSILON) continue
-
-    const upperLeft = upper.evaluate(xLeft)
-    const upperRight = upper.evaluate(xRight)
-    const lowerLeft = lower.evaluate(xLeft)
-    const lowerRight = lower.evaluate(xRight)
-    const hasInvalid =
-      upperLeft == null ||
-      upperRight == null ||
-      lowerLeft == null ||
-      lowerRight == null ||
-      !Number.isFinite(upperLeft) ||
-      !Number.isFinite(upperRight) ||
-      !Number.isFinite(lowerLeft) ||
-      !Number.isFinite(lowerRight)
-    if (hasInvalid) {
-      flush()
-      continue
+    const slab = evaluateSlab(upper, lower, xLeft, xRight)
+    if (slab.type === 'valid') {
+      paths = appendSlab(polygons, paths, slab)
+    } else {
+      paths = flushPolygon(polygons, paths)
     }
-
-    const zeroArea =
-      Math.abs(upperLeft - lowerLeft) <= EPSILON &&
-      Math.abs(upperRight - lowerRight) <= EPSILON
-    if (zeroArea) {
-      flush()
-      continue
-    }
-
-    if (upperPath.length === 0) {
-      upperPath = [
-        { x: xLeft, y: upperLeft },
-        { x: xRight, y: upperRight },
-      ]
-      lowerPath = [
-        { x: xLeft, y: lowerLeft },
-        { x: xRight, y: lowerRight },
-      ]
-      continue
-    }
-
-    const prevX = upperPath[upperPath.length - 1]!.x
-    if (Math.abs(prevX - xLeft) > EPSILON) {
-      flush()
-      upperPath = [
-        { x: xLeft, y: upperLeft },
-        { x: xRight, y: upperRight },
-      ]
-      lowerPath = [
-        { x: xLeft, y: lowerLeft },
-        { x: xRight, y: lowerRight },
-      ]
-      continue
-    }
-
-    upperPath.push({ x: xRight, y: upperRight })
-    lowerPath.push({ x: xRight, y: lowerRight })
   }
-
-  flush()
+  flushPolygon(polygons, paths)
   return polygons
 }
 
@@ -386,126 +493,190 @@ function emitNodes(
   return nodes
 }
 
+type DominanceSeriesContext = {
+  selected: CartesianSeries[]
+  pointsBySeries: Map<string, DomainPoint[]>
+  segmentsBySeries: Map<string, BoundarySegment[]>
+}
+
+function resolveDominanceSeries(
+  dominance: DominanceRegionsConfig,
+  seriesList: CartesianSeries[]
+): DominanceSeriesContext | null {
+  if (dominance.seriesIds.length < 2 || dominance.fills.length === 0) {
+    return null
+  }
+  const byId = new Map(seriesList.map(series => [series.id, series]))
+  const selected = dominance.seriesIds
+    .map(id => byId.get(id))
+    .filter((series): series is CartesianSeries => series !== undefined)
+  if (selected.length !== dominance.seriesIds.length) return null
+  const pointsBySeries = new Map<string, DomainPoint[]>()
+  for (const series of selected) {
+    const points = pointsToStrictlyIncreasing(series.points)
+    if (!points) return null
+    pointsBySeries.set(series.id, points)
+  }
+  return {
+    selected,
+    pointsBySeries,
+    segmentsBySeries: new Map(
+      selected.map(series => [
+        series.id,
+        buildSegments(pointsBySeries.get(series.id)!),
+      ])
+    ),
+  }
+}
+
+function resolveDominanceAxis(
+  dominance: DominanceRegionsConfig,
+  selected: CartesianSeries[]
+): 'left' | 'right' | null {
+  const axis = dominance.yAxis ?? resolveSeriesYAxis(selected[0]!)
+  return selected.every(series => resolveSeriesYAxis(series) === axis)
+    ? axis
+    : null
+}
+
+function resolveSeriesOverlap(
+  context: DominanceSeriesContext
+): DomainRange | null {
+  const domains = context.selected.map(series => {
+    const points = context.pointsBySeries.get(series.id)!
+    return [points[0]!.x, points[points.length - 1]!.x] as const
+  })
+  const min = Math.max(...domains.map(domain => domain[0]))
+  const max = Math.min(...domains.map(domain => domain[1]))
+  return max > min ? [min, max] : null
+}
+
+function collectSeriesPointBreakpoints(
+  values: number[],
+  context: DominanceSeriesContext,
+  overlap: DomainRange
+): void {
+  for (const series of context.selected) {
+    const points = context.pointsBySeries.get(series.id)!
+    for (const point of points) {
+      if (point.x < overlap[0] - EPSILON || point.x > overlap[1] + EPSILON) {
+        continue
+      }
+      values.push(Math.max(overlap[0], Math.min(overlap[1], point.x)))
+    }
+  }
+}
+
+function collectPairIntersections(
+  values: number[],
+  context: DominanceSeriesContext,
+  overlap: DomainRange
+): void {
+  for (let left = 0; left < context.selected.length; left += 1) {
+    for (let right = left + 1; right < context.selected.length; right += 1) {
+      collectIntersections(
+        values,
+        context.segmentsBySeries.get(context.selected[left]!.id)!,
+        context.segmentsBySeries.get(context.selected[right]!.id)!,
+        overlap
+      )
+    }
+  }
+}
+
+type RankedSeries = { id: string; y: number }
+
+function rankAtX(
+  context: DominanceSeriesContext,
+  x: number,
+  inputRank: Map<string, number>,
+  tieBreak: 'stable-input' | 'series-id'
+): RankedSeries[] | null {
+  const ranked = context.selected.flatMap(series => {
+    const points = context.pointsBySeries.get(series.id)!
+    const domain: DomainRange = [points[0]!.x, points[points.length - 1]!.x]
+    const y = evaluateSegmentsAtX(
+      context.segmentsBySeries.get(series.id) ?? [],
+      domain,
+      x
+    )
+    return y === null ? [] : [{ id: series.id, y }]
+  })
+  if (ranked.length !== context.selected.length) return null
+  ranked.sort((a, b) => {
+    if (a.y !== b.y) return a.y - b.y
+    if (tieBreak === 'series-id') return a.id.localeCompare(b.id)
+    return (
+      (inputRank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+      (inputRank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+    )
+  })
+  return ranked
+}
+
+function buildRankRegions(
+  dominance: DominanceRegionsConfig,
+  ranked: RankedSeries[],
+  axis: 'left' | 'right',
+  xMin: number,
+  xMax: number
+): RegionConfigV2[] {
+  const regions: RegionConfigV2[] = []
+  for (let index = 0; index < ranked.length - 1; index += 1) {
+    regions.push({
+      upper: { type: 'series', id: ranked[index + 1]!.id },
+      lower: { type: 'series', id: ranked[index]!.id },
+      fill: dominance.fills[Math.min(index, dominance.fills.length - 1)]!,
+      opacity: dominance.opacity,
+      yAxis: axis,
+      xMin,
+      xMax,
+    })
+  }
+  return regions
+}
+
+function compileRankSlabs(
+  dominance: DominanceRegionsConfig,
+  context: DominanceSeriesContext,
+  axis: 'left' | 'right',
+  breakpoints: number[]
+): RegionConfigV2[] {
+  const inputRank = new Map(dominance.seriesIds.map((id, index) => [id, index]))
+  const tieBreak = dominance.tieBreak ?? 'stable-input'
+  const result: RegionConfigV2[] = []
+  for (let index = 1; index < breakpoints.length; index += 1) {
+    const xMin = breakpoints[index - 1]!
+    const xMax = breakpoints[index]!
+    if (xMax - xMin <= EPSILON) continue
+    const ranked = rankAtX(
+      context,
+      xMin + (xMax - xMin) / 2,
+      inputRank,
+      tieBreak
+    )
+    if (ranked) {
+      result.push(...buildRankRegions(dominance, ranked, axis, xMin, xMax))
+    }
+  }
+  return result
+}
+
 export function compileDominanceRegions(
   dominance: DominanceRegionsConfig | undefined,
   seriesList: CartesianSeries[]
 ): RegionConfigV2[] {
-  if (!dominance || dominance.seriesIds.length < 2 || dominance.fills.length === 0) {
-    return []
-  }
-
-  const byId = new Map(seriesList.map(series => [series.id, series]))
-  const selected = dominance.seriesIds
-    .map(id => byId.get(id))
-    .filter((series): series is CartesianSeries => series != null)
-  if (selected.length < 2 || selected.length !== dominance.seriesIds.length) {
-    return []
-  }
-
-  const pointsBySeries = new Map<string, DomainPoint[]>()
-  for (const series of selected) {
-    const points = pointsToStrictlyIncreasing(series.points)
-    if (!points) return []
-    pointsBySeries.set(series.id, points)
-  }
-
-  const axis = dominance.yAxis ?? resolveSeriesYAxis(selected[0]!)
-  if (selected.some(series => resolveSeriesYAxis(series) !== axis)) return []
-
-  const seriesDomains = selected.map(series => {
-    const points = pointsBySeries.get(series.id)!
-    return [points[0]!.x, points[points.length - 1]!.x] as const
-  })
-  const overlapMin = Math.max(...seriesDomains.map(domain => domain[0]))
-  const overlapMax = Math.min(...seriesDomains.map(domain => domain[1]))
-  if (!(overlapMax > overlapMin)) return []
-
-  const breakpoints: number[] = [overlapMin, overlapMax]
-  for (const series of selected) {
-    const points = pointsBySeries.get(series.id)!
-    for (const point of points) {
-      if (point.x >= overlapMin - EPSILON && point.x <= overlapMax + EPSILON) {
-        breakpoints.push(Math.max(overlapMin, Math.min(overlapMax, point.x)))
-      }
-    }
-  }
-
-  const segmentsBySeries = new Map(
-    selected.map(series => [series.id, buildSegments(pointsBySeries.get(series.id)!)] as const)
-  )
-  for (let i = 0; i < selected.length; i += 1) {
-    for (let j = i + 1; j < selected.length; j += 1) {
-      const segmentsA = segmentsBySeries.get(selected[i]!.id) ?? []
-      const segmentsB = segmentsBySeries.get(selected[j]!.id) ?? []
-      for (const segA of segmentsA) {
-        for (const segB of segmentsB) {
-          const localMin = Math.max(overlapMin, segA.x1, segB.x1)
-          const localMax = Math.min(overlapMax, segA.x2, segB.x2)
-          if (localMax - localMin <= EPSILON) continue
-
-          const slopeDiff = segA.slope - segB.slope
-          if (Math.abs(slopeDiff) <= EPSILON) continue
-          const interceptA = segA.y1 - segA.slope * segA.x1
-          const interceptB = segB.y1 - segB.slope * segB.x1
-          const intersectionX = (interceptB - interceptA) / slopeDiff
-          if (
-            intersectionX > localMin + EPSILON &&
-            intersectionX < localMax - EPSILON
-          ) {
-            breakpoints.push(intersectionX)
-          }
-        }
-      }
-    }
-  }
-
-  const sorted = dedupeSorted(breakpoints)
-  if (sorted.length < 2) return []
-
-  const inputRank = new Map(dominance.seriesIds.map((id, index) => [id, index] as const))
-  const tieBreak = dominance.tieBreak ?? 'stable-input'
-  const result: RegionConfigV2[] = []
-
-  for (let i = 1; i < sorted.length; i += 1) {
-    const xMin = sorted[i - 1]!
-    const xMax = sorted[i]!
-    if (xMax - xMin <= EPSILON) continue
-    const mid = xMin + (xMax - xMin) / 2
-
-    const ranked = selected
-      .map(series => {
-        const points = pointsBySeries.get(series.id)!
-        const segments = segmentsBySeries.get(series.id) ?? buildSegments(points)
-        const domain: DomainRange = [points[0]!.x, points[points.length - 1]!.x]
-        const y = evaluateSegmentsAtX(segments, domain, mid)
-        return y == null ? null : { id: series.id, y }
-      })
-      .filter((item): item is { id: string; y: number } => item != null)
-    if (ranked.length !== selected.length) continue
-
-    ranked.sort((a, b) => {
-      if (a.y !== b.y) return a.y - b.y
-      if (tieBreak === 'series-id') return a.id.localeCompare(b.id)
-      return (inputRank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (inputRank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
-    })
-
-    for (let bandIndex = 0; bandIndex < ranked.length - 1; bandIndex += 1) {
-      const lowerId = ranked[bandIndex]!.id
-      const upperId = ranked[bandIndex + 1]!.id
-      const fill = dominance.fills[Math.min(bandIndex, dominance.fills.length - 1)]!
-      result.push({
-        upper: { type: 'series', id: upperId },
-        lower: { type: 'series', id: lowerId },
-        fill,
-        opacity: dominance.opacity,
-        yAxis: axis,
-        xMin,
-        xMax,
-      })
-    }
-  }
-
-  return result
+  if (!dominance) return []
+  const context = resolveDominanceSeries(dominance, seriesList)
+  if (!context) return []
+  const axis = resolveDominanceAxis(dominance, context.selected)
+  if (!axis) return []
+  const overlap = resolveSeriesOverlap(context)
+  if (!overlap) return []
+  const breakpoints = [overlap[0], overlap[1]]
+  collectSeriesPointBreakpoints(breakpoints, context, overlap)
+  collectPairIntersections(breakpoints, context, overlap)
+  return compileRankSlabs(dominance, context, axis, dedupeSorted(breakpoints))
 }
 
 export function buildRegionNodes(
@@ -531,15 +702,18 @@ export function buildRegionNodes(
     if (!upper || !lower) return
     if (upper.yAxis !== lower.yAxis) return
 
-    const breakpoints = collectBreakpoints(upper, lower, region.xMin, region.xMax)
+    const breakpoints = collectBreakpoints(
+      upper,
+      lower,
+      region.xMin,
+      region.xMax
+    )
     if (breakpoints.length < 2) return
 
     const polygons = buildSlabPolygons(upper, lower, breakpoints)
     if (polygons.length === 0) return
 
-    nodes.push(
-      ...emitNodes(region, regionIndex, polygons, scales, upper.yAxis)
-    )
+    nodes.push(...emitNodes(region, regionIndex, polygons, scales, upper.yAxis))
   })
 
   return nodes

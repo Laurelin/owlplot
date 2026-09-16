@@ -32,8 +32,8 @@ function computeYDataExtents(series: CartesianSeries[]): [number, number] {
   for (const s of series) {
     for (const p of s.points) {
       if (p.y === null) continue
-      if (p.y < min) min = p.y
-      if (p.y > max) max = p.y
+      min = Math.min(min, p.y)
+      max = Math.max(max, p.y)
     }
   }
   return [min, max]
@@ -46,11 +46,15 @@ function includeAreaBaselinesInExtents(
   let [min, max] = extents
   for (const s of series) {
     const baseline = resolveAreaBaselineDomain(s)
-    if (baseline === undefined || !Number.isFinite(baseline)) continue
-    if (baseline < min) min = baseline
-    if (baseline > max) max = baseline
+    if (!isFiniteBaseline(baseline)) continue
+    min = Math.min(min, baseline)
+    max = Math.max(max, baseline)
   }
   return [min, max]
+}
+
+function isFiniteBaseline(baseline: number | undefined): baseline is number {
+  return baseline !== undefined && Number.isFinite(baseline)
 }
 
 function applyYDomainPolicy(
@@ -58,22 +62,99 @@ function applyYDomainPolicy(
   yMax: number,
   policy: YDomainPolicy | undefined
 ): [number, number] {
-  const mode = policy?.mode ?? 'include-zero'
-  if (mode === 'data') return [yMin, yMax]
-  if (mode === 'include-zero') {
-    return [Math.min(0, yMin), Math.max(0, yMax)]
+  const resolved = resolveYDomainPolicy(policy)
+  switch (resolved.mode) {
+    case 'data':
+      return [yMin, yMax]
+    case 'include-zero':
+      return [Math.min(0, yMin), Math.max(0, yMax)]
+    case 'fixed':
+      return normalizeEqualDomain([resolved.min, resolved.max])
   }
-  if (
-    mode === 'fixed' &&
-    policy?.min !== undefined &&
-    policy?.max !== undefined
-  ) {
-    const min = policy.min
-    let max = policy.max
-    if (min === max) max = min + 1
-    return [min, max]
+}
+
+type ResolvedYDomainPolicy =
+  | { mode: 'include-zero' }
+  | { mode: 'data' }
+  | { mode: 'fixed'; min: number; max: number }
+
+function resolveYDomainPolicy(
+  policy: YDomainPolicy | undefined
+): ResolvedYDomainPolicy {
+  if (policy === undefined) return { mode: 'include-zero' }
+  if (policy.mode === 'data') return { mode: 'data' }
+  if (policy.mode === 'include-zero') return { mode: 'include-zero' }
+  return resolveFixedYDomainPolicy(policy)
+}
+
+function resolveFixedYDomainPolicy(
+  policy: YDomainPolicy
+): ResolvedYDomainPolicy {
+  if (policy.min === undefined) return { mode: 'data' }
+  if (policy.max === undefined) return { mode: 'data' }
+  return { mode: 'fixed', min: policy.min, max: policy.max }
+}
+
+function normalizeEqualDomain(domain: [number, number]): [number, number] {
+  return domain[0] === domain[1] ? [domain[0], domain[0] + 1] : domain
+}
+
+function normalizeDataDomain(domain: [number, number]): [number, number] {
+  const isEmpty = domain[0] === Infinity || domain[1] === -Infinity
+  return isEmpty ? [0, 1] : normalizeEqualDomain(domain)
+}
+
+function computeXDomain(series: CartesianSeries[]): [number, number] {
+  let min = Infinity
+  let max = -Infinity
+  for (const item of series) {
+    for (const point of item.points) {
+      if (point.y === null) continue
+      min = Math.min(min, point.x)
+      max = Math.max(max, point.x)
+    }
   }
-  return [yMin, yMax]
+  return normalizeDataDomain([min, max])
+}
+
+function computeYDomain(
+  series: CartesianSeries[],
+  policy: YDomainPolicy | undefined
+): [number, number] {
+  const extents = includeAreaBaselinesInExtents(
+    series,
+    computeYDataExtents(series)
+  )
+  const normalized = normalizeDataDomain(extents)
+  return applyYDomainPolicy(normalized[0], normalized[1], policy)
+}
+
+type ResolvedYDomains =
+  | { mode: 'single'; domain: [number, number] }
+  | {
+      mode: 'dual'
+      left: [number, number]
+      right: [number, number]
+    }
+
+function resolveYDomains(
+  leftSeries: CartesianSeries[],
+  rightSeries: CartesianSeries[],
+  rightDomain: [number, number] | undefined,
+  policy: YDomainPolicy | undefined
+): ResolvedYDomains {
+  const dual = rightSeries.length > 0 || rightDomain !== undefined
+  if (!dual) {
+    return { mode: 'single', domain: computeYDomain(leftSeries, policy) }
+  }
+  return {
+    mode: 'dual',
+    left: computeYDomain(leftSeries, policy),
+    right:
+      rightDomain === undefined
+        ? computeYDomain(rightSeries, policy)
+        : normalizeEqualDomain(rightDomain),
+  }
 }
 
 export type CartesianLayoutResult = {
@@ -104,252 +185,252 @@ export type CartesianScalesDual = {
 
 export type CartesianScales = CartesianScalesSingle | CartesianScalesDual
 
-export function computeCartesianLayout(
-  series: CartesianSeries[],
-  size: { width: number; height: number },
-  measureText: MeasureText,
-  options: {
-    padding: { top: number; right: number; bottom: number; left: number }
-    xAxis?: AxisConfig
-    /** When null, no left Y axis (right-only mode). When undefined, use left axis. */
-    yAxis?: AxisConfig | null
-    yAxisRight?: AxisConfig
-    /** Explicit right Y domain (dual-scale). If absent, derived from series with yAxis: 'right'. */
-    yAxisRightDomain?: [number, number]
-    /** Y-axis domain policy. Default include-zero when undefined. */
-    yDomain?: YDomainPolicy
-    enableAdaptivePadding?: boolean
-    axisTickFont?: string
-    axisLabelFont?: string
-    locale?: string
-    compactThreshold?: number
-    xScale?: AxisScaleConfig
-    yScale?: AxisScaleConfig
+type CartesianLayoutOptions = {
+  padding: { top: number; right: number; bottom: number; left: number }
+  xAxis?: AxisConfig
+  yAxis?: AxisConfig | null
+  yAxisRight?: AxisConfig
+  yAxisRightDomain?: [number, number]
+  yDomain?: YDomainPolicy
+  enableAdaptivePadding?: boolean
+  axisTickFont?: string
+  axisLabelFont?: string
+  locale?: string
+  compactThreshold?: number
+  xScale?: AxisScaleConfig
+  yScale?: AxisScaleConfig
+}
+
+function partitionSeries(series: CartesianSeries[]): {
+  left: CartesianSeries[]
+  right: CartesianSeries[]
+} {
+  const left: CartesianSeries[] = []
+  const right: CartesianSeries[] = []
+  for (const item of series) {
+    const target = item.yAxis === 'right' ? right : left
+    target.push(item)
   }
-): CartesianLayoutResult {
-  // 1) X domain and partition series by Y axis
-  let xMin = Infinity,
-    xMax = -Infinity
-  for (const s of series) {
-    for (const p of s.points) {
-      if (p.y === null) continue
-      if (p.x < xMin) xMin = p.x
-      if (p.x > xMax) xMax = p.x
-    }
-  }
-  if (xMin === Infinity || xMax === -Infinity) {
-    xMin = 0
-    xMax = 1
-  }
-  if (xMin === xMax) xMax = xMin + 1
+  return { left, right }
+}
 
-  const leftSeries = series.filter(s => s.yAxis !== 'right')
-  const rightSeries = series.filter(s => s.yAxis === 'right')
-  const isDualScale =
-    rightSeries.length > 0 || options.yAxisRightDomain !== undefined
+function domainSides(domains: ResolvedYDomains): {
+  left: [number, number]
+  right: [number, number]
+} {
+  return domains.mode === 'dual'
+    ? domains
+    : { left: domains.domain, right: domains.domain }
+}
 
-  // 2) Resolved Y scales (scale config: domain per side)
-  let yMin: number
-  let yMax: number
-  let yMinLeft: number
-  let yMaxLeft: number
-  let yMinRight: number
-  let yMaxRight: number
-
-  if (isDualScale) {
-    ;[yMinLeft, yMaxLeft] = includeAreaBaselinesInExtents(
-      leftSeries,
-      computeYDataExtents(leftSeries)
-    )
-    if (yMinLeft === Infinity || yMaxLeft === -Infinity) {
-      yMinLeft = 0
-      yMaxLeft = 1
-    }
-    if (yMinLeft === yMaxLeft) yMaxLeft = yMinLeft + 1
-    ;[yMinLeft, yMaxLeft] = applyYDomainPolicy(
-      yMinLeft,
-      yMaxLeft,
-      options.yDomain
-    )
-
-    if (options.yAxisRightDomain !== undefined) {
-      ;[yMinRight, yMaxRight] = options.yAxisRightDomain
-      if (yMinRight === yMaxRight) yMaxRight = yMinRight + 1
-    } else {
-      ;[yMinRight, yMaxRight] = includeAreaBaselinesInExtents(
-        rightSeries,
-        computeYDataExtents(rightSeries)
-      )
-      if (yMinRight === Infinity || yMaxRight === -Infinity) {
-        yMinRight = 0
-        yMaxRight = 1
-      }
-      if (yMinRight === yMaxRight) yMaxRight = yMinRight + 1
-      ;[yMinRight, yMaxRight] = applyYDomainPolicy(
-        yMinRight,
-        yMaxRight,
-        options.yDomain
-      )
-    }
-    yMin = yMinLeft
-    yMax = yMaxLeft
-  } else {
-    ;[yMin, yMax] = includeAreaBaselinesInExtents(
-      series,
-      computeYDataExtents(series)
-    )
-    if (yMin === Infinity || yMax === -Infinity) {
-      yMin = 0
-      yMax = 1
-    }
-    if (yMin === yMax) yMax = yMin + 1
-    ;[yMin, yMax] = applyYDomainPolicy(yMin, yMax, options.yDomain)
-    yMinLeft = yMin
-    yMaxLeft = yMax
-    yMinRight = yMin
-    yMaxRight = yMax
-  }
-
-  // 3) compute adaptive padding if enabled
-  const userPadding = options.padding
-  let finalPadding = userPadding
-  const xScaleForPadding = createScale(options.xScale, [xMin, xMax], [0, 1])
-  const yScaleForPadding = createScale(options.yScale, [yMinLeft, yMaxLeft], [0, 1])
-  const yScaleRightForPadding = isDualScale
-    ? createScale(options.yScale, [yMinRight, yMaxRight], [0, 1])
+function resolveRightPaddingScale(
+  domains: ResolvedYDomains,
+  config: AxisScaleConfig | undefined
+): ContinuousScale | undefined {
+  return domains.mode === 'dual'
+    ? createScale(config, domains.right, [0, 1])
     : undefined
+}
 
-  if (options.enableAdaptivePadding !== false) {
-    const xTickCount = options.xAxis?.tickCount
-    const yTickCount =
-      options.yAxis !== null && options.yAxis !== undefined
-        ? options.yAxis.tickCount
-        : options.yAxisRight?.tickCount
-    const adaptivePadding = computeAdaptivePadding(
-      size.width,
-      size.height,
-      xScaleForPadding,
-      yScaleForPadding,
-      measureText,
-      options.xAxis,
-      options.yAxis ?? undefined,
-      options.yAxisRight,
-      xTickCount ?? 5,
-      yTickCount ?? 5,
-      {
-        axisTickFont: options.axisTickFont,
-        axisLabelFont: options.axisLabelFont,
-        yScaleRight: yScaleRightForPadding,
-        locale: options.locale,
-        compactThreshold: options.compactThreshold,
-      }
-    )
+function resolveXTickCount(config: AxisConfig | undefined): number {
+  return config?.tickCount === undefined ? 5 : config.tickCount
+}
 
-    finalPadding = {
-      top: Math.max(userPadding.top, adaptivePadding.top),
-      right: Math.max(userPadding.right, adaptivePadding.right),
-      bottom: Math.max(userPadding.bottom, adaptivePadding.bottom),
-      left: Math.max(userPadding.left, adaptivePadding.left),
+function resolveYTickCount(options: CartesianLayoutOptions): number {
+  return options.yAxis
+    ? resolveXTickCount(options.yAxis)
+    : resolveXTickCount(options.yAxisRight)
+}
+
+function resolvePadding(
+  size: { width: number; height: number },
+  domains: {
+    x: [number, number]
+    y: ResolvedYDomains
+  },
+  measureText: MeasureText,
+  options: CartesianLayoutOptions
+): CartesianLayoutOptions['padding'] {
+  if (options.enableAdaptivePadding === false) return options.padding
+  const sides = domainSides(domains.y)
+  const xScale = createScale(options.xScale, domains.x, [0, 1])
+  const yScale = createScale(options.yScale, sides.left, [0, 1])
+  const yScaleRight = resolveRightPaddingScale(domains.y, options.yScale)
+  const adaptive = computeAdaptivePadding(
+    size.width,
+    size.height,
+    xScale,
+    yScale,
+    measureText,
+    options.xAxis,
+    options.yAxis ?? undefined,
+    options.yAxisRight,
+    resolveXTickCount(options.xAxis),
+    resolveYTickCount(options),
+    {
+      axisTickFont: options.axisTickFont,
+      axisLabelFont: options.axisLabelFont,
+      yScaleRight,
+      locale: options.locale,
+      compactThreshold: options.compactThreshold,
     }
+  )
+  return {
+    top: Math.max(options.padding.top, adaptive.top),
+    right: Math.max(options.padding.right, adaptive.right),
+    bottom: Math.max(options.padding.bottom, adaptive.bottom),
+    left: Math.max(options.padding.left, adaptive.left),
   }
+}
 
-  // 4) compute plot rect from final padding
-  const { top, right, bottom, left } = finalPadding
-  const plotRect: PlotRect = {
-    x: left,
-    y: top,
-    width: Math.max(0, size.width - left - right),
-    height: Math.max(0, size.height - top - bottom),
+function computePlotRect(
+  size: { width: number; height: number },
+  padding: CartesianLayoutOptions['padding']
+): PlotRect {
+  return {
+    x: padding.left,
+    y: padding.top,
+    width: Math.max(0, size.width - padding.left - padding.right),
+    height: Math.max(0, size.height - padding.top - padding.bottom),
   }
+}
 
-  // 5) build continuous scales
-  const xScale = createScale(
-    options.xScale,
-    [xMin, xMax],
-    [plotRect.x, plotRect.x + plotRect.width]
-  )
-  const yScale = createScale(
-    options.yScale,
-    [yMin, yMax],
-    [plotRect.y + plotRect.height, plotRect.y]
-  )
-  const yScaleLeft = createScale(
-    options.yScale,
-    [yMinLeft, yMaxLeft],
-    [plotRect.y + plotRect.height, plotRect.y]
-  )
-  const yScaleRight = createScale(
-    options.yScale,
-    [yMinRight, yMaxRight],
-    [plotRect.y + plotRect.height, plotRect.y]
-  )
-  const xAxisScale = createScale(options.xScale, [xMin, xMax], [0, plotRect.width])
-  const yAxisLeftScale = createScale(
-    options.yScale,
-    [yMinLeft, yMaxLeft],
-    [plotRect.height, 0]
-  )
-  const yAxisRightScale = createScale(
-    options.yScale,
-    [yMinRight, yMaxRight],
-    [plotRect.height, 0]
-  )
+type ScaleLayouts =
+  | {
+      mode: 'single'
+      publicScales: CartesianScalesSingle
+      xAxis: ContinuousScale
+      yAxisLeft: ContinuousScale
+      yAxisRight: ContinuousScale
+    }
+  | {
+      mode: 'dual'
+      publicScales: CartesianScalesDual
+      xAxis: ContinuousScale
+      yAxisLeft: ContinuousScale
+      yAxisRight: ContinuousScale
+    }
 
-  // 6) axis layouts (local axis coords)
-  const axisLayoutOptions = {
+function createLayoutScales(
+  xDomain: [number, number],
+  yDomains: ResolvedYDomains,
+  plotRect: PlotRect,
+  options: CartesianLayoutOptions
+): ScaleLayouts {
+  const sides = domainSides(yDomains)
+  const xRange: [number, number] = [plotRect.x, plotRect.x + plotRect.width]
+  const yRange: [number, number] = [plotRect.y + plotRect.height, plotRect.y]
+  const x = createScale(options.xScale, xDomain, xRange)
+  const yLeft = createScale(options.yScale, sides.left, yRange)
+  const yRight = createScale(options.yScale, sides.right, yRange)
+  const axisScales = {
+    xAxis: createScale(options.xScale, xDomain, [0, plotRect.width]),
+    yAxisLeft: createScale(options.yScale, sides.left, [plotRect.height, 0]),
+    yAxisRight: createScale(options.yScale, sides.right, [plotRect.height, 0]),
+  }
+  return yDomains.mode === 'dual'
+    ? {
+        mode: 'dual',
+        publicScales: { x, yLeft, yRight },
+        ...axisScales,
+      }
+    : {
+        mode: 'single',
+        publicScales: { x, y: yLeft },
+        ...axisScales,
+      }
+}
+
+function createAxes(
+  scales: ScaleLayouts,
+  measureText: MeasureText,
+  options: CartesianLayoutOptions
+): CartesianLayoutResult['axes'] {
+  const axisOptions = {
     axisTickFont: options.axisTickFont,
     axisLabelFont: options.axisLabelFont,
     locale: options.locale,
     compactThreshold: options.compactThreshold,
   }
-  const xAxis: AxisLayout = computeAxisLayout(
-    Position.BOTTOM,
-    xAxisScale,
-    measureText,
-    options.xAxis,
-    axisLayoutOptions
-  )
-
-  const yAxis: AxisLayout | undefined =
-    options.yAxis !== null && options.yAxis !== undefined
-      ? computeAxisLayout(
-          Position.LEFT,
-          yAxisLeftScale,
-          measureText,
-          options.yAxis,
-          axisLayoutOptions
-        )
-      : undefined
-
-  const yAxisRight: AxisLayout | undefined = options.yAxisRight
-    ? computeAxisLayout(
-        Position.RIGHT,
-        yAxisRightScale,
-        measureText,
-        options.yAxisRight,
-        axisLayoutOptions
-      )
-    : undefined
-
   const axes: CartesianLayoutResult['axes'] = {
-    x: xAxis,
-    ...(yAxis !== undefined && { y: yAxis }),
-    ...(yAxisRight !== undefined && { yRight: yAxisRight }),
+    x: computeAxisLayout(
+      Position.BOTTOM,
+      scales.xAxis,
+      measureText,
+      options.xAxis,
+      axisOptions
+    ),
   }
+  if (options.yAxis !== null && options.yAxis !== undefined) {
+    axes.y = computeAxisLayout(
+      Position.LEFT,
+      scales.yAxisLeft,
+      measureText,
+      options.yAxis,
+      axisOptions
+    )
+  }
+  if (options.yAxisRight !== undefined) {
+    axes.yRight = computeAxisLayout(
+      Position.RIGHT,
+      scales.yAxisRight,
+      measureText,
+      options.yAxisRight,
+      axisOptions
+    )
+  }
+  return axes
+}
 
-  const scales: CartesianLayoutResult['scales'] = isDualScale
-    ? { x: xScale, yLeft: yScaleLeft, yRight: yScaleRight }
-    : { x: xScale, y: yScale }
-
+function createLayoutResult(
+  plotRect: PlotRect,
+  scales: ScaleLayouts,
+  axes: CartesianLayoutResult['axes'],
+  xDomain: [number, number],
+  yDomains: ResolvedYDomains
+): CartesianLayoutResult {
+  if (yDomains.mode === 'single') {
+    return {
+      plotRect,
+      scales: scales.publicScales,
+      axes,
+      xDomain,
+      yDomain: yDomains.domain,
+    }
+  }
   return {
     plotRect,
-    scales,
+    scales: scales.publicScales,
     axes,
-    xDomain: [xMin, xMax],
-    yDomain: [yMinLeft, yMaxLeft],
-    ...(isDualScale && {
-      yDomainLeft: [yMinLeft, yMaxLeft] as [number, number],
-      yDomainRight: [yMinRight, yMaxRight] as [number, number],
-    }),
+    xDomain,
+    yDomain: yDomains.left,
+    yDomainLeft: yDomains.left,
+    yDomainRight: yDomains.right,
   }
+}
+
+export function computeCartesianLayout(
+  series: CartesianSeries[],
+  size: { width: number; height: number },
+  measureText: MeasureText,
+  options: CartesianLayoutOptions
+): CartesianLayoutResult {
+  const xDomain = computeXDomain(series)
+  const partitioned = partitionSeries(series)
+  const yDomains = resolveYDomains(
+    partitioned.left,
+    partitioned.right,
+    options.yAxisRightDomain,
+    options.yDomain
+  )
+  const padding = resolvePadding(
+    size,
+    { x: xDomain, y: yDomains },
+    measureText,
+    options
+  )
+  const plotRect = computePlotRect(size, padding)
+  const scales = createLayoutScales(xDomain, yDomains, plotRect, options)
+  const axes = createAxes(scales, measureText, options)
+  return createLayoutResult(plotRect, scales, axes, xDomain, yDomains)
 }

@@ -43,6 +43,38 @@ export type SampleFunctionOptions = {
   includeInvalid?: boolean
 }
 
+type SampledValue =
+  | { readonly kind: 'include'; readonly y: number }
+  | { readonly kind: 'skip' }
+
+function hasValidRange(xMin: number, xMax: number, step: number): boolean {
+  return (
+    Number.isFinite(xMin) && Number.isFinite(xMax) && step > 0 && xMax >= xMin
+  )
+}
+
+function isRejectedValue(y: number, yFloor: number): boolean {
+  return !Number.isFinite(y) || y <= yFloor
+}
+
+function exceedsCap(y: number, yCap: number | undefined): yCap is number {
+  return yCap !== undefined && y > yCap
+}
+
+function resolveSampledValue(
+  y: number,
+  options: Required<Pick<SampleFunctionOptions, 'yFloor' | 'includeInvalid'>> &
+    Pick<SampleFunctionOptions, 'yCap'>
+): SampledValue {
+  if (isRejectedValue(y, options.yFloor)) {
+    return options.includeInvalid ? { kind: 'include', y } : { kind: 'skip' }
+  }
+  if (exceedsCap(y, options.yCap)) {
+    return { kind: 'include', y: options.yCap }
+  }
+  return { kind: 'include', y }
+}
+
 /**
  * Deterministically sample a function on [xMin, xMax] using step increments.
  * Defaults are conservative for chart rendering:
@@ -58,30 +90,13 @@ export function sampleFunction(
 ): DataPoint[] {
   const { yCap, yFloor = 0, includeInvalid = false } = options
   const points: DataPoint[] = []
-  if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || step <= 0) {
-    return points
-  }
+  if (!hasValidRange(xMin, xMax, step)) return points
 
-  const span = xMax - xMin
-  if (span < 0) return points
-  const count = Math.floor(span / step)
-
+  const count = Math.floor((xMax - xMin) / step)
   for (let i = 0; i <= count; i++) {
     const x = xMin + i * step
-    let y = fn(x)
-
-    if (!Number.isFinite(y)) {
-      if (includeInvalid) points.push({ x, y })
-      continue
-    }
-    if (y <= yFloor) {
-      if (includeInvalid) points.push({ x, y })
-      continue
-    }
-    if (yCap !== undefined && y > yCap) {
-      y = yCap
-    }
-    points.push({ x, y })
+    const sampled = resolveSampledValue(fn(x), { yCap, yFloor, includeInvalid })
+    if (sampled.kind === 'include') points.push({ x, y: sampled.y })
   }
 
   return points

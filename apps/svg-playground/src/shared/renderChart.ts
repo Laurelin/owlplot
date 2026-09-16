@@ -21,6 +21,11 @@ const CHART_ASPECT_RATIO = 0.56
 
 const hiddenSeriesIdsByContainer = new WeakMap<HTMLElement, string[]>()
 
+type ChartSize = {
+  readonly width: number
+  readonly height: number
+}
+
 function resolveChartSize(container: HTMLElement): {
   width: number
   height: number
@@ -53,17 +58,47 @@ function mergeLegendOptions(
   }
 }
 
-export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
-  const hiddenSeriesIds = hiddenSeriesIdsByContainer.get(container) ?? []
-  container.replaceChildren()
+function getHiddenSeriesIds(container: HTMLElement): readonly string[] {
+  return hiddenSeriesIdsByContainer.get(container) ?? []
+}
 
-  const size = resolveChartSize(container)
+function toggleSeriesId(
+  hiddenSeriesIds: readonly string[],
+  seriesId: string
+): string[] {
+  return hiddenSeriesIds.includes(seriesId)
+    ? hiddenSeriesIds.filter(id => id !== seriesId)
+    : [...hiddenSeriesIds, seriesId]
+}
+
+function createToggleSeriesHandler(
+  container: HTMLElement,
+  demo: ChartDemo
+): (seriesId: string) => void {
+  return seriesId => {
+    const current = getHiddenSeriesIds(container)
+    hiddenSeriesIdsByContainer.set(container, toggleSeriesId(current, seriesId))
+    renderChartInto(container, demo)
+  }
+}
+
+function createChartSvg(
+  container: HTMLElement,
+  size: ChartSize
+): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   svg.setAttribute('width', String(size.width))
   svg.setAttribute('height', String(size.height))
   svg.classList.add('chart-svg')
   container.appendChild(svg)
+  return svg
+}
 
+function computeTransformedScene(
+  demo: ChartDemo,
+  size: ChartSize,
+  hiddenSeriesIds: readonly string[]
+) {
   const config = {
     ...demo.config,
     options: {
@@ -71,36 +106,37 @@ export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
       hiddenSeriesIds,
     },
   }
-
   const result = computeChartScene(config, size, {
     devicePixelRatio: window.devicePixelRatio || 1,
     measureText,
   })
-  const baseScene = result.scene
-  const scene = applySceneTransforms(baseScene, demo.sceneTransforms)
+  return applySceneTransforms(result.scene, demo.sceneTransforms)
+}
 
+export function renderChartInto(container: HTMLElement, demo: ChartDemo): void {
+  const hiddenSeriesIds = getHiddenSeriesIds(container)
+  const renderOptions = demo.renderOptions ?? {}
+  const chartOptions = demo.config.options ?? {}
+  container.replaceChildren()
+
+  const size = resolveChartSize(container)
+  const svg = createChartSvg(container, size)
+  const scene = computeTransformedScene(demo, size, hiddenSeriesIds)
   const legend = mergeLegendOptions(
-    demo.renderOptions?.legend,
+    renderOptions.legend,
     hiddenSeriesIds,
-    (seriesId: string) => {
-      const current = hiddenSeriesIdsByContainer.get(container) ?? []
-      const next = current.includes(seriesId)
-        ? current.filter(id => id !== seriesId)
-        : [...current, seriesId]
-      hiddenSeriesIdsByContainer.set(container, next)
-      renderChartInto(container, demo)
-    }
+    createToggleSeriesHandler(container, demo)
   )
 
   renderSvgScene(scene, svg, {
-    tooltip: demo.renderOptions?.tooltip,
+    tooltip: renderOptions.tooltip,
     tooltipContext: {
-      ...demo.renderOptions?.tooltipContext,
-      tooltipFormat: demo.config.options?.tooltipFormat,
-      locale: demo.config.options?.locale,
+      ...renderOptions.tooltipContext,
+      tooltipFormat: chartOptions.tooltipFormat,
+      locale: chartOptions.locale,
     },
-    hoverMode: demo.renderOptions?.hoverMode,
-    hoverIndicator: demo.renderOptions?.hoverIndicator,
+    hoverMode: renderOptions.hoverMode,
+    hoverIndicator: renderOptions.hoverIndicator,
     legend,
     legendHost: container,
   })

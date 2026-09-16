@@ -5,6 +5,7 @@ import { SceneNodeKind } from '../../scene/types'
 import { mergePadding } from '../../config/helpers'
 import {
   computeCartesianLayout,
+  type CartesianLayoutResult,
   type CartesianScales,
 } from '../cartesian2d/layout'
 import type { ChartSize } from '../types'
@@ -15,6 +16,7 @@ import { buildRegionNodes } from './regionNodes'
 import { buildHoverMetadata } from './hoverMetadata'
 import type { ContinuousScale } from '../cartesian2d/scale'
 import { TextAnchor } from '../../text/types'
+import type { AnyPaint } from '../../paint/types'
 
 export { axisToSceneNodes } from './axisNodes'
 export type { HoverSeries } from './hoverMetadata'
@@ -144,6 +146,251 @@ function buildAnnotationNodes(
   })
 }
 
+type LineOptions = NonNullable<LineChartConfig['options']>
+
+function resolveRightDomain(
+  options: LineOptions
+): [number, number] | undefined {
+  return options.yAxisRight?.domain
+}
+
+function resolveYDomain(options: LineOptions) {
+  return options.yDomain ?? { mode: 'include-zero' as const }
+}
+
+function resolveAdaptivePadding(options: LineOptions): boolean {
+  return options.enableAdaptivePadding ?? true
+}
+
+function computeLineLayout(
+  config: LineChartConfig,
+  seriesForCompute: LineChartConfig['series'],
+  size: ChartSize,
+  env: ChartEnvironment,
+  axes: ReturnType<typeof buildAxisConfigs>
+): CartesianLayoutResult {
+  const options = config.options ?? {}
+  return computeCartesianLayout(seriesForCompute, size, env.measureText, {
+    padding: mergePadding(options.padding),
+    xAxis: axes.bottomAxisConfig,
+    yAxis: axes.layoutYAxis,
+    yAxisRight: axes.rightAxisConfig,
+    yAxisRightDomain: resolveRightDomain(options),
+    yDomain: resolveYDomain(options),
+    enableAdaptivePadding: resolveAdaptivePadding(options),
+    axisTickFont: options.axisTickFont,
+    axisLabelFont: options.axisLabelFont,
+    locale: options.locale,
+    compactThreshold: options.compactThreshold,
+    xScale: options.xScale,
+    yScale: options.yScale,
+  })
+}
+
+type OriginTickVisibility = {
+  bottom: boolean
+  left: boolean
+  right: boolean
+}
+
+function isDomainEdgeZero(domain: [number, number], edge: 0 | 1): boolean {
+  return Math.abs(domain[edge]) <= ZERO_EPSILON
+}
+
+function resolveSideDomain(
+  side: 'left' | 'right',
+  layout: CartesianLayoutResult
+): [number, number] {
+  return side === 'left'
+    ? (layout.yDomainLeft ?? layout.yDomain)
+    : (layout.yDomainRight ?? layout.yDomain)
+}
+
+function axisMinimumIsZero(axis: unknown, domain: [number, number]): boolean {
+  return axis !== undefined && isDomainEdgeZero(domain, 0)
+}
+
+function shouldHideBottomOrigin(
+  xMinIsZero: boolean,
+  xMaxIsZero: boolean,
+  leftMinIsZero: boolean,
+  rightMinIsZero: boolean
+): boolean {
+  return (xMinIsZero && leftMinIsZero) || (xMaxIsZero && rightMinIsZero)
+}
+
+function resolveOriginTickVisibility(
+  layout: CartesianLayoutResult,
+  showOriginTicks: boolean
+): OriginTickVisibility {
+  if (showOriginTicks) return { bottom: false, left: false, right: false }
+  const xMinIsZero = isDomainEdgeZero(layout.xDomain, 0)
+  const xMaxIsZero = isDomainEdgeZero(layout.xDomain, 1)
+  const leftMinIsZero = axisMinimumIsZero(
+    layout.axes.y,
+    resolveSideDomain('left', layout)
+  )
+  const rightMinIsZero = axisMinimumIsZero(
+    layout.axes.yRight,
+    resolveSideDomain('right', layout)
+  )
+  return {
+    bottom: shouldHideBottomOrigin(
+      xMinIsZero,
+      xMaxIsZero,
+      leftMinIsZero,
+      rightMinIsZero
+    ),
+    left: xMinIsZero && leftMinIsZero,
+    right: xMaxIsZero && rightMinIsZero,
+  }
+}
+
+type AxisFonts = { tick?: string; label?: string }
+
+function resolveAxisFonts(config: LineChartConfig): AxisFonts {
+  return {
+    tick: config.options?.axisTickFont,
+    label: config.options?.axisLabelFont,
+  }
+}
+
+function buildOptionalAxisNodes(
+  axis: CartesianLayoutResult['axes']['y'],
+  layout: CartesianLayoutResult,
+  fonts: AxisFonts,
+  hideOrigin: boolean,
+  config: Parameters<typeof axisToSceneNodes>[5]
+): SceneNode[] {
+  if (!axis) return []
+  return axisToSceneNodes(
+    axis,
+    layout.plotRect,
+    fonts.tick,
+    fonts.label,
+    hideOrigin,
+    config
+  )
+}
+
+function buildAxisNodes(
+  config: LineChartConfig,
+  layout: CartesianLayoutResult,
+  axisConfigs: ReturnType<typeof buildAxisConfigs>,
+  originTicks: OriginTickVisibility
+): SceneNode[] {
+  const fonts = resolveAxisFonts(config)
+  return [
+    ...axisToSceneNodes(
+      layout.axes.x,
+      layout.plotRect,
+      fonts.tick,
+      fonts.label,
+      originTicks.bottom,
+      axisConfigs.bottomAxisConfig
+    ),
+    ...buildOptionalAxisNodes(
+      layout.axes.y,
+      layout,
+      fonts,
+      originTicks.left,
+      axisConfigs.leftAxisConfig
+    ),
+    ...buildOptionalAxisNodes(
+      layout.axes.yRight,
+      layout,
+      fonts,
+      originTicks.right,
+      axisConfigs.rightAxisConfig
+    ),
+  ]
+}
+
+function buildBackgroundNode(size: ChartSize): SceneNode {
+  return {
+    kind: SceneNodeKind.RECT,
+    id: 'background',
+    x: 0,
+    y: 0,
+    width: size.width,
+    height: size.height,
+    style: { fill: { type: 'solid', color: 'transparent' } },
+    metadata: { role: 'background' },
+  }
+}
+
+function resolveLegendPaint(
+  series: LineChartConfig['series'][number],
+  pointsEnabled: boolean
+): AnyPaint {
+  const paint = resolveSeriesPaint(series, pointsEnabled)
+  return series.type === 'area'
+    ? selectLegendPaint(paint.fill, paint.stroke)
+    : selectLegendPaint(paint.stroke, paint.fill)
+}
+
+function selectLegendPaint(
+  primary: AnyPaint | undefined,
+  secondary: AnyPaint | undefined
+): AnyPaint {
+  if (primary) return primary
+  if (secondary) return secondary
+  return { type: 'solid', color: 'currentColor' }
+}
+
+function buildLegendEntries(config: LineChartConfig, pointsEnabled: boolean) {
+  return config.series.map((series, index) => ({
+    seriesId: series.id,
+    label: series.id,
+    paint: resolveLegendPaint(series, pointsEnabled),
+    order: index,
+  }))
+}
+
+function buildLayeredChildren(
+  config: LineChartConfig,
+  size: ChartSize,
+  seriesForCompute: LineChartConfig['series'],
+  layout: CartesianLayoutResult,
+  axisConfigs: ReturnType<typeof buildAxisConfigs>,
+  pointsEnabled: boolean
+): SceneNode[] {
+  const options = config.options ?? {}
+  const originTicks = resolveOriginTickVisibility(
+    layout,
+    options.showOriginTicks === true
+  )
+  const bands = buildBandNodes(config, layout.scales, layout.plotRect)
+  const regions = buildRegionNodes(
+    options.regions,
+    options.dominanceRegions,
+    seriesForCompute,
+    layout.scales
+  )
+  const series = buildSeriesNodes(
+    seriesForCompute,
+    layout.scales,
+    pointsEnabled,
+    options.area?.fillOpacity,
+    options.point
+  )
+  const annotations = buildAnnotationNodes(
+    config,
+    layout.scales,
+    layout.plotRect
+  )
+  const axes = buildAxisNodes(config, layout, axisConfigs, originTicks)
+  // Layering invariant: bands -> regions -> series -> annotations -> axes.
+  return [
+    buildBackgroundNode(size),
+    ...bands,
+    ...regions,
+    ...series,
+    ...annotations,
+    ...axes,
+  ]
+}
+
 /**
  * `scene` orchestrates line chart computation.
  * Inputs: chart config + chart size + chart environment.
@@ -155,151 +402,39 @@ export function scene(
   env: ChartEnvironment
 ): { scene: SceneNode } {
   const hidden = new Set(config.options?.hiddenSeriesIds ?? [])
-  const seriesForCompute = config.series.filter(s => !hidden.has(s.id))
-
-  const padding = mergePadding(config.options?.padding)
-  const { bottomAxisConfig, leftAxisConfig, rightAxisConfig, layoutYAxis } =
-    buildAxisConfigs(config)
-
-  const resolvedYDomain = config.options?.yDomain ?? { mode: 'include-zero' }
-  const {
-    plotRect,
-    scales,
-    axes,
-    xDomain,
-    yDomain,
-    yDomainLeft,
-    yDomainRight,
-  } = computeCartesianLayout(seriesForCompute, size, env.measureText, {
-    padding,
-    xAxis: bottomAxisConfig,
-    yAxis: layoutYAxis,
-    yAxisRight: rightAxisConfig,
-    yAxisRightDomain: config.options?.yAxisRight?.domain,
-    yDomain: resolvedYDomain,
-    enableAdaptivePadding: config.options?.enableAdaptivePadding ?? true,
-    axisTickFont: config.options?.axisTickFont,
-    axisLabelFont: config.options?.axisLabelFont,
-    locale: config.options?.locale,
-    compactThreshold: config.options?.compactThreshold,
-    xScale: config.options?.xScale,
-    yScale: config.options?.yScale,
-  })
-
-  const children: SceneNode[] = []
-  children.push({
-    kind: SceneNodeKind.RECT,
-    id: 'background',
-    x: 0,
-    y: 0,
-    width: size.width,
-    height: size.height,
-    style: { fill: { type: 'solid', color: 'transparent' } },
-    metadata: { role: 'background' },
-  })
-
-  const showOriginTicks = config.options?.showOriginTicks ?? false
-  const shouldHideOriginTicks = !showOriginTicks
-  const xMinIsZero = Math.abs(xDomain[0]) <= ZERO_EPSILON
-  const xMaxIsZero = Math.abs(xDomain[1]) <= ZERO_EPSILON
-  const leftDomain = yDomainLeft ?? yDomain
-  const rightDomain = yDomainRight ?? yDomain
-  const yLeftMinIsZero =
-    axes.y !== undefined && Math.abs(leftDomain[0]) <= ZERO_EPSILON
-  const yRightMinIsZero =
-    axes.yRight !== undefined && Math.abs(rightDomain[0]) <= ZERO_EPSILON
-  const hideBottomTickAtOrigin =
-    shouldHideOriginTicks &&
-    ((xMinIsZero && yLeftMinIsZero) || (xMaxIsZero && yRightMinIsZero))
-  const hideLeftTickAtOrigin =
-    shouldHideOriginTicks && xMinIsZero && yLeftMinIsZero
-  const hideRightTickAtOrigin =
-    shouldHideOriginTicks && xMaxIsZero && yRightMinIsZero
-
+  const seriesForCompute = config.series.filter(
+    series => !hidden.has(series.id)
+  )
+  const axisConfigs = buildAxisConfigs(config)
+  const layout = computeLineLayout(
+    config,
+    seriesForCompute,
+    size,
+    env,
+    axisConfigs
+  )
   const pointsEnabled = config.options?.showPoints ?? false
-  const chartAreaFillOpacity = config.options?.area?.fillOpacity
-  const bandNodes = buildBandNodes(config, scales, plotRect)
-  const regionNodes = buildRegionNodes(
-    config.options?.regions,
-    config.options?.dominanceRegions,
+  const children = buildLayeredChildren(
+    config,
+    size,
     seriesForCompute,
-    scales
-  )
-  const seriesNodes = buildSeriesNodes(
-    seriesForCompute,
-    scales,
-    pointsEnabled,
-    chartAreaFillOpacity,
-    config.options?.point
-  )
-  const annotationNodes = buildAnnotationNodes(config, scales, plotRect)
-  const axisNodes: SceneNode[] = [
-    ...axisToSceneNodes(
-      axes.x,
-      plotRect,
-      config.options?.axisTickFont,
-      config.options?.axisLabelFont,
-      hideBottomTickAtOrigin,
-      bottomAxisConfig
-    ),
-    ...(axes.y !== undefined
-      ? axisToSceneNodes(
-          axes.y,
-          plotRect,
-          config.options?.axisTickFont,
-          config.options?.axisLabelFont,
-          hideLeftTickAtOrigin,
-          leftAxisConfig
-        )
-      : []),
-    ...(axes.yRight
-      ? axisToSceneNodes(
-          axes.yRight,
-          plotRect,
-          config.options?.axisTickFont,
-          config.options?.axisLabelFont,
-          hideRightTickAtOrigin,
-          rightAxisConfig
-        )
-      : []),
-  ]
-
-  // Layering invariant: bands -> regions -> series -> annotations -> axes.
-  children.push(
-    ...bandNodes,
-    ...regionNodes,
-    ...seriesNodes,
-    ...annotationNodes,
-    ...axisNodes
+    layout,
+    axisConfigs,
+    pointsEnabled
   )
 
   // Bands/regions are intentionally excluded from legend generation in v1.
   // They are contextual background, not semantic series.
   // Annotations are also excluded from legend generation in v1.
-  const legendEntries = config.series.map((series, index) => {
-    const paint = resolveSeriesPaint(series, pointsEnabled)
-    const swatchPaint =
-      series.type === 'area'
-        ? (paint.fill ??
-          paint.stroke ?? { type: 'solid', color: 'currentColor' as const })
-        : (paint.stroke ??
-          paint.fill ?? { type: 'solid', color: 'currentColor' as const })
-    return {
-      seriesId: series.id,
-      label: series.id,
-      paint: swatchPaint,
-      order: index,
-    }
-  })
-
+  const legendEntries = buildLegendEntries(config, pointsEnabled)
   const hover = buildHoverMetadata(
     seriesForCompute,
-    scales,
-    plotRect,
-    xDomain,
-    yDomain,
-    yDomainLeft,
-    yDomainRight
+    layout.scales,
+    layout.plotRect,
+    layout.xDomain,
+    layout.yDomain,
+    layout.yDomainLeft,
+    layout.yDomainRight
   )
 
   return {

@@ -5,6 +5,28 @@ import { DATA_X, DATA_Y } from '../../shared/dataAttributes'
 
 // invariant: a glyph is only hoverable if it carries full domain metadata
 
+function warnGlyph(message: string): void {
+  if (process.env.NODE_ENV === 'production') return
+  console.warn(`[owlplot] Glyph hover: ${message}`)
+}
+
+function hasDomainAttributes(element: Element): boolean {
+  return element.hasAttribute(DATA_X) && element.hasAttribute(DATA_Y)
+}
+
+function readDomainPoint(element: Element): { x: number; y: number } | null {
+  const x = parseFloat(element.getAttribute(DATA_X) ?? '')
+  const y = parseFloat(element.getAttribute(DATA_Y) ?? '')
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+  return { x, y }
+}
+
+function resolvedSeriesId(element: ExtendedSVGElement): string | null {
+  const datum = element[TOOLTIP_DATUM_SYMBOL]
+  if (!datum) return null
+  return datum.seriesId || 'unknown'
+}
+
 /**
  * Resolve glyph hover from an event target element.
  * GLYPH mode uses event delegation (not data-driven resolvers).
@@ -16,38 +38,26 @@ export function resolveGlyphFromElement(
 ): HoverResolutionResult {
   if (!element) return { kind: 'none' }
 
-  if (!element.hasAttribute(DATA_X) || !element.hasAttribute(DATA_Y)) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[owlplot] Glyph hover: element missing data-owlplot-x or data-owlplot-y, cannot resolve'
-      )
-    }
+  if (!hasDomainAttributes(element)) {
+    warnGlyph(
+      'element missing data-owlplot-x or data-owlplot-y, cannot resolve'
+    )
     return { kind: 'none' }
   }
 
   const extendedEl = element as ExtendedSVGElement
-  const tooltipDatum = extendedEl[TOOLTIP_DATUM_SYMBOL]
-  if (!tooltipDatum) return { kind: 'none' }
+  const seriesId = resolvedSeriesId(extendedEl)
+  if (!seriesId) return { kind: 'none' }
 
-  const domainXStr = element.getAttribute(DATA_X)
-  const domainYStr = element.getAttribute(DATA_Y)
-  const domainX = domainXStr != null ? parseFloat(domainXStr) : NaN
-  const domainY = domainYStr != null ? parseFloat(domainYStr) : NaN
-
-  if (!Number.isFinite(domainX) || !Number.isFinite(domainY)) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[owlplot] Glyph hover: invalid domain coordinates, cannot resolve hover'
-      )
-    }
+  const point = readDomainPoint(element)
+  if (!point) {
+    warnGlyph('invalid domain coordinates, cannot resolve hover')
     return { kind: 'none' }
   }
 
-  const seriesId = tooltipDatum.seriesId || 'unknown'
-
   return {
     kind: 'points',
-    points: [{ seriesId, point: { x: domainX, y: domainY } }],
+    points: [{ seriesId, point }],
     primaryIndex: 0,
   }
 }

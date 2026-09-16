@@ -4,7 +4,6 @@ import type {
   ColorStop,
   GradientPaint,
   LinearGradientPaint,
-  RadialGradientPaint,
   SolidPaint,
 } from './types'
 import type { PaintStyles } from './types'
@@ -30,6 +29,36 @@ export const TRANSPARENT_FILL: SolidPaint = {
   color: 'none',
 }
 
+function validateGradientStops(stops: readonly ColorStop[]): void {
+  if (stops.length < 2) {
+    throw new Error(
+      `GradientPaint must have at least 2 stops, got ${stops.length}`
+    )
+  }
+  for (const stop of stops) validateGradientOffset(stop.offset)
+}
+
+function validateGradientOffset(offset: number): void {
+  if (offset < 0 || offset > 1) {
+    throw new Error(
+      `GradientPaint stop offset must be in range [0, 1], got ${offset}`
+    )
+  }
+}
+
+function addGradientEndpoints(stops: readonly ColorStop[]): ColorStop[] {
+  const normalized = [...stops]
+  const first = normalized[0]!
+  const last = normalized[normalized.length - 1]!
+  if (first.offset !== 0) {
+    normalized.unshift({ offset: 0, color: first.color })
+  }
+  if (last.offset !== 1) {
+    normalized.push({ offset: 1, color: last.color })
+  }
+  return normalized
+}
+
 /**
  * Normalizes and validates a gradient paint, returning canonicalized paint.
  * - Validates stops.length >= 2
@@ -40,59 +69,17 @@ export const TRANSPARENT_FILL: SolidPaint = {
  * - Returns normalized paint with injected endpoints, default direction, sorted stops
  */
 export function normalizeGradientPaint(paint: GradientPaint): GradientPaint {
-  // Validate stops length
-  if (paint.stops.length < 2) {
-    throw new Error(
-      `GradientPaint must have at least 2 stops, got ${paint.stops.length}`
-    )
-  }
-
-  // Validate and sort stops
+  validateGradientStops(paint.stops)
   const stops = [...paint.stops].sort((a, b) => a.offset - b.offset)
-
-  // Validate offsets are in range and sorted
-  for (let i = 0; i < stops.length; i++) {
-    const offset = stops[i]!.offset
-    if (offset < 0 || offset > 1) {
-      throw new Error(
-        `GradientPaint stop offset must be in range [0, 1], got ${offset}`
-      )
-    }
-    // Allow ties (offset[i] <= offset[i-1] is valid for hard color steps)
-    if (i > 0 && offset < stops[i - 1]!.offset) {
-      throw new Error(
-        `GradientPaint stops must be sorted ascending, got offset ${offset} after ${stops[i - 1]!.offset}`
-      )
-    }
-  }
-
-  // Auto-inject endpoints if missing
-  const firstStop = stops[0]!
-  const lastStop = stops[stops.length - 1]!
-  const normalizedStops: ColorStop[] = [...stops]
-
-  if (firstStop.offset !== 0) {
-    normalizedStops.unshift({ offset: 0, color: firstStop.color })
-  }
-  if (lastStop.offset !== 1) {
-    normalizedStops.push({ offset: 1, color: lastStop.color })
-  }
-
-  // Handle direction default for linear gradients
+  const normalizedStops = addGradientEndpoints(stops)
   if (paint.type === 'linear') {
-    const linearPaint: LinearGradientPaint = {
+    return {
       type: 'linear',
-      direction: paint.direction ?? 'horizontal', // Default to horizontal
+      direction: paint.direction ?? 'horizontal',
       stops: normalizedStops,
     }
-    return linearPaint
-  } else {
-    const radialPaint: RadialGradientPaint = {
-      type: 'radial',
-      stops: normalizedStops,
-    }
-    return radialPaint
   }
+  return { type: 'radial', stops: normalizedStops }
 }
 
 /**
@@ -145,55 +132,98 @@ export function makeLinearGradientFromBase(
  */
 export function derivePaintStylesFromColor(
   baseColor: string,
-  options?: {
-    enableGradients?: boolean // default: false (opt-in only)
-    gradientDirection?: 'vertical' | 'horizontal' // for linear gradients only
-    hoverBrightness?: number // default: +0.1 (small delta)
-    activeBrightness?: number // default: +0.15 (slightly more than hover)
-  }
+  options: DerivePaintStylesOptions = {}
 ): Partial<PaintStyles> {
-  const enableGradients = options?.enableGradients ?? false
-  const gradientDirection = options?.gradientDirection ?? 'horizontal'
-  const hoverBrightness = options?.hoverBrightness ?? 0.1
-  const activeBrightness = options?.activeBrightness ?? 0.15
-
-  const basePaint: SolidPaint = { type: 'solid', color: baseColor }
-
-  const fill: AnyPaint = enableGradients
-    ? makeLinearGradientFromBase(baseColor, 0.6, 6, gradientDirection)
-    : basePaint
-
-  const stroke: AnyPaint = basePaint
-
+  const resolved = resolveDeriveOptions(options)
+  const basePaint = solidPaint(baseColor)
   const result: Partial<PaintStyles> = {
-    fill,
-    stroke,
+    fill: createFillPaint(baseColor, resolved),
+    stroke: basePaint,
   }
 
-  // Optional hover/active states (opt-in)
-  if (
-    options?.hoverBrightness !== undefined ||
-    options?.activeBrightness !== undefined
-  ) {
-    const hoverColor = colord(baseColor).lighten(hoverBrightness).toHex()
-    const activeColor = colord(baseColor).lighten(activeBrightness).toHex()
-
-    result.hoverFill = enableGradients
-      ? makeLinearGradientFromBase(hoverColor, 0.6, 6, gradientDirection)
-      : { type: 'solid', color: hoverColor }
-
-    result.hoverStroke = enableGradients
-      ? makeLinearGradientFromBase(hoverColor, 0.2, 4, gradientDirection)
-      : { type: 'solid', color: hoverColor }
-
-    result.activeFill = enableGradients
-      ? makeLinearGradientFromBase(activeColor, 0.6, 6, gradientDirection)
-      : { type: 'solid', color: activeColor }
-
-    result.activeStroke = enableGradients
-      ? makeLinearGradientFromBase(activeColor, 0.2, 4, gradientDirection)
-      : { type: 'solid', color: activeColor }
+  if (hasInteractiveStates(options)) {
+    Object.assign(result, deriveInteractivePaintStyles(baseColor, resolved))
   }
 
   return result
+}
+
+type DerivePaintStylesOptions = {
+  enableGradients?: boolean
+  gradientDirection?: 'vertical' | 'horizontal'
+  hoverBrightness?: number
+  activeBrightness?: number
+}
+
+type ResolvedDerivePaintStylesOptions = {
+  enableGradients: boolean
+  gradientDirection: 'vertical' | 'horizontal'
+  hoverBrightness: number
+  activeBrightness: number
+}
+
+function resolveDeriveOptions({
+  enableGradients = false,
+  gradientDirection = 'horizontal',
+  hoverBrightness = 0.1,
+  activeBrightness = 0.15,
+}: DerivePaintStylesOptions): ResolvedDerivePaintStylesOptions {
+  return {
+    enableGradients,
+    gradientDirection,
+    hoverBrightness,
+    activeBrightness,
+  }
+}
+
+function solidPaint(color: string): SolidPaint {
+  return { type: 'solid', color }
+}
+
+function createGradientPaint(
+  color: string,
+  lighterAmount: number,
+  stops: number,
+  direction: 'vertical' | 'horizontal'
+): LinearGradientPaint {
+  return makeLinearGradientFromBase(color, lighterAmount, stops, direction)
+}
+
+function createFillPaint(
+  color: string,
+  options: ResolvedDerivePaintStylesOptions
+): AnyPaint {
+  if (!options.enableGradients) return solidPaint(color)
+  return createGradientPaint(color, 0.6, 6, options.gradientDirection)
+}
+
+function createStrokePaint(
+  color: string,
+  options: ResolvedDerivePaintStylesOptions
+): AnyPaint {
+  if (!options.enableGradients) return solidPaint(color)
+  return createGradientPaint(color, 0.2, 4, options.gradientDirection)
+}
+
+function hasInteractiveStates(options: DerivePaintStylesOptions): boolean {
+  return (
+    options.hoverBrightness !== undefined ||
+    options.activeBrightness !== undefined
+  )
+}
+
+function deriveInteractivePaintStyles(
+  baseColor: string,
+  options: ResolvedDerivePaintStylesOptions
+): Partial<PaintStyles> {
+  const hoverColor = colord(baseColor).lighten(options.hoverBrightness).toHex()
+  const activeColor = colord(baseColor)
+    .lighten(options.activeBrightness)
+    .toHex()
+  return {
+    hoverFill: createFillPaint(hoverColor, options),
+    hoverStroke: createStrokePaint(hoverColor, options),
+    activeFill: createFillPaint(activeColor, options),
+    activeStroke: createStrokePaint(activeColor, options),
+  }
 }

@@ -54,6 +54,26 @@ describe('xLine and yLine', () => {
       )
     })
 
+    it('applies complete custom styles independently', () => {
+      const style = {
+        stroke: '#123456',
+        strokeWidth: 3,
+        strokeDasharray: '2,1',
+      }
+      updateXLine(svg, 50, plotRect, style)
+      updateYLine(svg, 40, plotRect, style)
+      const extendedSvg = svg as ExtendedSVGSVGElement
+
+      for (const line of [
+        extendedSvg[X_HOVER_LINE_SYMBOL],
+        extendedSvg[Y_HOVER_LINE_SYMBOL],
+      ]) {
+        expect(line?.style.stroke).toBe('#123456')
+        expect(line?.style.strokeWidth).toBe('3')
+        expect(line?.style.strokeDasharray).toBe('2,1')
+      }
+    })
+
     it('X and Y lines are independent: both visible on same SVG', () => {
       updateXLine(svg, 80, plotRect)
       updateYLine(svg, 45, plotRect)

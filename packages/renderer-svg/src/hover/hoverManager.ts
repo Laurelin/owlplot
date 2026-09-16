@@ -25,6 +25,85 @@ import {
   SERIES_POINT_SHAPES_SYMBOL,
 } from '../shared/symbols'
 
+type HoverEffects = {
+  indicators: HoverIndicator[]
+  context: HoverIndicatorContext
+  svg: SVGSVGElement
+  tooltipRenderer: TooltipRenderer | null
+  handles: Map<string, IndicatorHandle>
+  keys: Map<string, string>
+}
+
+function restoreIndicators(effects: HoverEffects): void {
+  const indicatorsById = new Map(
+    effects.indicators.map(indicator => [indicator.id, indicator])
+  )
+  for (const [id, handle] of effects.handles) {
+    indicatorsById.get(id)?.restore(handle)
+  }
+  effects.handles.clear()
+  effects.keys.clear()
+}
+
+function clearIndicator(
+  indicator: HoverIndicator,
+  effects: HoverEffects
+): void {
+  const previous = effects.handles.get(indicator.id)
+  if (previous) indicator.restore(previous)
+  effects.handles.delete(indicator.id)
+  effects.keys.delete(indicator.id)
+}
+
+function indicatorKey(
+  indicator: HoverIndicator,
+  result: Extract<HoverResolutionResult, { kind: 'points' }>,
+  context: HoverIndicatorContext
+): string | null {
+  if (!indicator.getKey) return null
+  return indicator.getKey(result, context)
+}
+
+function storeIndicatorHandle(
+  indicator: HoverIndicator,
+  handle: IndicatorHandle | null,
+  key: string | null,
+  effects: HoverEffects
+): void {
+  if (handle == null) return
+  effects.handles.set(indicator.id, handle)
+  effects.keys.set(indicator.id, key ?? '')
+}
+
+function renderIndicator(
+  indicator: HoverIndicator,
+  result: Extract<HoverResolutionResult, { kind: 'points' }>,
+  effects: HoverEffects
+): void {
+  const nextKey = indicatorKey(indicator, result, effects.context)
+  if (nextKey != null && nextKey === effects.keys.get(indicator.id)) return
+  clearIndicator(indicator, effects)
+  const handle = indicator.render(result, effects.context)
+  storeIndicatorHandle(indicator, handle, nextKey, effects)
+}
+
+function applyNoneResult(effects: HoverEffects): void {
+  restoreIndicators(effects)
+  hideTooltip(effects.svg)
+}
+
+function applyPointsResult(
+  result: Extract<HoverResolutionResult, { kind: 'points' }>,
+  event: PointerEvent,
+  effects: HoverEffects
+): void {
+  for (const indicator of effects.indicators) {
+    renderIndicator(indicator, result, effects)
+  }
+  if (!effects.tooltipRenderer) return
+  showTooltipFromResult(result, event, effects.svg, effects.tooltipRenderer)
+}
+
 /**
  * Apply hover result: renders indicators and shows tooltip.
  * Owns lifecycle - prevents indicator leaks with O(1) lookup.
@@ -33,49 +112,14 @@ import {
  */
 function applyHoverResult(
   result: HoverResolutionResult,
-  indicators: HoverIndicator[],
-  context: HoverIndicatorContext,
   event: PointerEvent,
-  svg: SVGSVGElement,
-  tooltipRenderer: TooltipRenderer | null,
-  previousHandles: Map<string, IndicatorHandle>,
-  previousKeys: Map<string, string>
+  effects: HoverEffects
 ): void {
   if (result.kind === 'none') {
-    const indicatorsById = new Map(indicators.map(i => [i.id, i]))
-    for (const [id, handle] of previousHandles) {
-      indicatorsById.get(id)?.restore(handle)
-    }
-    previousHandles.clear()
-    previousKeys.clear()
-    hideTooltip(svg)
+    applyNoneResult(effects)
     return
   }
-
-  if (result.kind === 'points') {
-    for (const indicator of indicators) {
-      const nextKey = indicator.getKey?.(result, context) ?? null
-      const prevKey = previousKeys.get(indicator.id)
-      if (nextKey != null && nextKey === prevKey) {
-        continue
-      }
-      const prevHandle = previousHandles.get(indicator.id)
-      if (prevHandle) {
-        indicator.restore(prevHandle)
-        previousHandles.delete(indicator.id)
-        previousKeys.delete(indicator.id)
-      }
-      const handle = indicator.render(result, context)
-      if (handle != null) {
-        previousHandles.set(indicator.id, handle)
-        previousKeys.set(indicator.id, nextKey ?? '')
-      }
-    }
-  }
-
-  if (tooltipRenderer) {
-    showTooltipFromResult(result, event, svg, tooltipRenderer)
-  }
+  applyPointsResult(result, event, effects)
 }
 
 /**
@@ -94,6 +138,55 @@ function isWithinPlotRect(
   )
 }
 
+function buildIndicatorContext(
+  svg: SVGSVGElement,
+  metadata: RuntimeHoverMetadata
+): HoverIndicatorContext {
+  const extendedSvg = svg as ExtendedSVGSVGElement
+  const seriesYAxis = Object.fromEntries(
+    metadata.series.map(series => [series.id, series.yAxis])
+  ) as Record<string, 'left' | 'right'>
+  return {
+    svg,
+    scales: metadata.scales,
+    plotRect: metadata.plotRect,
+    seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
+    seriesPointShapes: extendedSvg[SERIES_POINT_SHAPES_SYMBOL],
+    seriesYAxis,
+  }
+}
+
+function createHoverEffects(
+  svg: SVGSVGElement,
+  metadata: RuntimeHoverMetadata,
+  indicators: HoverIndicator[],
+  tooltipRenderer: TooltipRenderer | null
+): HoverEffects {
+  return {
+    indicators,
+    context: buildIndicatorContext(svg, metadata),
+    svg,
+    tooltipRenderer,
+    handles: new Map(),
+    keys: new Map(),
+  }
+}
+
+function resolveDataHover(
+  event: PointerEvent,
+  svg: SVGSVGElement,
+  metadata: RuntimeHoverMetadata,
+  resolver: HoverResolver
+): HoverResolutionResult {
+  const coordinates = getMouseSvgCoordinates(svg, event)
+  if (!isWithinPlotRect(coordinates, metadata.plotRect)) return { kind: 'none' }
+  return resolver.resolve({
+    mouseSvgX: coordinates!.x,
+    mouseSvgY: coordinates!.y,
+    metadata,
+  })
+}
+
 /**
  * Attach data-driven hover (POINT, X_AXIS, Y_AXIS modes).
  * Uses pointer events with rAF gating for performance.
@@ -106,21 +199,8 @@ export function attachDataHover(
   metadata: RuntimeHoverMetadata
 ): void {
   let framePending = false
-  const previousHandles = new Map<string, IndicatorHandle>()
-  const previousKeys = new Map<string, string>()
-
+  const effects = createHoverEffects(svg, metadata, indicators, tooltipRenderer)
   const extendedSvg = svg as ExtendedSVGSVGElement
-  const seriesYAxis = Object.fromEntries(
-    metadata.series.map(s => [s.id, s.yAxis])
-  ) as Record<string, 'left' | 'right'>
-  const context: HoverIndicatorContext = {
-    svg,
-    scales: metadata.scales,
-    plotRect: metadata.plotRect,
-    seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
-    seriesPointShapes: extendedSvg[SERIES_POINT_SHAPES_SYMBOL],
-    seriesYAxis,
-  }
 
   const handlePointerMove = (event: PointerEvent) => {
     if (framePending) return
@@ -132,68 +212,12 @@ export function attachDataHover(
   }
 
   const handleMove = (event: PointerEvent) => {
-    // Get mouse coords via SVG coordinate transformation
-    const coords = getMouseSvgCoordinates(svg, event)
-    if (!coords) {
-      applyHoverResult(
-        { kind: 'none' },
-        indicators,
-        context,
-        event,
-        svg,
-        tooltipRenderer,
-        previousHandles,
-        previousKeys
-      )
-      return
-    }
-
-    // Early clamp to plotRect
-    if (!isWithinPlotRect(coords, metadata.plotRect)) {
-      applyHoverResult(
-        { kind: 'none' },
-        indicators,
-        context,
-        event,
-        svg,
-        tooltipRenderer,
-        previousHandles,
-        previousKeys
-      )
-      return
-    }
-
-    // Resolve hover
-    const result = resolver.resolve({
-      mouseSvgX: coords.x,
-      mouseSvgY: coords.y,
-      metadata,
-    })
-
-    // Apply result (renders indicators and tooltip)
-    applyHoverResult(
-      result,
-      indicators,
-      context,
-      event,
-      svg,
-      tooltipRenderer,
-      previousHandles,
-      previousKeys
-    )
+    const result = resolveDataHover(event, svg, metadata, resolver)
+    applyHoverResult(result, event, effects)
   }
 
   const handlePointerLeave = () => {
-    applyHoverResult(
-      { kind: 'none' },
-      indicators,
-      context,
-      {} as PointerEvent,
-      svg,
-      tooltipRenderer,
-      previousHandles,
-      previousKeys
-    )
+    applyHoverResult({ kind: 'none' }, {} as PointerEvent, effects)
   }
 
   svg.addEventListener('pointermove', handlePointerMove)
@@ -244,76 +268,27 @@ export function attachGlyphHover(
   if (pointIndex.size === 0) return false
   extendedSvg[POINT_INDEX_SYMBOL] = pointIndex
 
-  const previousHandles = new Map<string, IndicatorHandle>()
-  const previousKeys = new Map<string, string>()
-
-  const seriesYAxis = Object.fromEntries(
-    metadata.series.map(s => [s.id, s.yAxis])
-  ) as Record<string, 'left' | 'right'>
-  const context: HoverIndicatorContext = {
-    svg,
-    scales: metadata.scales,
-    plotRect: metadata.plotRect,
-    seriesStyles: extendedSvg[SERIES_STYLES_SYMBOL],
-    seriesPointShapes: extendedSvg[SERIES_POINT_SHAPES_SYMBOL],
-    seriesYAxis,
-  }
+  const effects = createHoverEffects(svg, metadata, indicators, tooltipRenderer)
 
   const handlePointerMove = (event: PointerEvent) => {
     const coords = getMouseSvgCoordinates(svg, event)
     if (!coords) {
-      applyHoverResult(
-        { kind: 'none' },
-        indicators,
-        context,
-        event,
-        svg,
-        tooltipRenderer,
-        previousHandles,
-        previousKeys
-      )
+      applyHoverResult({ kind: 'none' }, event, effects)
       return
     }
 
     const hit = findGlyphAtPoint(pointIndex, coords.x, coords.y)
     if (!hit) {
-      applyHoverResult(
-        { kind: 'none' },
-        indicators,
-        context,
-        event,
-        svg,
-        tooltipRenderer,
-        previousHandles,
-        previousKeys
-      )
+      applyHoverResult({ kind: 'none' }, event, effects)
       return
     }
 
     const result = resolveGlyphFromElement(hit.element, metadata)
-    applyHoverResult(
-      result,
-      indicators,
-      context,
-      event,
-      svg,
-      tooltipRenderer,
-      previousHandles,
-      previousKeys
-    )
+    applyHoverResult(result, event, effects)
   }
 
   const handlePointerLeave = () => {
-    applyHoverResult(
-      { kind: 'none' },
-      indicators,
-      context,
-      {} as PointerEvent,
-      svg,
-      tooltipRenderer,
-      previousHandles,
-      previousKeys
-    )
+    applyHoverResult({ kind: 'none' }, {} as PointerEvent, effects)
   }
 
   svg.addEventListener('pointermove', handlePointerMove)

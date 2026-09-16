@@ -12,33 +12,54 @@ const DEFAULT_PADDING: Padding = {
  */
 export function mergePadding(partial: Partial<Padding> | undefined): Padding {
   return {
-    top: partial?.top ?? DEFAULT_PADDING.top,
-    right: partial?.right ?? DEFAULT_PADDING.right,
-    bottom: partial?.bottom ?? DEFAULT_PADDING.bottom,
-    left: partial?.left ?? DEFAULT_PADDING.left,
+    top: resolvePaddingSide(partial, 'top'),
+    right: resolvePaddingSide(partial, 'right'),
+    bottom: resolvePaddingSide(partial, 'bottom'),
+    left: resolvePaddingSide(partial, 'left'),
   }
+}
+
+function resolvePaddingSide(
+  partial: Partial<Padding> | undefined,
+  side: keyof Padding
+): number {
+  return partial?.[side] ?? DEFAULT_PADDING[side]
 }
 
 const DEFAULT_POINT_SIZE = 2.5
 const DEFAULT_POINT_SHAPE: PointShape = { kind: 'circle' }
+
+function resolvePointValue<K extends keyof PointConfig>(
+  seriesPoint: PointConfig | undefined,
+  optionsPoint: PointConfig | undefined,
+  key: K,
+  fallback: NonNullable<PointConfig[K]>
+): NonNullable<PointConfig[K]> {
+  return seriesPoint?.[key] ?? optionsPoint?.[key] ?? fallback
+}
 
 /** Normalize point config: series overrides options overrides defaults. */
 export function resolvePointConfig(
   seriesPoint?: PointConfig,
   optionsPoint?: PointConfig
 ): { shape: PointShape; size: number } {
-  const merged: PointConfig = {
-    shape: seriesPoint?.shape ?? optionsPoint?.shape ?? DEFAULT_POINT_SHAPE,
-    size: seriesPoint?.size ?? optionsPoint?.size ?? DEFAULT_POINT_SIZE,
-  }
-  const shape =
-    typeof merged.shape === 'string'
-      ? normalizePointShapeString(merged.shape)
-      : (merged.shape ?? DEFAULT_POINT_SHAPE)
   return {
-    shape,
-    size: merged.size ?? DEFAULT_POINT_SIZE,
+    shape: normalizePointShape(
+      resolvePointValue(seriesPoint, optionsPoint, 'shape', DEFAULT_POINT_SHAPE)
+    ),
+    size: resolvePointValue(
+      seriesPoint,
+      optionsPoint,
+      'size',
+      DEFAULT_POINT_SIZE
+    ),
   }
+}
+
+function normalizePointShape(
+  shape: NonNullable<PointConfig['shape']>
+): PointShape {
+  return typeof shape === 'string' ? normalizePointShapeString(shape) : shape
 }
 
 /** Convert string shorthand to PointShape (config → scene boundary). */

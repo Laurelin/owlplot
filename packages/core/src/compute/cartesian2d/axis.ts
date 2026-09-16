@@ -60,6 +60,55 @@ export type AxisTickFormatOptions = {
   compactThreshold?: number
 }
 
+type AxisFormatMode =
+  | { mode: 'automatic' }
+  | { mode: 'explicit'; format: NumberFormat }
+
+type LabelRotation =
+  | { mode: 'none' }
+  | { mode: 'quarter-turn'; degrees: number }
+  | { mode: 'angled'; degrees: number }
+
+type MeasuredLabel = {
+  layout: AxisLabelLayout
+  effectiveWidth: number
+  effectiveHeight: number
+}
+
+type TickBounds = { width: number; height: number }
+
+function configuredAxisFormat(
+  config: AxisConfig | undefined
+): NumberFormat | undefined {
+  if (config === undefined) return undefined
+  if (config.axisTickFormat === null) return { mode: 'raw' }
+  return config.axisTickFormat
+}
+
+function shouldUseCompactFormat(
+  value: number,
+  threshold: number | undefined
+): boolean {
+  if (threshold === undefined) return false
+  if (!Number.isFinite(threshold)) return false
+  return Math.abs(value) >= threshold
+}
+
+function resolveAxisFormatMode(
+  config: AxisConfig | undefined,
+  options: AxisTickFormatOptions,
+  value: number
+): AxisFormatMode {
+  const configured = configuredAxisFormat(config)
+  if (configured !== undefined) {
+    return { mode: 'explicit', format: configured }
+  }
+  if (shouldUseCompactFormat(value, options.compactThreshold)) {
+    return { mode: 'explicit', format: { mode: 'compact' } }
+  }
+  return { mode: 'automatic' }
+}
+
 /**
  * Format a single axis tick label. Owns AUTO → compact decision (axis policy); calls formatNumber with format + FormatContext only.
  * Use in both computeAxisLayout and computeAdaptivePadding so formatting is identical.
@@ -69,21 +118,296 @@ export function formatAxisTickLabel(
   config: AxisConfig | undefined,
   options: AxisTickFormatOptions
 ): string {
-  const effectiveFormat: NumberFormat | undefined =
-    config?.axisTickFormat === null
-      ? { mode: 'raw' }
-      : (config?.axisTickFormat ?? undefined)
-  const useCompact =
-    effectiveFormat === undefined &&
-    options.compactThreshold != null &&
-    Number.isFinite(options.compactThreshold) &&
-    Math.abs(value) >= options.compactThreshold
-  const format = useCompact ? { mode: 'compact' as const } : effectiveFormat
+  const mode = resolveAxisFormatMode(config, options, value)
+  const format = mode.mode === 'explicit' ? mode.format : undefined
   const context: FormatContext = {
     tickStep: options.tickStep,
     locale: options.locale,
   }
   return formatNumber(value, format, context)
+}
+
+function computeTickStep(values: number[]): number {
+  return values.length < 2 ? 0 : Math.abs(values[1]! - values[0]!)
+}
+
+function buildTicks(
+  values: number[],
+  scale: ContinuousScale,
+  config: AxisConfig | undefined,
+  options: AxisTickFormatOptions
+): AxisTick[] {
+  let previousLabel: string | undefined
+  const ticks: AxisTick[] = []
+  for (const value of values) {
+    const formatted = formatAxisTickLabel(value, config, options)
+    const label = previousLabel === formatted ? '' : formatted
+    previousLabel = formatted
+    ticks.push({ value, position: scale.forward(value), label })
+  }
+  return ticks
+}
+
+function resolveTickRotation(
+  orientation: Position,
+  config: LabelOrientationConfig | undefined
+): LabelRotation {
+  if (isVerticalTickConfig(config)) {
+    return { mode: 'quarter-turn', degrees: quarterTurnDegrees(orientation) }
+  }
+  const degrees = resolveAngledDegrees(config)
+  return degrees === undefined ? { mode: 'none' } : { mode: 'angled', degrees }
+}
+
+function isVerticalTickConfig(
+  config: LabelOrientationConfig | undefined
+): boolean {
+  return (
+    config !== undefined && config.orientation === LabelOrientation.VERTICAL
+  )
+}
+
+function quarterTurnDegrees(orientation: Position): number {
+  const horizontal =
+    orientation === Position.BOTTOM || orientation === Position.TOP
+  return horizontal ? -90 : 90
+}
+
+function resolveAngledDegrees(
+  config: LabelOrientationConfig | undefined
+): number | undefined {
+  if (config === undefined) return undefined
+  return config.orientation === LabelOrientation.ANGLED
+    ? config.angle
+    : undefined
+}
+
+function effectiveBounds(
+  width: number,
+  height: number,
+  rotation: LabelRotation
+): TickBounds {
+  switch (rotation.mode) {
+    case 'none':
+      return { width, height }
+    case 'quarter-turn':
+      return { width: height, height: width }
+    case 'angled':
+      return measureRotatedBoundingBox(
+        width,
+        height,
+        (rotation.degrees * Math.PI) / 180
+      )
+  }
+}
+
+function placeTickLabel(
+  orientation: Position,
+  position: number,
+  height: number
+): Omit<AxisLabelLayout, 'text' | 'rotation'> {
+  switch (orientation) {
+    case Position.BOTTOM:
+      return {
+        x: position,
+        y: height,
+        textAnchor: TextAnchor.MIDDLE,
+        dominantBaseline: DominantBaseline.HANGING,
+      }
+    case Position.TOP:
+      return {
+        x: position,
+        y: -DEFAULT_TICK_LABEL_OFFSET,
+        textAnchor: TextAnchor.MIDDLE,
+        dominantBaseline: DominantBaseline.AUTO,
+      }
+    case Position.LEFT:
+      return {
+        x: -DEFAULT_TICK_LABEL_OFFSET,
+        y: position,
+        textAnchor: TextAnchor.END,
+        dominantBaseline: DominantBaseline.MIDDLE,
+      }
+    case Position.RIGHT:
+      return {
+        x: DEFAULT_TICK_LABEL_OFFSET,
+        y: position,
+        textAnchor: TextAnchor.START,
+        dominantBaseline: DominantBaseline.MIDDLE,
+      }
+  }
+}
+
+function measureTickLabel(
+  tick: AxisTick,
+  orientation: Position,
+  rotation: LabelRotation,
+  measureText: MeasureText,
+  font: string | undefined
+): MeasuredLabel {
+  const measured = measureTextFont(
+    measureText,
+    tick.label,
+    font,
+    DEFAULT_TICK_FONT
+  )
+  const bounds = effectiveBounds(measured.width, measured.height, rotation)
+  const placement = placeTickLabel(orientation, tick.position, measured.height)
+  return {
+    layout: {
+      text: tick.label,
+      ...placement,
+      rotation: rotation.mode === 'none' ? undefined : rotation.degrees,
+    },
+    effectiveWidth: bounds.width,
+    effectiveHeight: bounds.height,
+  }
+}
+
+function measureTickLabels(
+  ticks: AxisTick[],
+  orientation: Position,
+  config: AxisConfig | undefined,
+  measureText: MeasureText,
+  font: string | undefined
+): { layouts: AxisLabelLayout[]; bounds: TickBounds } {
+  const rotation = resolveTickRotation(orientation, config?.labelOrientation)
+  const layouts: AxisLabelLayout[] = []
+  const bounds: TickBounds = { width: 0, height: 0 }
+  for (const tick of ticks) {
+    const measured = measureTickLabel(
+      tick,
+      orientation,
+      rotation,
+      measureText,
+      font
+    )
+    layouts.push(measured.layout)
+    bounds.width = Math.max(bounds.width, measured.effectiveWidth)
+    bounds.height = Math.max(bounds.height, measured.effectiveHeight)
+  }
+  return { layouts, bounds }
+}
+
+function computeAxisLine(
+  orientation: Position,
+  rangeMin: number,
+  rangeMax: number
+): AxisLayout['line'] {
+  const horizontal =
+    orientation === Position.BOTTOM || orientation === Position.TOP
+  return horizontal
+    ? { x1: rangeMin, y1: 0, x2: rangeMax, y2: 0 }
+    : { x1: 0, y1: rangeMin, x2: 0, y2: rangeMax }
+}
+
+function resolveTitleRotation(
+  orientation: Position,
+  config: LabelOrientationConfig | undefined
+): number | undefined {
+  if (config?.orientation === LabelOrientation.VERTICAL) {
+    return AXIS_TITLE_ROTATION_BY_POSITION[orientation]
+  }
+  return config?.orientation === LabelOrientation.ANGLED
+    ? config.angle
+    : undefined
+}
+
+function measureTitleBounds(
+  measureText: MeasureText,
+  text: string,
+  font: string | undefined,
+  rotation: number | undefined
+): TickBounds {
+  const measured = measureTextFont(measureText, text, font, DEFAULT_LABEL_FONT)
+  return rotation === undefined
+    ? measured
+    : measureRotatedBoundingBox(
+        measured.width,
+        measured.height,
+        (rotation * Math.PI) / 180
+      )
+}
+
+function placeAxisTitle(
+  orientation: Position,
+  rangeCenter: number,
+  tickBounds: TickBounds,
+  titleBounds: TickBounds
+): Omit<AxisLabelLayout, 'text' | 'rotation'> {
+  const common = {
+    textAnchor: TextAnchor.MIDDLE,
+    dominantBaseline: DominantBaseline.MIDDLE,
+  }
+  switch (orientation) {
+    case Position.BOTTOM:
+      return {
+        ...common,
+        x: rangeCenter,
+        y: tickBounds.height * 2 + AXIS_TITLE_OFFSET + titleBounds.height / 2,
+      }
+    case Position.TOP:
+      return {
+        ...common,
+        x: rangeCenter,
+        y:
+          -DEFAULT_TICK_LABEL_OFFSET -
+          tickBounds.height -
+          AXIS_TITLE_OFFSET -
+          titleBounds.height / 2,
+      }
+    case Position.LEFT:
+      return {
+        ...common,
+        x:
+          -DEFAULT_TICK_LABEL_OFFSET -
+          tickBounds.width -
+          AXIS_TITLE_OFFSET -
+          titleBounds.width / 2,
+        y: rangeCenter,
+      }
+    case Position.RIGHT:
+      return {
+        ...common,
+        x:
+          DEFAULT_TICK_LABEL_OFFSET +
+          tickBounds.width +
+          AXIS_TITLE_OFFSET +
+          titleBounds.width / 2,
+        y: rangeCenter,
+      }
+  }
+}
+
+function computeAxisTitleLayout(
+  orientation: Position,
+  range: readonly [number, number],
+  tickBounds: TickBounds,
+  config: AxisConfig | undefined,
+  measureText: MeasureText,
+  font: string | undefined
+): AxisLabelLayout | undefined {
+  if (config?.axisLabel === undefined) return undefined
+  const rotation = resolveTitleRotation(
+    orientation,
+    config.axisLabelOrientation
+  )
+  const titleBounds = measureTitleBounds(
+    measureText,
+    config.axisLabel,
+    font,
+    rotation
+  )
+  return {
+    text: config.axisLabel,
+    ...placeAxisTitle(
+      orientation,
+      (range[0] + range[1]) / 2,
+      tickBounds,
+      titleBounds
+    ),
+    rotation,
+  }
 }
 
 /**
@@ -107,249 +431,33 @@ export function computeAxisLayout(
 ): AxisLayout {
   const tickCount = config?.tickCount ?? DEFAULT_TICK_COUNT
   const values = generateTicks(scale, tickCount)
-  const [rangeMin, rangeMax] = scale.range
-
-  const tickStep = values.length >= 2 ? Math.abs(values[1]! - values[0]!) : 0
+  const tickStep = computeTickStep(values)
   const tickFormatOptions: AxisTickFormatOptions = {
     tickStep,
     locale: options.locale,
     compactThreshold: options.compactThreshold,
   }
-
-  let prevLabel: string | undefined
-  const ticks: AxisTick[] = values.map(value => {
-    const label = formatAxisTickLabel(value, config, tickFormatOptions)
-    // Skip duplicate label in layout so spacing math stays honest (optional, rare in AUTO)
-    const showLabel = prevLabel !== label
-    prevLabel = label
-    return {
-      value,
-      position: scale.forward(value),
-      label: showLabel ? label : '',
-    }
-  })
-
-  const labelOrientation = config?.labelOrientation?.orientation
-  const labelAngle = config?.labelOrientation?.angle
-
-  // FIRST PASS: Compute tick label layouts + calculate max bounds
-  // Critical invariant: axis title position depends on max tick label bounds, never vice-versa
-  let maxTickLabelWidth = 0
-  let maxTickLabelHeight = 0
-
-  const labelLayouts: AxisLabelLayout[] = ticks.map(tick => {
-    const { width, height } = measureTextFont(
-      measureText,
-      tick.label,
-      options.axisTickFont,
-      DEFAULT_TICK_FONT
-    )
-
-    let x = tick.position
-    let y = 0
-    let textAnchor: AxisLabelLayout['textAnchor'] = TextAnchor.MIDDLE
-    let dominantBaseline: AxisLabelLayout['dominantBaseline'] =
-      DominantBaseline.MIDDLE
-    let rotation: number | undefined = undefined
-    let effectiveWidth = width
-    let effectiveHeight = height
-
-    // Handle label orientation and calculate effective dimensions
-    if (labelOrientation === LabelOrientation.VERTICAL) {
-      // Vertical labels: rotate 90 degrees
-      // For horizontal axes, rotate -90 (text reads top to bottom)
-      // For vertical axes, rotate 90 (text reads bottom to top)
-      rotation =
-        orientation === Position.BOTTOM || orientation === Position.TOP
-          ? -90
-          : 90
-      // For 90° rotation, swap dimensions
-      effectiveWidth = height
-      effectiveHeight = width
-    } else if (
-      labelOrientation === LabelOrientation.ANGLED &&
-      labelAngle !== undefined
-    ) {
-      rotation = labelAngle
-      // For angled labels, calculate rotated bounds
-      const bounds = measureRotatedBoundingBox(
-        width,
-        height,
-        (labelAngle * Math.PI) / 180
-      )
-      effectiveWidth = bounds.width
-      effectiveHeight = bounds.height
-    }
-
-    // Track max effective dimensions for title positioning
-    maxTickLabelWidth = Math.max(maxTickLabelWidth, effectiveWidth)
-    maxTickLabelHeight = Math.max(maxTickLabelHeight, effectiveHeight)
-
-    if (orientation === Position.BOTTOM) {
-      y = height // no extra gap: label top at textHeight below axis
-      textAnchor = TextAnchor.MIDDLE
-      dominantBaseline = DominantBaseline.HANGING
-    } else if (orientation === Position.TOP) {
-      y = -DEFAULT_TICK_LABEL_OFFSET
-      textAnchor = TextAnchor.MIDDLE
-      dominantBaseline = DominantBaseline.AUTO
-    } else if (orientation === Position.LEFT) {
-      x = -DEFAULT_TICK_LABEL_OFFSET
-      textAnchor = TextAnchor.END
-      dominantBaseline = DominantBaseline.MIDDLE
-      y = tick.position
-    } else if (orientation === Position.RIGHT) {
-      x = DEFAULT_TICK_LABEL_OFFSET
-      textAnchor = TextAnchor.START
-      dominantBaseline = DominantBaseline.MIDDLE
-      y = tick.position
-    }
-
-    return {
-      text: tick.label,
-      x,
-      y,
-      textAnchor,
-      dominantBaseline,
-      rotation,
-    }
-  })
-
-  let x1 = 0,
-    y1 = 0,
-    x2 = 0,
-    y2 = 0
-
-  // axis line (in local axis coords)
-  if (orientation === Position.BOTTOM || orientation === Position.TOP) {
-    x1 = rangeMin
-    x2 = rangeMax
-    y1 = y2 = 0
-  } else {
-    y1 = rangeMin
-    y2 = rangeMax
-    x1 = x2 = 0
-  }
-
-  // SECOND PASS: Compute axis title layout using tick label bounds
-  // Layout positions are derived from measured bounds only; no magic offsets besides documented constants.
-  const axisLabelLayout: AxisLayout['axisLabelLayout'] =
-    config?.axisLabel !== undefined
-      ? (() => {
-          const axisTitleOrientation = config.axisLabelOrientation?.orientation
-          const axisTitleAngle = config.axisLabelOrientation?.angle
-
-          // Measure unrotated title bounds first
-          const unrotatedBounds = measureTextFont(
-            measureText,
-            config.axisLabel,
-            options.axisLabelFont,
-            DEFAULT_LABEL_FONT
-          )
-
-          // Determine rotation for title
-          let rotation: number | undefined = undefined
-          if (axisTitleOrientation === LabelOrientation.VERTICAL) {
-            // Use canonical rotation from constant (gated by orientation config)
-            rotation = AXIS_TITLE_ROTATION_BY_POSITION[orientation]
-          } else if (
-            axisTitleOrientation === LabelOrientation.ANGLED &&
-            axisTitleAngle !== undefined
-          ) {
-            rotation = axisTitleAngle
-          }
-
-          // Calculate rotated bounds if needed
-          let titleWidth = unrotatedBounds.width
-          let titleHeight = unrotatedBounds.height
-          if (rotation !== undefined) {
-            const bounds = measureRotatedBoundingBox(
-              unrotatedBounds.width,
-              unrotatedBounds.height,
-              (rotation * Math.PI) / 180
-            )
-            titleWidth = bounds.width
-            titleHeight = bounds.height
-          }
-
-          // Position title with offset beyond tick labels
-          // Title centering uses plot range (rangeMin/rangeMax) in same coordinate space as title x/y
-          let x = (rangeMin + rangeMax) / 2 // center in axis-local coords
-          let y = 0
-          let textAnchor: AxisLabelLayout['textAnchor'] = TextAnchor.MIDDLE
-          let dominantBaseline: AxisLabelLayout['dominantBaseline'] =
-            DominantBaseline.MIDDLE
-
-          if (orientation === Position.BOTTOM) {
-            // Position below tick labels
-            // Tick labels: y = height (no extra gap), baseline = HANGING
-            // Bottom of tick label text: y + height = height + height
-            // Title with MIDDLE baseline: center at bottom of ticks + offset + half title height
-            y =
-              maxTickLabelHeight +
-              maxTickLabelHeight +
-              AXIS_TITLE_OFFSET +
-              titleHeight / 2
-            textAnchor = TextAnchor.MIDDLE
-            dominantBaseline = DominantBaseline.MIDDLE
-          } else if (orientation === Position.TOP) {
-            // Position above tick labels
-            // Tick labels: y = -DEFAULT_TICK_LABEL_OFFSET, baseline = AUTO
-            // Top of tick label text extends above y
-            // Title with MIDDLE baseline: center above ticks
-            y =
-              -DEFAULT_TICK_LABEL_OFFSET -
-              maxTickLabelHeight -
-              AXIS_TITLE_OFFSET -
-              titleHeight / 2
-            textAnchor = TextAnchor.MIDDLE
-            dominantBaseline = DominantBaseline.MIDDLE
-          } else if (orientation === Position.LEFT) {
-            // Position to the left of tick labels
-            // Tick labels: x = -DEFAULT_TICK_LABEL_OFFSET, textAnchor = END
-            // Left edge of tick label text: x - width = -offset - width
-            // Title with MIDDLE textAnchor: center at left edge of ticks - offset - half title width
-            x =
-              -DEFAULT_TICK_LABEL_OFFSET -
-              maxTickLabelWidth -
-              AXIS_TITLE_OFFSET -
-              titleWidth / 2
-            textAnchor = TextAnchor.MIDDLE
-            dominantBaseline = DominantBaseline.MIDDLE
-            y = (rangeMin + rangeMax) / 2 // center in axis-local coords
-          } else if (orientation === Position.RIGHT) {
-            // Position to the right of tick labels
-            // Tick labels: x = DEFAULT_TICK_LABEL_OFFSET, textAnchor = START
-            // Right edge of tick label text: x + width = offset + width
-            // Title with MIDDLE textAnchor: center at right edge of ticks + offset + half title width
-            x =
-              DEFAULT_TICK_LABEL_OFFSET +
-              maxTickLabelWidth +
-              AXIS_TITLE_OFFSET +
-              titleWidth / 2
-            textAnchor = TextAnchor.MIDDLE
-            dominantBaseline = DominantBaseline.MIDDLE
-            y = (rangeMin + rangeMax) / 2 // center in axis-local coords
-          }
-
-          return {
-            text: config.axisLabel,
-            x,
-            y,
-            textAnchor,
-            dominantBaseline,
-            rotation,
-          }
-        })()
-      : undefined
-
-  const result = {
+  const ticks = buildTicks(values, scale, config, tickFormatOptions)
+  const measuredTicks = measureTickLabels(
+    ticks,
     orientation,
-    line: { x1, y1, x2, y2 },
+    config,
+    measureText,
+    options.axisTickFont
+  )
+  return {
+    orientation,
+    line: computeAxisLine(orientation, scale.range[0], scale.range[1]),
     ticks,
     tickSize: DEFAULT_TICK_SIZE,
-    labelLayouts,
-    axisLabelLayout,
+    labelLayouts: measuredTicks.layouts,
+    axisLabelLayout: computeAxisTitleLayout(
+      orientation,
+      scale.range,
+      measuredTicks.bounds,
+      config,
+      measureText,
+      options.axisLabelFont
+    ),
   }
-  return result
 }

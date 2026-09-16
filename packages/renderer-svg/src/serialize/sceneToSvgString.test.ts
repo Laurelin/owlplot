@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   ChartKind,
   SceneNodeKind,
@@ -145,5 +145,83 @@ describe('sceneToSvgString', () => {
     const svg = sceneToSvgString(scene, { width: 100, height: 50 })
     expect(svg).toContain('A &amp; B &lt;C&gt;')
     expect(svg).not.toContain('A & B <C>')
+  })
+
+  it('serializes every realized point shape', () => {
+    const scale = {
+      type: 'linear' as const,
+      domain: [0, 10] as [number, number],
+      range: [0, 100] as [number, number],
+    }
+    const shapes = [
+      { kind: 'circle' as const },
+      { kind: 'square' as const },
+      { kind: 'triangle' as const },
+      { kind: 'diamond' as const },
+      { kind: 'emoji' as const, value: '🦉' },
+      { kind: 'symbol' as const, name: 'future' },
+    ]
+    const scene: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'root',
+      children: [
+        ...shapes.map((shape, index) => ({
+          kind: SceneNodeKind.POINT,
+          id: `point:s:${index}`,
+          seriesId: 's',
+          x: index,
+          y: index,
+          point: { shape, size: 4 },
+        })),
+        {
+          kind: SceneNodeKind.POINT,
+          id: 'point:missing:0',
+          x: 7,
+          y: 7,
+          point: { shape: { kind: 'circle' }, size: 4 },
+        },
+      ],
+      metadata: {
+        hover: {
+          scales: { x: scale, y: scale },
+          plotRect: { x: 0, y: 0, width: 100, height: 100 },
+          xDomain: [0, 10],
+          yDomain: [0, 10],
+          series: [{ id: 's', yAxis: 'left', sortedPoints: [] }],
+        },
+      },
+    }
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const svg = sceneToSvgString(scene, { width: 100, height: 100 })
+    warn.mockRestore()
+
+    expect(svg).toContain('<circle id="point:s:0"')
+    expect(svg).toContain('<rect id="point:s:1"')
+    expect(svg).toContain('<path id="point:s:2"')
+    expect(svg).toContain('<path id="point:s:3"')
+    expect(svg).toContain('<text id="point:s:4"')
+    expect(svg).toContain('<circle id="point:s:5"')
+    expect(svg).not.toContain('point:missing:0')
+  })
+
+  it('skips point nodes that cannot be resolved', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const withoutContext: SceneNode = {
+      kind: SceneNodeKind.POINT,
+      id: 'point:s:0',
+      seriesId: 's',
+      x: 1,
+      y: 1,
+      point: { shape: { kind: 'circle' }, size: 4 },
+    }
+
+    expect(
+      sceneToSvgString(withoutContext, { width: 100, height: 100 })
+    ).not.toContain('point:s:0')
+    expect(warn).toHaveBeenCalledWith(
+      '[owlplot] ScenePointNode requires render context with scales and seriesYAxis; skipping point.'
+    )
+    warn.mockRestore()
   })
 })

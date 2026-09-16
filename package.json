@@ -10,6 +10,8 @@
     "build": "npm run --workspaces build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "crap:check": "node scripts/check-crap.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs",
     "lint": "eslint . --ignore-pattern '**/dist/**'",
     "dev:demo": "npm --workspace apps/svg-playground run dev",
     "dev:react": "npm --workspace apps/react-playground run dev",
@@ -21,7 +23,9 @@
     "measure:dense-line": "node scripts/dense-line-cost.mjs"
   },
   "devDependencies": {
+    "@barney-media/crap-typescript": "^0.5.2",
     "@eslint/js": "^9.39.2",
+    "@vitest/coverage-istanbul": "^4.0.17",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.0",

@@ -458,6 +458,43 @@ describe('computeChartScene (line)', () => {
       const entries = getLegendEntries(result)
       expect(entries?.[0]?.paint).toEqual({ type: 'solid', color: '#112233' })
     })
+
+    it('falls back across legend paint channels and then to currentColor', () => {
+      const config: ChartConfig = {
+        kind: ChartKind.LINE,
+        series: [
+          {
+            id: 'line-fill',
+            paint: {
+              stroke: undefined,
+              fill: { type: 'solid', color: '#111111' },
+            },
+            points: [{ x: 0, y: 1 }],
+          },
+          {
+            id: 'area-stroke',
+            type: 'area',
+            paint: {
+              fill: undefined,
+              stroke: { type: 'solid', color: '#222222' },
+            },
+            points: [{ x: 0, y: 2 }],
+          },
+          {
+            id: 'default',
+            paint: { fill: undefined, stroke: undefined },
+            points: [{ x: 0, y: 3 }],
+          },
+        ],
+      }
+
+      const entries = getLegendEntries(computeChartScene(config, size, env))
+      expect(entries?.map(entry => entry.paint)).toEqual([
+        { type: 'solid', color: '#111111' },
+        { type: 'solid', color: '#222222' },
+        { type: 'solid', color: 'currentColor' },
+      ])
+    })
   })
 
   describe('area fill opacity', () => {
@@ -599,7 +636,9 @@ describe('computeChartScene (line)', () => {
       }
 
       const result = computeChartScene(config, size, env)
-      const children = rootChildren(result as unknown as { scene: { children?: TestSceneNode[] } })
+      const children = rootChildren(
+        result as unknown as { scene: { children?: TestSceneNode[] } }
+      )
       const ids = children.map(node => node.id)
 
       const band0Index = ids.indexOf('__band__:0')
@@ -798,7 +837,13 @@ describe('computeChartScene (line)', () => {
       const config: ChartConfig = {
         kind: ChartKind.LINE,
         series: [
-          { id: 's', points: [{ x: 0, y: 0 }, { x: 1, y: 10 }] },
+          {
+            id: 's',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 10 },
+            ],
+          },
         ],
         options: {
           annotations: [
@@ -837,12 +882,18 @@ describe('computeChartScene (line)', () => {
           {
             id: 'left',
             yAxis: 'left',
-            points: [{ x: 0, y: 0 }, { x: 1, y: 10 }],
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 10 },
+            ],
           },
           {
             id: 'right',
             yAxis: 'right',
-            points: [{ x: 0, y: 100 }, { x: 1, y: 200 }],
+            points: [
+              { x: 0, y: 100 },
+              { x: 1, y: 200 },
+            ],
           },
         ],
         options: {
@@ -872,7 +923,15 @@ describe('computeChartScene (line)', () => {
     it('skips annotations projected outside plot rect', () => {
       const config: ChartConfig = {
         kind: ChartKind.LINE,
-        series: [{ id: 's', points: [{ x: 0, y: 0 }, { x: 1, y: 10 }] }],
+        series: [
+          {
+            id: 's',
+            points: [
+              { x: 0, y: 0 },
+              { x: 1, y: 10 },
+            ],
+          },
+        ],
         options: {
           annotations: [
             { text: 'inside', x: 0.5, y: 5 },
@@ -942,7 +1001,9 @@ describe('computeChartScene (line)', () => {
           },
         ],
         options: {
-          bands: [{ yMin: 1, yMax: 2, fill: { type: 'solid', color: '#dcfce7' } }],
+          bands: [
+            { yMin: 1, yMax: 2, fill: { type: 'solid', color: '#dcfce7' } },
+          ],
           regions: [
             {
               upperSeriesId: 'upperA',
@@ -1223,12 +1284,16 @@ describe('computeChartScene (line)', () => {
         '__region__:0'
       )
       const path = region?.d ?? ''
-      const xs = [...path.matchAll(/(?:M|L)\s+([-\d.]+)\s+[-\d.]+/g)].map(match =>
-        Number(match[1])
+      const xs = [...path.matchAll(/(?:M|L)\s+([-\d.]+)\s+[-\d.]+/g)].map(
+        match => Number(match[1])
       )
       const minX = Math.min(...xs)
       const maxX = Math.max(...xs)
-      const plotRect = (result.scene.metadata as { hover?: { plotRect?: { x: number; width: number } } }).hover?.plotRect
+      const plotRect = (
+        result.scene.metadata as {
+          hover?: { plotRect?: { x: number; width: number } }
+        }
+      ).hover?.plotRect
       expect(plotRect).toBeDefined()
       if (!plotRect) return
       const width = plotRect.width
@@ -1294,7 +1359,6 @@ describe('computeChartScene (line)', () => {
     })
   })
 })
-
 
 describe('hiddenSeriesIds (recompute hide)', () => {
   const env = { devicePixelRatio: 2, measureText: approximateMeasureText }

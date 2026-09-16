@@ -89,10 +89,8 @@ type Rect = { x: number; y: number; width: number; height: number }
 
 function paintToSwatchColor(paint: AnyPaint): string {
   if (paint.type === 'solid') return paint.color
-  if ((paint.type === 'linear' || paint.type === 'radial') && paint.stops[0]) {
-    return paint.stops[0].color
-  }
-  return 'currentColor'
+  const firstStop = paint.stops[0]
+  return firstStop ? firstStop.color : 'currentColor'
 }
 
 function getLegendMetadata(scene: SceneNode): LegendMetadata | undefined {
@@ -112,36 +110,45 @@ function readSvgDimension(
   key: 'width' | 'height',
   viewBoxIndex: number
 ): number {
-  const attrValue = Number.parseFloat(svg.getAttribute(key) ?? '')
-  if (Number.isFinite(attrValue)) return attrValue
-
+  const attrValue = finiteNumber(svg.getAttribute(key))
+  if (attrValue != null) return attrValue
   const viewBox = svg.getAttribute('viewBox')
-  if (viewBox) {
-    const parts = viewBox.trim().split(/\s+/)
-    const parsed = Number.parseFloat(parts[viewBoxIndex] ?? '')
-    if (Number.isFinite(parsed)) return parsed
-  }
+  if (!viewBox) return 0
+  return finiteNumber(viewBox.trim().split(/\s+/)[viewBoxIndex]) ?? 0
+}
 
-  return 0
+function finiteNumber(value: string | null | undefined): number | undefined {
+  const parsed = Number.parseFloat(value ?? '')
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function savedStyle(value: string | undefined): string {
+  return value ?? ''
+}
+
+function restoreLegendHostStyles(external: HTMLElement): void {
+  if (external.dataset.owlplotHostStylesSaved !== 'true') return
+  const host = external.parentElement as HTMLElement | null
+  if (!host) return
+  host.style.display = savedStyle(external.dataset.owlplotHostDisplay)
+  host.style.alignItems = savedStyle(external.dataset.owlplotHostAlignItems)
+  host.style.justifyContent = savedStyle(
+    external.dataset.owlplotHostJustifyContent
+  )
+  host.style.columnGap = savedStyle(external.dataset.owlplotHostColumnGap)
+  host.style.rowGap = savedStyle(external.dataset.owlplotHostRowGap)
+  host.style.flexDirection = savedStyle(
+    external.dataset.owlplotHostFlexDirection
+  )
 }
 
 function clearExternalLegend(svg: SVGSVGElement): void {
   const extended = svg as ExtendedSVGSVGElement
   const external = extended[EXTERNAL_LEGEND_ELEMENT_SYMBOL]
-  if (external) {
-    const host = external.parentElement as HTMLElement | null
-    if (host && external.dataset.owlplotHostStylesSaved === 'true') {
-      host.style.display = external.dataset.owlplotHostDisplay ?? ''
-      host.style.alignItems = external.dataset.owlplotHostAlignItems ?? ''
-      host.style.justifyContent =
-        external.dataset.owlplotHostJustifyContent ?? ''
-      host.style.columnGap = external.dataset.owlplotHostColumnGap ?? ''
-      host.style.rowGap = external.dataset.owlplotHostRowGap ?? ''
-      host.style.flexDirection = external.dataset.owlplotHostFlexDirection ?? ''
-    }
-    external.remove()
-    delete extended[EXTERNAL_LEGEND_ELEMENT_SYMBOL]
-  }
+  if (!external) return
+  restoreLegendHostStyles(external)
+  external.remove()
+  delete extended[EXTERNAL_LEGEND_ELEMENT_SYMBOL]
 }
 
 export function clearLegendArtifacts(svg: SVGSVGElement): void {
@@ -154,10 +161,20 @@ function estimateLabelWidthPx(label: string): number {
 
 function intersects(a: Rect, b: Rect): boolean {
   return (
-    a.x < b.x + b.width &&
-    a.x + a.width > b.x &&
-    a.y < b.y + b.height &&
-    a.y + a.height > b.y
+    overlapsAxis(a.x, a.width, b.x, b.width) &&
+    overlapsAxis(a.y, a.height, b.y, b.height)
+  )
+}
+
+function overlapsAxis(
+  firstStart: number,
+  firstLength: number,
+  secondStart: number,
+  secondLength: number
+): boolean {
+  return (
+    firstStart < secondStart + secondLength &&
+    firstStart + firstLength > secondStart
   )
 }
 
@@ -168,47 +185,75 @@ function readDataBounds(svg: SVGSVGElement): Rect | undefined {
     )
   )
 
-  let minX = Number.POSITIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-
+  const bounds = createEmptyBounds()
   for (const element of candidates) {
-    if (typeof (element as SVGGraphicsElement).getBBox !== 'function') continue
-    try {
-      const box = (element as SVGGraphicsElement).getBBox()
-      if (!Number.isFinite(box.width) || !Number.isFinite(box.height)) continue
-      minX = Math.min(minX, box.x)
-      minY = Math.min(minY, box.y)
-      maxX = Math.max(maxX, box.x + box.width)
-      maxY = Math.max(maxY, box.y + box.height)
-    } catch {
-      // Some non-rendered elements may throw during bbox read.
-    }
+    const box = readBoundingBox(element)
+    if (box) includeRect(bounds, box)
   }
+  return boundsToRect(bounds)
+}
 
-  if (
-    !Number.isFinite(minX) ||
-    !Number.isFinite(minY) ||
-    !Number.isFinite(maxX) ||
-    !Number.isFinite(maxY)
-  ) {
+type MutableBounds = {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
+
+function createEmptyBounds(): MutableBounds {
+  return {
+    minX: Number.POSITIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    maxY: Number.NEGATIVE_INFINITY,
+  }
+}
+
+function readBoundingBox(element: Element): DOMRect | SVGRect | undefined {
+  const graphics = element as SVGGraphicsElement
+  if (typeof graphics.getBBox !== 'function') return undefined
+  try {
+    const box = graphics.getBBox()
+    return Number.isFinite(box.width) && Number.isFinite(box.height)
+      ? box
+      : undefined
+  } catch {
     return undefined
   }
+}
 
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+function includeRect(bounds: MutableBounds, box: DOMRect | SVGRect): void {
+  bounds.minX = Math.min(bounds.minX, box.x)
+  bounds.minY = Math.min(bounds.minY, box.y)
+  bounds.maxX = Math.max(bounds.maxX, box.x + box.width)
+  bounds.maxY = Math.max(bounds.maxY, box.y + box.height)
+}
+
+function boundsToRect(bounds: MutableBounds): Rect | undefined {
+  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY)) {
+    return undefined
+  }
+  return {
+    x: bounds.minX,
+    y: bounds.minY,
+    width: bounds.maxX - bounds.minX,
+    height: bounds.maxY - bounds.minY,
+  }
+}
+
+function isBottomAxisNode(node: SceneNode): boolean {
+  return (
+    node.id.startsWith('axis-tick:bottom:') ||
+    node.id.startsWith('axis-tick-label:bottom:') ||
+    node.id === 'axis-label:bottom'
+  )
 }
 
 function hasBottomAxisContent(scene: SceneNode): boolean {
   let found = false
   const walk = (node: SceneNode) => {
     if (found) return
-    const id = node.id
-    if (
-      id.startsWith('axis-tick:bottom:') ||
-      id.startsWith('axis-tick-label:bottom:') ||
-      id === 'axis-label:bottom'
-    ) {
+    if (isBottomAxisNode(node)) {
       found = true
       return
     }
@@ -218,6 +263,11 @@ function hasBottomAxisContent(scene: SceneNode): boolean {
   }
   walk(scene)
   return found
+}
+
+function readComputedFontSize(svg: SVGSVGElement, fallback: number): number {
+  if (typeof window === 'undefined') return fallback
+  return Number.parseFloat(window.getComputedStyle(svg).fontSize) || fallback
 }
 
 function resolveTypography(
@@ -231,25 +281,20 @@ function resolveTypography(
   letterSpacingPx: number
 } {
   const fallbackFontSize = DEFAULT_OPTIONS.typography.fontSizePx!
-  const computedStyle =
-    typeof window !== 'undefined' ? window.getComputedStyle(svg) : null
-  const computedFontSize =
-    Number.parseFloat(computedStyle?.fontSize ?? '') || fallbackFontSize
-  const fontSizePx = options?.fontSizePx ?? computedFontSize
-  const lineHeightPx = options?.lineHeightPx ?? Math.round(fontSizePx * 1.2)
-  const fontFamily =
-    options?.fontFamily ?? DEFAULT_OPTIONS.typography.fontFamily!
-  const fontWeight =
-    options?.fontWeight ?? DEFAULT_OPTIONS.typography.fontWeight!
-  const letterSpacingPx =
-    options?.letterSpacingPx ?? DEFAULT_OPTIONS.typography.letterSpacingPx!
+  const computedFontSize = readComputedFontSize(svg, fallbackFontSize)
+  const resolved = {
+    ...DEFAULT_OPTIONS.typography,
+    ...definedProperties(options),
+  }
+  const fontSizePx = resolved.fontSizePx ?? computedFontSize
+  const lineHeightPx = resolved.lineHeightPx ?? Math.round(fontSizePx * 1.2)
 
   return {
     fontSizePx,
     lineHeightPx,
-    fontFamily,
-    fontWeight,
-    letterSpacingPx,
+    fontFamily: resolved.fontFamily!,
+    fontWeight: resolved.fontWeight!,
+    letterSpacingPx: resolved.letterSpacingPx!,
   }
 }
 
@@ -263,6 +308,37 @@ function clamp(value: number, min: number, max: number): number {
 
 type LabelMetrics = {
   width: number
+}
+
+function createMeasurementText(
+  label: string,
+  typography: {
+    fontSizePx: number
+    fontFamily: string
+    fontWeight: string | number
+    letterSpacingPx: number
+  }
+): SVGTextElement {
+  const text = createSvgElement('text') as SVGTextElement
+  text.setAttribute('font-size', String(typography.fontSizePx))
+  text.setAttribute('font-family', typography.fontFamily)
+  text.setAttribute('font-weight', String(typography.fontWeight))
+  if (typography.letterSpacingPx !== 0) {
+    text.setAttribute('letter-spacing', String(typography.letterSpacingPx))
+  }
+  text.textContent = label
+  text.setAttribute('visibility', 'hidden')
+  return text
+}
+
+function resolveMeasuredWidth(text: SVGTextElement, label: string): number {
+  const measured =
+    typeof text.getComputedTextLength === 'function'
+      ? text.getComputedTextLength()
+      : 0
+  return Number.isFinite(measured) && measured > 0
+    ? measured
+    : estimateLabelWidthPx(label)
 }
 
 function measureLabelMetrics(
@@ -281,27 +357,10 @@ function measureLabelMetrics(
   const cached = cache.get(cacheKey)
   if (cached) return cached
 
-  const text = createSvgElement('text') as SVGTextElement
-  text.setAttribute('font-size', String(typography.fontSizePx))
-  text.setAttribute('font-family', typography.fontFamily)
-  text.setAttribute('font-weight', String(typography.fontWeight))
-  if (typography.letterSpacingPx !== 0) {
-    text.setAttribute('letter-spacing', String(typography.letterSpacingPx))
-  }
-  text.textContent = label
-  text.setAttribute('visibility', 'hidden')
+  const text = createMeasurementText(label, typography)
   svg.appendChild(text)
-
-  const measuredWidth =
-    typeof text.getComputedTextLength === 'function'
-      ? text.getComputedTextLength()
-      : 0
+  const width = resolveMeasuredWidth(text, label)
   text.remove()
-
-  const width =
-    Number.isFinite(measuredWidth) && measuredWidth > 0
-      ? measuredWidth
-      : estimateLabelWidthPx(label)
   const metrics = { width }
   cache.set(cacheKey, metrics)
   return metrics
@@ -335,66 +394,65 @@ type ResolvedLegendOptions = {
   }
 }
 
+function definedProperties<T extends object>(value: T | undefined): Partial<T> {
+  if (!value) return {}
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined)
+  ) as Partial<T>
+}
+
 function resolveOptions(options?: LegendOptions): ResolvedLegendOptions {
+  const resolved = {
+    ...DEFAULT_OPTIONS,
+    ...definedProperties(options),
+  }
   return {
-    placement: options?.placement ?? DEFAULT_OPTIONS.placement,
-    anchor: options?.anchor ?? DEFAULT_OPTIONS.anchor,
-    direction: options?.direction ?? DEFAULT_OPTIONS.direction,
-    collision: options?.collision ?? DEFAULT_OPTIONS.collision,
-    overlapPolicy: options?.overlapPolicy ?? DEFAULT_OPTIONS.overlapPolicy,
-    offsetX: options?.offsetX ?? DEFAULT_OPTIONS.offsetX,
-    offsetY: options?.offsetY ?? DEFAULT_OPTIONS.offsetY,
-    padding: options?.padding ?? DEFAULT_OPTIONS.padding,
+    placement: resolved.placement,
+    anchor: resolved.anchor,
+    direction: resolved.direction,
+    collision: resolved.collision,
+    overlapPolicy: resolved.overlapPolicy,
+    offsetX: resolved.offsetX,
+    offsetY: resolved.offsetY,
+    padding: resolved.padding,
     axisToLegendGap: options?.axisToLegendGap,
-    legendRowHeightPx:
-      options?.legendRowHeightPx ?? DEFAULT_OPTIONS.legendRowHeightPx,
-    textOpticalOffsetPx:
-      options?.textOpticalOffsetPx ?? DEFAULT_OPTIONS.textOpticalOffsetPx,
-    background: options?.background ?? DEFAULT_OPTIONS.background,
+    legendRowHeightPx: resolved.legendRowHeightPx,
+    textOpticalOffsetPx: resolved.textOpticalOffsetPx,
+    background: resolved.background,
     typography: {
-      fontSizePx:
-        options?.typography?.fontSizePx ??
-        DEFAULT_OPTIONS.typography.fontSizePx,
-      lineHeightPx:
-        options?.typography?.lineHeightPx ??
-        DEFAULT_OPTIONS.typography.lineHeightPx,
-      fontFamily:
-        options?.typography?.fontFamily ??
-        DEFAULT_OPTIONS.typography.fontFamily,
-      fontWeight:
-        options?.typography?.fontWeight ??
-        DEFAULT_OPTIONS.typography.fontWeight,
-      letterSpacingPx:
-        options?.typography?.letterSpacingPx ??
-        DEFAULT_OPTIONS.typography.letterSpacingPx,
+      ...DEFAULT_OPTIONS.typography,
+      ...definedProperties(options?.typography),
     },
   }
 }
 
-function renderExternalLegend(
-  scene: SceneNode,
-  svg: SVGSVGElement,
-  legendHost: HTMLElement,
-  entries: LegendMetadata['entries'],
-  hiddenSeriesIds: ReadonlySet<string>,
-  options: ResolvedLegendOptions,
-  typography: {
-    fontSizePx: number
-    lineHeightPx: number
-    fontFamily: string
-    fontWeight: string | number
-    letterSpacingPx: number
-  },
-  onToggleSeries?: (seriesId: string) => void
-): boolean {
-  const axisToLegendGap =
-    options.axisToLegendGap ??
-    (hasBottomAxisContent(scene)
-      ? DEFAULT_AXIS_TO_LEGEND_GAP_WITH_AXIS
-      : DEFAULT_AXIS_TO_LEGEND_GAP_NO_AXIS)
+type ResolvedTypography = ReturnType<typeof resolveTypography>
 
-  const root = document.createElement('div')
-  root.setAttribute('data-owlplot-legend-root', 'true')
+function resolveAxisToLegendGap(
+  scene: SceneNode,
+  options: ResolvedLegendOptions
+): number {
+  if (options.axisToLegendGap != null) return options.axisToLegendGap
+  return hasBottomAxisContent(scene)
+    ? DEFAULT_AXIS_TO_LEGEND_GAP_WITH_AXIS
+    : DEFAULT_AXIS_TO_LEGEND_GAP_NO_AXIS
+}
+
+function resolveExternalAlignment(anchor: LegendAnchor): string {
+  if (anchor.endsWith('left')) return 'flex-start'
+  if (anchor.endsWith('right')) return 'flex-end'
+  return 'center'
+}
+
+function isSideAnchor(anchor: LegendAnchor): boolean {
+  return anchor === 'left-center' || anchor === 'right-center'
+}
+
+function styleExternalRootBase(
+  root: HTMLDivElement,
+  options: ResolvedLegendOptions,
+  typography: ResolvedTypography
+): void {
   root.style.display = 'flex'
   root.style.flexWrap = 'wrap'
   root.style.gap = options.direction === 'column' ? '8px' : '16px'
@@ -408,109 +466,167 @@ function renderExternalLegend(
   if (typography.letterSpacingPx !== 0) {
     root.style.letterSpacing = `${typography.letterSpacingPx}px`
   }
+}
 
-  const align = (() => {
-    if (options.anchor.endsWith('left')) return 'flex-start'
-    if (options.anchor.endsWith('right')) return 'flex-end'
-    return 'center'
-  })()
-  const isSideAnchor =
-    options.anchor === 'left-center' || options.anchor === 'right-center'
-  root.style.justifyContent = isSideAnchor ? 'flex-start' : align
-  if (options.direction === 'column') {
-    root.style.flexDirection = 'column'
-    root.style.alignItems = isSideAnchor
-      ? 'flex-start'
-      : align === 'center'
-        ? 'center'
-        : align
-    root.style.flexWrap = 'nowrap'
-    root.style.width = 'auto'
-    if (isSideAnchor) {
-      root.style.textAlign = 'left'
-    }
-  }
+function styleExternalRootAlignment(
+  root: HTMLDivElement,
+  options: ResolvedLegendOptions
+): void {
+  const align = resolveExternalAlignment(options.anchor)
+  const sideAnchor = isSideAnchor(options.anchor)
+  root.style.justifyContent = sideAnchor ? 'flex-start' : align
+  if (options.direction !== 'column') return
+  styleExternalColumn(root, align, sideAnchor)
+}
 
-  if (options.anchor.startsWith('top')) {
+function styleExternalColumn(
+  root: HTMLDivElement,
+  align: string,
+  sideAnchor: boolean
+): void {
+  root.style.flexDirection = 'column'
+  root.style.alignItems = sideAnchor ? 'flex-start' : align
+  root.style.flexWrap = 'nowrap'
+  root.style.width = 'auto'
+  if (sideAnchor) root.style.textAlign = 'left'
+}
+
+function styleExternalRootMargin(
+  root: HTMLDivElement,
+  anchor: LegendAnchor,
+  axisToLegendGap: number
+): void {
+  if (anchor.startsWith('top')) {
     root.style.marginBottom = `${axisToLegendGap}px`
-  } else if (!isSideAnchor) {
+    return
+  }
+  if (!isSideAnchor(anchor)) {
     root.style.marginTop = `${axisToLegendGap}px`
   }
+}
 
+function createExternalLegendItem(
+  entry: LegendMetadata['entries'][number],
+  hiddenSeriesIds: ReadonlySet<string>,
+  swatchSize: number,
+  onToggleSeries?: (seriesId: string) => void
+): HTMLButtonElement {
+  const item = document.createElement('button')
+  item.type = 'button'
+  item.setAttribute(DATA_LEGEND_ITEM_SERIES_ID, entry.seriesId)
+  item.style.display = 'inline-flex'
+  item.style.alignItems = 'center'
+  item.style.gap = `${SWATCH_TO_LABEL_GAP}px`
+  item.style.border = 'none'
+  item.style.background = 'transparent'
+  item.style.padding = '0'
+  item.style.margin = '0'
+  item.style.cursor = 'pointer'
+  item.style.color = 'inherit'
+  item.style.font = 'inherit'
+
+  const swatch = document.createElement('span')
+  swatch.style.display = 'inline-block'
+  swatch.style.width = `${swatchSize}px`
+  swatch.style.height = `${swatchSize}px`
+  swatch.style.borderRadius = '3px'
+  swatch.style.background = paintToSwatchColor(entry.paint)
+  swatch.style.opacity = hiddenSeriesIds.has(entry.seriesId) ? '0.35' : '1'
+
+  const label = document.createElement('span')
+  label.textContent = entry.label
+  item.addEventListener('click', () => onToggleSeries?.(entry.seriesId))
+  item.appendChild(swatch)
+  item.appendChild(label)
+  return item
+}
+
+function appendExternalLegendItems(
+  root: HTMLDivElement,
+  entries: LegendMetadata['entries'],
+  hiddenSeriesIds: ReadonlySet<string>,
+  swatchSize: number,
+  onToggleSeries?: (seriesId: string) => void
+): void {
+  for (const entry of entries) {
+    root.appendChild(
+      createExternalLegendItem(
+        entry,
+        hiddenSeriesIds,
+        swatchSize,
+        onToggleSeries
+      )
+    )
+  }
+}
+
+function activateSideLegendHost(
+  root: HTMLDivElement,
+  host: HTMLElement,
+  axisToLegendGap: number
+): void {
+  root.dataset.owlplotHostStylesSaved = 'true'
+  root.dataset.owlplotHostDisplay = host.style.display
+  root.dataset.owlplotHostAlignItems = host.style.alignItems
+  root.dataset.owlplotHostJustifyContent = host.style.justifyContent
+  root.dataset.owlplotHostColumnGap = host.style.columnGap
+  root.dataset.owlplotHostRowGap = host.style.rowGap
+  root.dataset.owlplotHostFlexDirection = host.style.flexDirection
+  host.style.display = 'flex'
+  host.style.alignItems = 'center'
+  host.style.justifyContent = 'flex-start'
+  host.style.columnGap = `${axisToLegendGap}px`
+  host.style.rowGap = '0'
+  host.style.flexDirection = 'row'
+  root.style.flex = '0 0 auto'
+}
+
+function insertExternalLegend(
+  root: HTMLDivElement,
+  svg: SVGSVGElement,
+  host: HTMLElement,
+  anchor: LegendAnchor,
+  axisToLegendGap: number
+): void {
+  if (isSideAnchor(anchor)) {
+    activateSideLegendHost(root, host, axisToLegendGap)
+    host.insertBefore(root, anchor === 'left-center' ? svg : svg.nextSibling)
+    return
+  }
+  const reference = anchor.startsWith('top') ? svg : svg.nextSibling
+  host.insertBefore(root, reference)
+}
+
+function renderExternalLegend(
+  scene: SceneNode,
+  svg: SVGSVGElement,
+  legendHost: HTMLElement,
+  entries: LegendMetadata['entries'],
+  hiddenSeriesIds: ReadonlySet<string>,
+  options: ResolvedLegendOptions,
+  typography: ResolvedTypography,
+  onToggleSeries?: (seriesId: string) => void
+): boolean {
+  const axisToLegendGap = resolveAxisToLegendGap(scene, options)
+  const root = document.createElement('div')
+  root.setAttribute('data-owlplot-legend-root', 'true')
+  styleExternalRootBase(root, options, typography)
+  styleExternalRootAlignment(root, options)
+  styleExternalRootMargin(root, options.anchor, axisToLegendGap)
   const swatchSize = clamp(
     Math.round(typography.fontSizePx * SWATCH_EM),
     SWATCH_MIN_PX,
     SWATCH_MAX_PX
   )
-
-  for (const entry of entries) {
-    const item = document.createElement('button')
-    item.type = 'button'
-    item.setAttribute(DATA_LEGEND_ITEM_SERIES_ID, entry.seriesId)
-    item.style.display = 'inline-flex'
-    item.style.alignItems = 'center'
-    item.style.gap = `${SWATCH_TO_LABEL_GAP}px`
-    item.style.border = 'none'
-    item.style.background = 'transparent'
-    item.style.padding = '0'
-    item.style.margin = '0'
-    item.style.cursor = 'pointer'
-    item.style.color = 'inherit'
-    item.style.font = 'inherit'
-
-    const swatch = document.createElement('span')
-    swatch.style.display = 'inline-block'
-    swatch.style.width = `${swatchSize}px`
-    swatch.style.height = `${swatchSize}px`
-    swatch.style.borderRadius = '3px'
-    swatch.style.background = paintToSwatchColor(entry.paint)
-
-    const label = document.createElement('span')
-    label.textContent = entry.label
-
-    const syncItemVisualState = () => {
-      const hidden = hiddenSeriesIds.has(entry.seriesId)
-      swatch.style.opacity = hidden ? '0.35' : '1'
-    }
-
-    item.addEventListener('click', () => {
-      onToggleSeries?.(entry.seriesId)
-    })
-
-    syncItemVisualState()
-    item.appendChild(swatch)
-    item.appendChild(label)
-    root.appendChild(item)
-  }
-
+  appendExternalLegendItems(
+    root,
+    entries,
+    hiddenSeriesIds,
+    swatchSize,
+    onToggleSeries
+  )
+  insertExternalLegend(root, svg, legendHost, options.anchor, axisToLegendGap)
   const extended = svg as ExtendedSVGSVGElement
-  if (isSideAnchor) {
-    root.dataset.owlplotHostStylesSaved = 'true'
-    root.dataset.owlplotHostDisplay = legendHost.style.display
-    root.dataset.owlplotHostAlignItems = legendHost.style.alignItems
-    root.dataset.owlplotHostJustifyContent = legendHost.style.justifyContent
-    root.dataset.owlplotHostColumnGap = legendHost.style.columnGap
-    root.dataset.owlplotHostRowGap = legendHost.style.rowGap
-    root.dataset.owlplotHostFlexDirection = legendHost.style.flexDirection
-
-    legendHost.style.display = 'flex'
-    legendHost.style.alignItems = 'center'
-    legendHost.style.justifyContent = 'flex-start'
-    legendHost.style.columnGap = `${axisToLegendGap}px`
-    legendHost.style.rowGap = '0'
-    legendHost.style.flexDirection = 'row'
-
-    root.style.flex = '0 0 auto'
-    if (options.anchor === 'left-center') {
-      legendHost.insertBefore(root, svg)
-    } else {
-      legendHost.insertBefore(root, svg.nextSibling)
-    }
-  } else if (options.anchor.startsWith('top')) {
-    legendHost.insertBefore(root, svg)
-  } else {
-    legendHost.insertBefore(root, svg.nextSibling)
-  }
   extended[EXTERNAL_LEGEND_ELEMENT_SYMBOL] = root
   return true
 }
@@ -520,16 +636,50 @@ function renderInsideSvgLegend(
   entries: LegendMetadata['entries'],
   hiddenSeriesIds: ReadonlySet<string>,
   options: ResolvedLegendOptions,
-  typography: {
-    fontSizePx: number
-    lineHeightPx: number
-    fontFamily: string
-    fontWeight: string | number
-    letterSpacingPx: number
-  },
+  typography: ResolvedTypography,
   plotRect?: { x: number; y: number; width: number; height: number },
   onToggleSeries?: (seriesId: string) => void
 ): void {
+  const geometry = resolveInsideGeometry(svg, entries, options, typography)
+  const layout = resolveInsideLayout(
+    svg,
+    options,
+    geometry.chartRect,
+    plotRect,
+    geometry.itemSizes
+  )
+  const root = createSvgElement('g')
+  root.setAttribute(SvgAttributeName.ID, 'legend-root')
+  appendLegendBackground(root, layout.box, options.background)
+  appendInsideLegendItems(
+    root,
+    entries,
+    layout.itemOrigins,
+    geometry,
+    hiddenSeriesIds,
+    options,
+    typography,
+    onToggleSeries
+  )
+  root.setAttribute('aria-label', 'legend')
+  root.setAttribute('data-owlplot-legend', 'true')
+  svg.appendChild(root)
+}
+
+type InsideLegendGeometry = {
+  swatchSize: number
+  rowHeight: number
+  textOffsetX: number
+  chartRect: Rect
+  itemSizes: { width: number; height: number }[]
+}
+
+function resolveInsideGeometry(
+  svg: SVGSVGElement,
+  entries: LegendMetadata['entries'],
+  options: ResolvedLegendOptions,
+  typography: ResolvedTypography
+): InsideLegendGeometry {
   const swatchSize = clamp(
     Math.round(typography.fontSizePx * SWATCH_EM),
     SWATCH_MIN_PX,
@@ -537,7 +687,6 @@ function renderInsideSvgLegend(
   )
   const rowHeight = Math.max(options.legendRowHeightPx, swatchSize)
   const textOffsetX = swatchSize + SWATCH_TO_LABEL_GAP
-
   const chartRect = {
     x: 0,
     y: 0,
@@ -548,142 +697,219 @@ function renderInsideSvgLegend(
   const labelMetrics = entries.map(entry =>
     measureLabelMetrics(svg, entry.label, typography, labelMetricsCache)
   )
-
   const itemSizes = entries.map((_, index) => ({
     width: textOffsetX + labelMetrics[index]!.width,
     height: rowHeight,
   }))
-  const effectiveOverlapPolicy: LegendOverlapPolicy =
-    options.collision === 'avoid-frame' || options.collision === 'auto-anchor'
-      ? 'avoid-frame'
-      : options.overlapPolicy
+  return { swatchSize, rowHeight, textOffsetX, chartRect, itemSizes }
+}
 
-  const computeLayout = (anchor: LegendAnchor) =>
-    computeLegendLayout({
-      placement: 'inside',
-      anchor,
-      direction: options.direction,
-      overlapPolicy: effectiveOverlapPolicy,
-      padding: options.padding,
-      axisToLegendGap: 0,
-      offsetX: options.offsetX,
-      offsetY: options.offsetY,
-      gap: ITEM_GAP,
-      chartRect,
-      plotRect: plotRect ?? chartRect,
-      itemSizes,
-    })
+function effectiveOverlapPolicy(
+  options: ResolvedLegendOptions
+): LegendOverlapPolicy {
+  return options.collision === 'avoid-frame' ||
+    options.collision === 'auto-anchor'
+    ? 'avoid-frame'
+    : options.overlapPolicy
+}
 
-  let layout = computeLayout(options.anchor)
-  if (options.collision === 'auto-anchor') {
-    const anchors: LegendAnchor[] = [
-      'top-right',
-      'top-left',
-      'bottom-right',
-      'bottom-left',
-    ]
-    if (!anchors.includes(options.anchor)) {
-      anchors.unshift(options.anchor)
-    }
-    const dataBounds = readDataBounds(svg)
-    if (dataBounds) {
-      const candidate = anchors
-        .map(anchor => computeLayout(anchor))
-        .find(candidateLayout => !intersects(candidateLayout.box, dataBounds))
-      if (candidate) {
-        layout = candidate
-      }
-    }
+function computeInsideLayout(
+  anchor: LegendAnchor,
+  options: ResolvedLegendOptions,
+  chartRect: Rect,
+  plotRect: Rect | undefined,
+  itemSizes: { width: number; height: number }[]
+) {
+  return computeLegendLayout({
+    placement: 'inside',
+    anchor,
+    direction: options.direction,
+    overlapPolicy: effectiveOverlapPolicy(options),
+    padding: options.padding,
+    axisToLegendGap: 0,
+    offsetX: options.offsetX,
+    offsetY: options.offsetY,
+    gap: ITEM_GAP,
+    chartRect,
+    plotRect: plotRect ?? chartRect,
+    itemSizes,
+  })
+}
+
+function autoAnchorCandidates(preferred: LegendAnchor): LegendAnchor[] {
+  const anchors: LegendAnchor[] = [
+    'top-right',
+    'top-left',
+    'bottom-right',
+    'bottom-left',
+  ]
+  if (!anchors.includes(preferred)) anchors.unshift(preferred)
+  return anchors
+}
+
+function resolveAutoAnchoredLayout(
+  svg: SVGSVGElement,
+  options: ResolvedLegendOptions,
+  chartRect: Rect,
+  plotRect: Rect | undefined,
+  itemSizes: { width: number; height: number }[],
+  fallback: ReturnType<typeof computeLegendLayout>
+): ReturnType<typeof computeLegendLayout> {
+  const dataBounds = readDataBounds(svg)
+  if (!dataBounds) return fallback
+  const candidate = autoAnchorCandidates(options.anchor)
+    .map(anchor =>
+      computeInsideLayout(anchor, options, chartRect, plotRect, itemSizes)
+    )
+    .find(layout => !intersects(layout.box, dataBounds))
+  return candidate ?? fallback
+}
+
+function resolveInsideLayout(
+  svg: SVGSVGElement,
+  options: ResolvedLegendOptions,
+  chartRect: Rect,
+  plotRect: Rect | undefined,
+  itemSizes: { width: number; height: number }[]
+): ReturnType<typeof computeLegendLayout> {
+  const fallback = computeInsideLayout(
+    options.anchor,
+    options,
+    chartRect,
+    plotRect,
+    itemSizes
+  )
+  if (options.collision !== 'auto-anchor') return fallback
+  return resolveAutoAnchoredLayout(
+    svg,
+    options,
+    chartRect,
+    plotRect,
+    itemSizes,
+    fallback
+  )
+}
+
+function appendLegendBackground(
+  root: SVGElement,
+  box: Rect,
+  background: ResolvedLegendOptions['background']
+): void {
+  if (!background) return
+  const backgroundOptions = resolveBackgroundOptions(background)
+  const padding = valueOrDefault(backgroundOptions.paddingPx, 8)
+  const radius = valueOrDefault(backgroundOptions.borderRadiusPx, 6)
+  const panel = createSvgElement('rect')
+  setSvgAttributes(panel, {
+    x: roundToHalfPx(box.x - padding),
+    y: roundToHalfPx(box.y - padding),
+    width: roundToHalfPx(box.width + padding * 2),
+    height: roundToHalfPx(box.height + padding * 2),
+    rx: radius,
+    ry: radius,
+    fill: '#ffffff',
+    opacity: valueOrDefault(backgroundOptions.opacity, 0.62),
+  })
+  root.appendChild(panel)
+}
+
+function resolveBackgroundOptions(
+  background: Exclude<ResolvedLegendOptions['background'], false>
+): Exclude<ResolvedLegendOptions['background'], boolean> {
+  return typeof background === 'object' ? background : {}
+}
+
+function valueOrDefault(value: number | undefined, fallback: number): number {
+  return value ?? fallback
+}
+
+function setSvgAttributes(
+  element: SVGElement,
+  attributes: Readonly<Record<string, string | number>>
+): void {
+  for (const [name, value] of Object.entries(attributes)) {
+    element.setAttribute(name, String(value))
   }
+}
 
-  const root = createSvgElement('g')
-  root.setAttribute(SvgAttributeName.ID, 'legend-root')
-  if (options.background) {
-    const backgroundOptions =
-      typeof options.background === 'object' ? options.background : {}
-    const backgroundPadding = backgroundOptions.paddingPx ?? 8
-    const backgroundRadius = backgroundOptions.borderRadiusPx ?? 6
-    const backgroundOpacity = backgroundOptions.opacity ?? 0.62
+function createInsideLegendItem(
+  entry: LegendMetadata['entries'][number],
+  origin: { x: number; y: number },
+  geometry: InsideLegendGeometry,
+  hidden: boolean,
+  options: ResolvedLegendOptions,
+  typography: ResolvedTypography,
+  onToggleSeries?: (seriesId: string) => void
+): SVGElement {
+  const item = createSvgElement('g')
+  item.setAttribute(SvgAttributeName.ID, `legend-item:${entry.seriesId}`)
+  item.setAttribute(DATA_LEGEND_ITEM_SERIES_ID, entry.seriesId)
+  item.setAttribute('transform', `translate(${origin.x},${origin.y})`)
+  item.style.cursor = 'pointer'
 
-    const panel = createSvgElement('rect')
-    panel.setAttribute(
-      'x',
-      String(roundToHalfPx(layout.box.x - backgroundPadding))
-    )
-    panel.setAttribute(
-      'y',
-      String(roundToHalfPx(layout.box.y - backgroundPadding))
-    )
-    panel.setAttribute(
-      'width',
-      String(roundToHalfPx(layout.box.width + backgroundPadding * 2))
-    )
-    panel.setAttribute(
-      'height',
-      String(roundToHalfPx(layout.box.height + backgroundPadding * 2))
-    )
-    panel.setAttribute('rx', String(backgroundRadius))
-    panel.setAttribute('ry', String(backgroundRadius))
-    panel.setAttribute('fill', '#ffffff')
-    panel.setAttribute('opacity', String(backgroundOpacity))
-    root.appendChild(panel)
-  }
-
-  entries.forEach((entry, index) => {
-    const itemOrigin = layout.itemOrigins[index]
-    if (!itemOrigin) return
-
-    const item = createSvgElement('g')
-    item.setAttribute(SvgAttributeName.ID, `legend-item:${entry.seriesId}`)
-    item.setAttribute(DATA_LEGEND_ITEM_SERIES_ID, entry.seriesId)
-    item.setAttribute('transform', `translate(${itemOrigin.x},${itemOrigin.y})`)
-    item.style.cursor = 'pointer'
-
-    const swatch = createSvgElement('rect')
-    const rowCenterY = rowHeight / 2
-    const swatchY = rowCenterY - swatchSize / 2
-    swatch.setAttribute('x', '0')
-    swatch.setAttribute('y', String(roundToHalfPx(swatchY)))
-    swatch.setAttribute('width', String(swatchSize))
-    swatch.setAttribute('height', String(swatchSize))
-    swatch.setAttribute('rx', '3')
-    swatch.setAttribute('ry', '3')
-    swatch.setAttribute('fill', paintToSwatchColor(entry.paint))
-
-    const label = createSvgElement('text') as SVGTextElement
-    label.setAttribute('x', String(textOffsetX))
-    label.setAttribute(
-      'y',
-      String(roundToHalfPx(rowHeight / 2 + options.textOpticalOffsetPx))
-    )
-    label.setAttribute('dominant-baseline', 'middle')
-    label.setAttribute('font-size', String(typography.fontSizePx))
-    label.setAttribute('font-family', typography.fontFamily)
-    label.setAttribute('font-weight', String(typography.fontWeight))
-    if (typography.letterSpacingPx !== 0) {
-      label.setAttribute('letter-spacing', String(typography.letterSpacingPx))
-    }
-    label.textContent = entry.label
-
-    const syncItemVisualState = () => {
-      const hidden = hiddenSeriesIds.has(entry.seriesId)
-      swatch.setAttribute('opacity', hidden ? '0.35' : '1')
-    }
-
-    item.addEventListener('click', () => {
-      onToggleSeries?.(entry.seriesId)
-    })
-
-    syncItemVisualState()
-    item.appendChild(swatch)
-    item.appendChild(label)
-    root.appendChild(item)
+  const swatch = createSvgElement('rect')
+  const swatchY = geometry.rowHeight / 2 - geometry.swatchSize / 2
+  setSvgAttributes(swatch, {
+    x: 0,
+    y: roundToHalfPx(swatchY),
+    width: geometry.swatchSize,
+    height: geometry.swatchSize,
+    rx: 3,
+    ry: 3,
+    fill: paintToSwatchColor(entry.paint),
+    opacity: hidden ? '0.35' : '1',
   })
 
-  root.setAttribute('aria-label', 'legend')
-  root.setAttribute('data-owlplot-legend', 'true')
-  svg.appendChild(root)
+  const label = createSvgElement('text') as SVGTextElement
+  setSvgAttributes(label, {
+    x: geometry.textOffsetX,
+    y: roundToHalfPx(geometry.rowHeight / 2 + options.textOpticalOffsetPx),
+    'dominant-baseline': 'middle',
+    'font-size': typography.fontSizePx,
+    'font-family': typography.fontFamily,
+    'font-weight': typography.fontWeight,
+  })
+  if (typography.letterSpacingPx !== 0) {
+    label.setAttribute('letter-spacing', String(typography.letterSpacingPx))
+  }
+  label.textContent = entry.label
+  item.addEventListener('click', () => onToggleSeries?.(entry.seriesId))
+  item.appendChild(swatch)
+  item.appendChild(label)
+  return item
 }
+
+function appendInsideLegendItems(
+  root: SVGElement,
+  entries: LegendMetadata['entries'],
+  origins: { x: number; y: number }[],
+  geometry: InsideLegendGeometry,
+  hiddenSeriesIds: ReadonlySet<string>,
+  options: ResolvedLegendOptions,
+  typography: ResolvedTypography,
+  onToggleSeries?: (seriesId: string) => void
+): void {
+  entries.forEach((entry, index) => {
+    const origin = origins[index]
+    if (!origin) return
+    root.appendChild(
+      createInsideLegendItem(
+        entry,
+        origin,
+        geometry,
+        hiddenSeriesIds.has(entry.seriesId),
+        options,
+        typography,
+        onToggleSeries
+      )
+    )
+  })
+}
+
+/*
+ * Layout, node creation, and DOM insertion intentionally remain separate:
+ * callers can reason about geometry without relying on rendered DOM state.
+ */
 
 function toHiddenSet(
   hidden?: ReadonlySet<string> | readonly string[]
@@ -691,6 +917,41 @@ function toHiddenSet(
   if (hidden == null) return new Set()
   if (hidden instanceof Set) return hidden
   return new Set(hidden)
+}
+
+function warnOutsideLegendWithoutHost(): void {
+  if (process.env.NODE_ENV === 'production' || hasWarnedOutsideLegendNoHost) {
+    return
+  }
+  console.warn('[owlplot] outside legend skipped: no host')
+  hasWarnedOutsideLegendNoHost = true
+}
+
+function renderResolvedOutsideLegend(
+  scene: SceneNode,
+  svg: SVGSVGElement,
+  entries: LegendMetadata['entries'],
+  hiddenSeriesIds: ReadonlySet<string>,
+  options: ResolvedLegendOptions,
+  typography: ResolvedTypography,
+  legendHost: HTMLElement | undefined,
+  onToggleSeries?: (seriesId: string) => void
+): void {
+  const host = legendHost ?? (svg.parentElement as HTMLElement | null)
+  if (!host) {
+    warnOutsideLegendWithoutHost()
+    return
+  }
+  renderExternalLegend(
+    scene,
+    svg,
+    host,
+    entries,
+    hiddenSeriesIds,
+    options,
+    typography,
+    onToggleSeries
+  )
 }
 
 export function renderLegend(
@@ -707,38 +968,23 @@ export function renderLegend(
   if (resolvedOptions.placement === 'none' || !legendMetadata) {
     return
   }
-
   const entries = [...legendMetadata.entries].sort((a, b) => a.order - b.order)
   const hiddenSeriesIds = toHiddenSet(options?.hiddenSeriesIds)
   const onToggleSeries = options?.onToggleSeries
-
   const typography = resolveTypography(svg, resolvedOptions.typography)
-
   if (resolvedOptions.placement === 'outside') {
-    const host = legendHost ?? (svg.parentElement as HTMLElement | null)
-    if (host == null) {
-      if (
-        process.env.NODE_ENV !== 'production' &&
-        !hasWarnedOutsideLegendNoHost
-      ) {
-        console.warn('[owlplot] outside legend skipped: no host')
-        hasWarnedOutsideLegendNoHost = true
-      }
-      return
-    }
-    renderExternalLegend(
+    renderResolvedOutsideLegend(
       scene,
       svg,
-      host,
       entries,
       hiddenSeriesIds,
       resolvedOptions,
       typography,
+      legendHost,
       onToggleSeries
     )
     return
   }
-
   renderInsideSvgLegend(
     svg,
     entries,

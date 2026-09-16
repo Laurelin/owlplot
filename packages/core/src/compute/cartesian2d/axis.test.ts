@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { Position } from '../../config/types'
 import { formatAxisTickLabel, computeAxisLayout } from './axis'
-import { createLogScale } from './scale'
-import type { MeasureText } from '../../text/types'
+import { createLinearScale, createLogScale } from './scale'
+import {
+  DominantBaseline,
+  TextAnchor,
+  type MeasureText,
+} from '../../text/types'
+import { LabelOrientation } from './types/axis'
 
 const measureText: MeasureText = (text: string) => ({
   width: text.length * 7,
@@ -66,6 +71,15 @@ describe('formatAxisTickLabel', () => {
       )
     ).toBe('140000')
   })
+
+  it('ignores non-finite compact thresholds', () => {
+    expect(
+      formatAxisTickLabel(140000, undefined, {
+        tickStep: 1,
+        compactThreshold: Number.NaN,
+      })
+    ).toBe('140000')
+  })
 })
 
 describe('computeAxisLayout (log scale ticks)', () => {
@@ -89,5 +103,141 @@ describe('computeAxisLayout (log scale ticks)', () => {
       {}
     )
     expect(layout.ticks.map(t => t.value)).toEqual([10, 100])
+  })
+})
+
+describe('computeAxisLayout (placements)', () => {
+  const scale = createLinearScale([0, 10], [0, 100])
+
+  it.each([
+    [Position.BOTTOM, TextAnchor.MIDDLE, DominantBaseline.HANGING],
+    [Position.TOP, TextAnchor.MIDDLE, DominantBaseline.AUTO],
+    [Position.LEFT, TextAnchor.END, DominantBaseline.MIDDLE],
+    [Position.RIGHT, TextAnchor.START, DominantBaseline.MIDDLE],
+  ])('places %s tick labels and axis line', (position, anchor, baseline) => {
+    const layout = computeAxisLayout(position, scale, measureText, {}, {})
+    expect(layout.labelLayouts[0]).toMatchObject({
+      textAnchor: anchor,
+      dominantBaseline: baseline,
+    })
+    expect(
+      position === Position.BOTTOM || position === Position.TOP
+        ? layout.line.y2
+        : layout.line.x2
+    ).toBe(0)
+  })
+
+  it.each([
+    [Position.BOTTOM, -90],
+    [Position.TOP, -90],
+    [Position.LEFT, 90],
+    [Position.RIGHT, 90],
+  ])('rotates vertical %s tick labels', (position, rotation) => {
+    const layout = computeAxisLayout(
+      position,
+      scale,
+      measureText,
+      { labelOrientation: { orientation: LabelOrientation.VERTICAL } },
+      {}
+    )
+    expect(layout.labelLayouts[0]?.rotation).toBe(rotation)
+  })
+
+  it('supports angled tick labels and ignores an absent angle', () => {
+    const angled = computeAxisLayout(
+      Position.BOTTOM,
+      scale,
+      measureText,
+      {
+        labelOrientation: {
+          orientation: LabelOrientation.ANGLED,
+          angle: 30,
+        },
+      },
+      {}
+    )
+    const unspecified = computeAxisLayout(
+      Position.BOTTOM,
+      scale,
+      measureText,
+      { labelOrientation: { orientation: LabelOrientation.ANGLED } },
+      {}
+    )
+    expect(angled.labelLayouts[0]?.rotation).toBe(30)
+    expect(unspecified.labelLayouts[0]?.rotation).toBeUndefined()
+  })
+
+  it.each([
+    [Position.BOTTOM, undefined],
+    [Position.TOP, undefined],
+    [Position.LEFT, -90],
+    [Position.RIGHT, 90],
+  ])('positions a vertical %s title', (position, rotation) => {
+    const layout = computeAxisLayout(
+      position,
+      scale,
+      measureText,
+      {
+        axisLabel: 'Title',
+        axisLabelOrientation: { orientation: LabelOrientation.VERTICAL },
+      },
+      {}
+    )
+    expect(layout.axisLabelLayout).toMatchObject({
+      text: 'Title',
+      rotation,
+      textAnchor: TextAnchor.MIDDLE,
+      dominantBaseline: DominantBaseline.MIDDLE,
+    })
+  })
+
+  it('positions an angled title and omits an unconfigured title', () => {
+    const titled = computeAxisLayout(
+      Position.LEFT,
+      scale,
+      measureText,
+      {
+        axisLabel: 'Title',
+        axisLabelOrientation: {
+          orientation: LabelOrientation.ANGLED,
+          angle: 25,
+        },
+      },
+      {}
+    )
+    const untitled = computeAxisLayout(
+      Position.LEFT,
+      scale,
+      measureText,
+      {},
+      {}
+    )
+    expect(titled.axisLabelLayout?.rotation).toBe(25)
+    expect(untitled.axisLabelLayout).toBeUndefined()
+  })
+
+  it('suppresses repeated formatted labels', () => {
+    const layout = computeAxisLayout(
+      Position.BOTTOM,
+      createLinearScale([0, 1], [0, 100]),
+      measureText,
+      {
+        tickCount: 10,
+        axisTickFormat: { mode: 'decimals', decimals: 0 },
+      },
+      {}
+    )
+    expect(layout.ticks.some(tick => tick.label === '')).toBe(true)
+  })
+
+  it('handles a scale that generates one tick', () => {
+    const layout = computeAxisLayout(
+      Position.LEFT,
+      createLogScale([5, 50], [100, 0], 10),
+      measureText,
+      {},
+      {}
+    )
+    expect(layout.ticks).toHaveLength(1)
   })
 })

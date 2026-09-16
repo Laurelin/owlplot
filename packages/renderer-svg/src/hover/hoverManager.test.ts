@@ -260,4 +260,44 @@ describe('hover manager', () => {
       vi.restoreAllMocks()
     })
   })
+
+  it('clears rendered effects when data coordinates leave the plot', () => {
+    const render = vi.fn(() => ({ rendered: true }))
+    const restore = vi.fn()
+    const indicator = { id: 'test', render, restore }
+    const resolver = {
+      resolve: vi.fn(() => ({
+        kind: 'points' as const,
+        points: [{ seriesId: 's1', point: { x: 1, y: 1 } }],
+        primaryIndex: 0,
+      })),
+    }
+    vi.spyOn(svgCoordinates, 'getMouseSvgCoordinates')
+      .mockReturnValueOnce({ x: 10, y: 10 })
+      .mockReturnValueOnce({ x: -1, y: 10 })
+      .mockReturnValueOnce({ x: 201, y: 10 })
+      .mockReturnValueOnce({ x: 10, y: -1 })
+      .mockReturnValueOnce({ x: 10, y: 101 })
+      .mockReturnValueOnce(null)
+    vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(
+      callback => {
+        callback(0)
+        return 1
+      }
+    )
+    attachDataHover(svg, resolver, [indicator], null, metadata)
+
+    const event = new window.MouseEvent('pointermove') as PointerEvent
+    svg.dispatchEvent(event)
+    svg.dispatchEvent(event)
+    svg.dispatchEvent(event)
+    svg.dispatchEvent(event)
+    svg.dispatchEvent(event)
+    svg.dispatchEvent(event)
+
+    expect(render).toHaveBeenCalledTimes(1)
+    expect(restore).toHaveBeenCalledTimes(1)
+    expect(resolver.resolve).toHaveBeenCalledTimes(1)
+    vi.restoreAllMocks()
+  })
 })

@@ -59,40 +59,137 @@ function isScaleDescriptor(value: unknown): value is ContinuousScaleDescriptor {
   if (typeof value !== 'object' || value === null) return false
   const d = value as Record<string, unknown>
   if (!isNumberPair(d.domain) || !isNumberPair(d.range)) return false
-  if (d.type === 'linear') return true
-  if (d.type === 'log') return typeof d.base === 'number'
-  return false
+  return isScaleKind(d)
+}
+
+function isScaleKind(
+  value: Record<string, unknown>
+): value is Record<string, unknown> & ContinuousScaleDescriptor {
+  switch (value.type) {
+    case 'linear':
+      return true
+    case 'log':
+      return typeof value.base === 'number'
+    default:
+      return false
+  }
+}
+
+function isHoverEnvelope(value: unknown): value is Record<string, unknown> & {
+  scales: Record<string, unknown>
+  series: unknown[]
+} {
+  if (typeof value !== 'object' || value === null) return false
+  const metadata = value as Record<string, unknown>
+  if (typeof metadata.scales !== 'object' || metadata.scales === null) {
+    return false
+  }
+  return Array.isArray(metadata.series)
+}
+
+function hasCommonHoverFields(
+  metadata: Record<string, unknown> & {
+    scales: Record<string, unknown>
+    series: unknown[]
+  }
+): boolean {
+  return (
+    'plotRect' in metadata &&
+    isNumberPair(metadata.xDomain) &&
+    isScaleDescriptor(metadata.scales.x)
+  )
+}
+
+function isDualHoverMetadata(
+  metadata: Record<string, unknown> & {
+    scales: Record<string, unknown>
+    series: unknown[]
+  }
+): boolean {
+  const { scales } = metadata
+  return (
+    isScaleDescriptor(scales.yLeft) &&
+    isScaleDescriptor(scales.yRight) &&
+    isNumberPair(metadata.yDomainLeft) &&
+    isNumberPair(metadata.yDomainRight)
+  )
+}
+
+function isSingleHoverMetadata(
+  metadata: Record<string, unknown> & {
+    scales: Record<string, unknown>
+    series: unknown[]
+  }
+): boolean {
+  return isScaleDescriptor(metadata.scales.y) && isNumberPair(metadata.yDomain)
 }
 
 /** Type guard: accepts serializable descriptor-shaped hover metadata from the scene. */
 export function isHoverMetadata(value: unknown): value is HoverMetadata {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as Record<string, unknown>
-  if (
-    !('scales' in v) ||
-    !('plotRect' in v) ||
-    !('xDomain' in v) ||
-    !('series' in v)
-  ) {
-    return false
-  }
-  if (typeof v.scales !== 'object' || v.scales === null) return false
-  if (!Array.isArray(v.series)) return false
-  if (!isNumberPair(v.xDomain)) return false
+  if (!isHoverEnvelope(value)) return false
+  if (!hasCommonHoverFields(value)) return false
+  return 'yLeft' in value.scales && 'yRight' in value.scales
+    ? isDualHoverMetadata(value)
+    : isSingleHoverMetadata(value)
+}
 
-  const scales = v.scales as Record<string, unknown>
-  if (!isScaleDescriptor(scales.x)) return false
-
-  if ('yLeft' in scales && 'yRight' in scales) {
-    return (
-      isScaleDescriptor(scales.yLeft) &&
-      isScaleDescriptor(scales.yRight) &&
-      isNumberPair(v.yDomainLeft) &&
-      isNumberPair(v.yDomainRight)
+function buildHoverSeries(
+  series: CartesianSeries,
+  axisMode: 'single' | 'dual'
+): HoverSeries {
+  const validPoints = series.points
+    .filter(
+      point =>
+        point.y !== null && Number.isFinite(point.x) && Number.isFinite(point.y)
     )
+    .map(point => ({ x: point.x, y: point.y! }))
+    .sort((a, b) => a.x - b.x)
+  return {
+    id: series.id,
+    yAxis: axisMode === 'dual' ? (series.yAxis ?? 'left') : 'left',
+    sortedPoints: Object.freeze(validPoints),
   }
+}
 
-  return isScaleDescriptor(scales.y) && isNumberPair(v.yDomain)
+function buildDualHoverMetadata(
+  seriesList: CartesianSeries[],
+  scales: Extract<CartesianScales, { yLeft: unknown }>,
+  plotRect: { x: number; y: number; width: number; height: number },
+  xDomain: [number, number],
+  yDomainLeft: [number, number],
+  yDomainRight: [number, number]
+): HoverMetadataDual {
+  return {
+    scales: {
+      x: toScaleDescriptor(scales.x),
+      yLeft: toScaleDescriptor(scales.yLeft),
+      yRight: toScaleDescriptor(scales.yRight),
+    },
+    yDomainLeft,
+    yDomainRight,
+    plotRect,
+    xDomain,
+    series: seriesList.map(series => buildHoverSeries(series, 'dual')),
+  }
+}
+
+function buildSingleHoverMetadata(
+  seriesList: CartesianSeries[],
+  scales: Extract<CartesianScales, { y: unknown }>,
+  plotRect: { x: number; y: number; width: number; height: number },
+  xDomain: [number, number],
+  yDomain: [number, number]
+): HoverMetadataSingle {
+  return {
+    scales: {
+      x: toScaleDescriptor(scales.x),
+      y: toScaleDescriptor(scales.y),
+    },
+    plotRect,
+    xDomain,
+    yDomain,
+    series: seriesList.map(series => buildHoverSeries(series, 'single')),
+  }
 }
 
 export function buildHoverMetadata(
@@ -104,41 +201,21 @@ export function buildHoverMetadata(
   yDomainLeft?: [number, number],
   yDomainRight?: [number, number]
 ): HoverMetadata {
-  const isDualScale = 'yLeft' in scales && 'yRight' in scales
-  const seriesPayload = seriesList.map((s): HoverSeries => {
-    const validPoints = s.points
-      .filter(p => p.y !== null && Number.isFinite(p.x) && Number.isFinite(p.y))
-      .map(p => ({ x: p.x, y: p.y! }))
-      .sort((a, b) => a.x - b.x)
-    const sortedPoints = Object.freeze(validPoints)
-    return {
-      id: s.id,
-      yAxis: isDualScale ? (s.yAxis ?? 'left') : 'left',
-      sortedPoints,
-    }
-  })
-
-  return isDualScale
-    ? {
-        scales: {
-          x: toScaleDescriptor(scales.x),
-          yLeft: toScaleDescriptor(scales.yLeft),
-          yRight: toScaleDescriptor(scales.yRight),
-        },
-        yDomainLeft: yDomainLeft!,
-        yDomainRight: yDomainRight!,
-        plotRect,
-        xDomain,
-        series: seriesPayload,
-      }
-    : {
-        scales: {
-          x: toScaleDescriptor(scales.x),
-          y: toScaleDescriptor(scales.y),
-        },
-        plotRect,
-        xDomain,
-        yDomain,
-        series: seriesPayload,
-      }
+  if ('yLeft' in scales && 'yRight' in scales) {
+    return buildDualHoverMetadata(
+      seriesList,
+      scales,
+      plotRect,
+      xDomain,
+      yDomainLeft!,
+      yDomainRight!
+    )
+  }
+  return buildSingleHoverMetadata(
+    seriesList,
+    scales,
+    plotRect,
+    xDomain,
+    yDomain
+  )
 }

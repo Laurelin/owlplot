@@ -36,37 +36,44 @@ function trimTrailing(s: string): string {
   return s
 }
 
+function formatNonFiniteOrZero(value: number): string | undefined {
+  if (value === 0) return '0'
+  if (Number.isNaN(value)) return 'NaN'
+  if (!Number.isFinite(value)) return String(value)
+  return undefined
+}
+
+function isPlainInteger(value: number): boolean {
+  return Number.isInteger(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER
+}
+
+function shouldExpandExponential(value: number, formatted: string): boolean {
+  const abs = Math.abs(value)
+  return formatted.includes('e') && abs >= 1e-4 && abs < 1e6
+}
+
 /**
  * Lossless stringify for inspection. Normalize -0 → "0".
  * Use toPrecision(15) + trim for floats; never toString() alone for floats.
  * After trim, do not emit "1e+3" unless the input was already in that form (tooltips).
  */
 export function formatRaw(value: number): string {
-  if (value === 0 || Object.is(value, -0)) return '0'
-  if (Number.isNaN(value)) return 'NaN'
-  if (!Number.isFinite(value)) return String(value)
+  const special = formatNonFiniteOrZero(value)
+  if (special !== undefined) return special
+  if (isPlainInteger(value)) return String(value)
 
-  const abs = Math.abs(value)
-  if (Number.isInteger(value) && abs <= Number.MAX_SAFE_INTEGER) {
-    return String(value)
-  }
-
-  let s = value.toPrecision(15)
-  s = trimTrailing(s)
-  // Don't emit "1e+3" for normal range; axes won't hit this path but tooltips might
-  if (s.includes('e') && abs >= 1e-4 && abs < 1e6) {
-    s = String(Number(s))
-  }
-  return s
+  const formatted = trimTrailing(value.toPrecision(15))
+  return shouldExpandExponential(value, formatted)
+    ? String(Number(formatted))
+    : formatted
 }
 
 /**
  * Format with fixed decimal places.
  */
 export function formatDecimals(value: number, decimals: number): string {
-  if (value === 0 || Object.is(value, -0)) return '0'
-  if (Number.isNaN(value)) return 'NaN'
-  if (!Number.isFinite(value)) return String(value)
+  const special = formatNonFiniteOrZero(value)
+  if (special !== undefined) return special
   const n = Math.max(0, Math.floor(decimals))
   const s = value.toFixed(n)
   return trimTrailing(s)
@@ -88,9 +95,8 @@ export function formatSignificantFigures(
   }
   const n = Math.max(1, Math.floor(sigFigs))
 
-  if (value === 0 || Object.is(value, -0)) return '0'
-  if (Number.isNaN(value)) return 'NaN'
-  if (!Number.isFinite(value)) return String(value)
+  const special = formatNonFiniteOrZero(value)
+  if (special !== undefined) return special
 
   const abs = Math.abs(value)
   const useExponential =
@@ -105,21 +111,33 @@ export function formatSignificantFigures(
 
 // --- compact (K/M/B); policy to use it lives in axis/layout ---
 
+type CompactMagnitude = { threshold: number; suffix: string }
+
+const COMPACT_MAGNITUDES: readonly CompactMagnitude[] = [
+  { threshold: 1e12, suffix: 'T' },
+  { threshold: 1e9, suffix: 'B' },
+  { threshold: 1e6, suffix: 'M' },
+  { threshold: 1e3, suffix: 'K' },
+]
+
+function findCompactMagnitude(abs: number): CompactMagnitude | undefined {
+  return COMPACT_MAGNITUDES.find(({ threshold }) => abs >= threshold)
+}
+
+function formatCompactAbsolute(abs: number, maxFrac: number): string {
+  const magnitude = findCompactMagnitude(abs)
+  if (magnitude === undefined) return trimTrailing(abs.toFixed(maxFrac))
+  const scaled = (abs / magnitude.threshold)
+    .toFixed(maxFrac)
+    .replace(/\.0+$/, '')
+  return `${scaled}${magnitude.suffix}`
+}
+
 function compactFallback(value: number, maxFrac: number): string {
-  if (value === 0 || Object.is(value, -0)) return '0'
-  if (Number.isNaN(value)) return 'NaN'
-  if (!Number.isFinite(value)) return String(value)
-  const abs = Math.abs(value)
+  const special = formatNonFiniteOrZero(value)
+  if (special !== undefined) return special
   const sign = value < 0 ? '-' : ''
-  if (abs >= 1e12)
-    return `${sign}${(abs / 1e12).toFixed(maxFrac).replace(/\.0+$/, '')}T`
-  if (abs >= 1e9)
-    return `${sign}${(abs / 1e9).toFixed(maxFrac).replace(/\.0+$/, '')}B`
-  if (abs >= 1e6)
-    return `${sign}${(abs / 1e6).toFixed(maxFrac).replace(/\.0+$/, '')}M`
-  if (abs >= 1e3)
-    return `${sign}${(abs / 1e3).toFixed(maxFrac).replace(/\.0+$/, '')}K`
-  return `${sign}${trimTrailing(abs.toFixed(maxFrac))}`
+  return `${sign}${formatCompactAbsolute(Math.abs(value), maxFrac)}`
 }
 
 /**
@@ -157,18 +175,31 @@ function formatWithLocale(
   }
 }
 
+function hasLocale(locale: string | undefined): locale is string {
+  return locale !== undefined && locale !== ''
+}
+
 // --- AUTO decimals from tick step (axis only) ---
 
-function autoDecimalsFromStep(step: number): number {
-  if (step === 0 || !Number.isFinite(step)) return 0
-  if (step >= 1) return 0
-  // Prefer exact representation (e.g. 0.25 → 2 decimals for "1.25")
+function usesIntegerDecimals(step: number): boolean {
+  return step === 0 || !Number.isFinite(step) || step >= 1
+}
+
+function findExactDecimals(step: number): number | undefined {
   for (let d = 0; d <= AUTO_DECIMALS_MAX; d++) {
     const scaled = step * Math.pow(10, d)
     if (Math.abs(scaled - Math.round(scaled)) < 1e-10) {
       return Math.max(AUTO_DECIMALS_MIN, Math.min(AUTO_DECIMALS_MAX, d))
     }
   }
+  return undefined
+}
+
+function autoDecimalsFromStep(step: number): number {
+  if (usesIntegerDecimals(step)) return 0
+  // Prefer exact representation (e.g. 0.25 → 2 decimals for "1.25")
+  const exactDecimals = findExactDecimals(step)
+  if (exactDecimals !== undefined) return exactDecimals
   const d = Math.ceil(-Math.log10(step))
   return Math.max(AUTO_DECIMALS_MIN, Math.min(AUTO_DECIMALS_MAX, d))
 }
@@ -184,52 +215,94 @@ export function formatNumber(
   context?: FormatContext
 ): string {
   const locale = context?.locale
+  if (format === undefined) return formatAuto(value, context?.tickStep, locale)
+  return formatExplicit(value, format, locale)
+}
 
-  if (format === undefined) {
-    const step = context?.tickStep ?? 0
-    const decimals = autoDecimalsFromStep(step)
-    if (locale !== undefined && locale !== '') {
-      return formatWithLocale(value, locale, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      })
-    }
-    return formatDecimals(value, decimals)
+function formatExplicit(
+  value: number,
+  format: NumberFormat,
+  locale: string | undefined
+): string {
+  if (format.mode === 'raw') return formatRawMode(value, locale)
+  if (format.mode === 'decimals') {
+    return formatDecimalsMode(value, format.decimals, locale)
   }
+  return formatSignificantOrCompact(value, format, locale)
+}
 
-  switch (format.mode) {
-    case 'raw':
-      if (locale !== undefined && locale !== '') {
-        return formatWithLocale(value, locale, { maximumFractionDigits: 20 })
-      }
-      return formatRaw(value)
-    case 'decimals': {
-      const n = Math.max(0, Math.floor(format.decimals))
-      if (locale !== undefined && locale !== '') {
-        return formatWithLocale(value, locale, {
-          minimumFractionDigits: n,
-          maximumFractionDigits: n,
-        })
-      }
-      return formatDecimals(value, format.decimals)
-    }
-    case 'significantFigures': {
-      const n = Math.max(1, Math.floor(format.significantFigures))
-      if (locale !== undefined && locale !== '') {
-        return formatWithLocale(value, locale, {
-          maximumSignificantDigits: n,
-          minimumSignificantDigits: n,
-        })
-      }
-      return formatSignificantFigures(value, format.significantFigures)
-    }
-    case 'compact':
-      return formatCompact(
-        value,
-        format.locale ?? locale,
-        format.maximumFractionDigits ?? DEFAULT_COMPACT_MAX_FRACTION_DIGITS
-      )
-    default:
-      return formatRaw(value)
+function formatSignificantOrCompact(
+  value: number,
+  format: Extract<
+    NumberFormat,
+    { mode: 'significantFigures' } | { mode: 'compact' }
+  >,
+  locale: string | undefined
+): string {
+  if (format.mode === 'significantFigures') {
+    return formatSignificantFiguresMode(
+      value,
+      format.significantFigures,
+      locale
+    )
   }
+  if (format.mode === 'compact') return formatCompactMode(value, format, locale)
+  return formatRaw(value)
+}
+
+function formatCompactMode(
+  value: number,
+  format: Extract<NumberFormat, { mode: 'compact' }>,
+  locale: string | undefined
+): string {
+  const resolvedLocale = format.locale ?? locale
+  const maxFractionDigits =
+    format.maximumFractionDigits ?? DEFAULT_COMPACT_MAX_FRACTION_DIGITS
+  return formatCompact(value, resolvedLocale, maxFractionDigits)
+}
+
+function formatAuto(
+  value: number,
+  tickStep: number | undefined,
+  locale: string | undefined
+): string {
+  const decimals = autoDecimalsFromStep(tickStep ?? 0)
+  if (!hasLocale(locale)) return formatDecimals(value, decimals)
+  return formatWithLocale(value, locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+}
+
+function formatRawMode(value: number, locale: string | undefined): string {
+  if (!hasLocale(locale)) return formatRaw(value)
+  return formatWithLocale(value, locale, { maximumFractionDigits: 20 })
+}
+
+function formatDecimalsMode(
+  value: number,
+  decimals: number,
+  locale: string | undefined
+): string {
+  if (!hasLocale(locale)) return formatDecimals(value, decimals)
+  const normalized = Math.max(0, Math.floor(decimals))
+  return formatWithLocale(value, locale, {
+    minimumFractionDigits: normalized,
+    maximumFractionDigits: normalized,
+  })
+}
+
+function formatSignificantFiguresMode(
+  value: number,
+  significantFigures: number,
+  locale: string | undefined
+): string {
+  if (!hasLocale(locale)) {
+    return formatSignificantFigures(value, significantFigures)
+  }
+  const normalized = Math.max(1, Math.floor(significantFigures))
+  return formatWithLocale(value, locale, {
+    maximumSignificantDigits: normalized,
+    minimumSignificantDigits: normalized,
+  })
 }

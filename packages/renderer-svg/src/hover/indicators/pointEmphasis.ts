@@ -48,6 +48,95 @@ export type PointEmphasisResult =
   | { mode: 'dom'; emphasizedPoints: EmphasizedPoint[] }
   | { mode: 'overlay'; restore: () => void }
 
+type HoverPoint = { seriesId: string; point: { x: number; y: number } }
+type EmphasisPlan = { element: SVGElement; transform: string }
+
+function seriesAxis(
+  seriesYAxis: Record<string, 'left' | 'right'> | undefined,
+  seriesId: string
+): 'left' | 'right' {
+  if (!seriesYAxis) return 'left'
+  return seriesYAxis[seriesId] ?? 'left'
+}
+
+function dualYForward(
+  scales: Extract<HoverScales, { yLeft: unknown }>,
+  side: 'left' | 'right'
+): (value: number) => number {
+  if (side === 'right') return scales.yRight.forward
+  return scales.yLeft.forward
+}
+
+function yForward(
+  context: {
+    scales: HoverScales
+    seriesYAxis?: Record<string, 'left' | 'right'>
+  },
+  seriesId: string
+): (value: number) => number {
+  if (!isDualScale(context.scales)) return context.scales.y.forward
+  return dualYForward(context.scales, seriesAxis(context.seriesYAxis, seriesId))
+}
+
+function emphasisTransform(
+  element: SVGElement,
+  cx: number,
+  cy: number,
+  scaleFactor: number
+): string {
+  const previous = element.getAttribute(SvgAttributeName.TRANSFORM)
+  if (previous) return `${previous} scale(${scaleFactor})`
+  return `translate(${cx},${cy}) scale(${scaleFactor}) translate(${-cx},${-cy})`
+}
+
+function resolveEmphasisPlan(
+  hoverPoint: HoverPoint,
+  context: PointEmphasisContext,
+  scaleFactor: number
+): EmphasisPlan | null {
+  const refs = context.pointIndex.get(hoverPoint.seriesId)
+  if (!refs?.length) return null
+  const ref = binarySearchNearestByX(refs, hoverPoint.point.x)
+  if (!ref) return null
+  const cx = context.scales.x.forward(ref.x)
+  const cy = yForward(context, hoverPoint.seriesId)(ref.y)
+  return {
+    element: ref.element,
+    transform: emphasisTransform(ref.element, cx, cy, scaleFactor),
+  }
+}
+
+function resolveEmphasisPlans(
+  points: readonly HoverPoint[],
+  context: PointEmphasisContext,
+  scaleFactor: number
+): EmphasisPlan[] | null {
+  const plans: EmphasisPlan[] = []
+  for (const point of points) {
+    const plan = resolveEmphasisPlan(point, context, scaleFactor)
+    if (!plan) return null
+    plans.push(plan)
+  }
+  return plans
+}
+
+function applyEmphasisPlans(plans: readonly EmphasisPlan[]): EmphasizedPoint[] {
+  return plans.map(plan => {
+    const previousTransform =
+      plan.element.getAttribute(SvgAttributeName.TRANSFORM) ?? null
+    plan.element.setAttribute(SvgAttributeName.TRANSFORM, plan.transform)
+    return { element: plan.element, previousTransform }
+  })
+}
+
+function warnMissingPointIndex(): void {
+  if (process.env.NODE_ENV === 'production') return
+  console.warn(
+    '[owlplot] Point emphasis requested but no glyphs indexed; skipping. ' +
+      'Check data-owlplot-* attributes.'
+  )
+}
+
 /**
  * Apply transform-based scale around glyph center. Composes with existing transform.
  * Store previous transform; restore exactly on cleanup.
@@ -57,67 +146,70 @@ export function emphasizePoints(
   context: PointEmphasisContext,
   scaleFactor: number
 ): PointEmphasisResult | null {
-  if (!context.pointIndex || context.pointIndex.size === 0) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[owlplot] Point emphasis requested but no glyphs indexed; skipping. ' +
-          'Check data-owlplot-* attributes.'
-      )
-    }
+  if (context.pointIndex.size === 0) {
+    warnMissingPointIndex()
     return null
   }
+  const plans = resolveEmphasisPlans(nearestPoints, context, scaleFactor)
+  if (!plans) return null
+  return { mode: 'dom', emphasizedPoints: applyEmphasisPlans(plans) }
+}
 
-  const emphasized: EmphasizedPoint[] = []
-  let allFound = true
+function overlayFill(
+  seriesId: string,
+  context: PointEmphasisOverlayContext
+): string {
+  const configured = context.emphasisOptions?.style?.fill
+  if (configured != null) return configured
+  return seriesFill(seriesId, context)
+}
 
-  const seriesYAxis = context.seriesYAxis ?? {}
-  const getYScale = (seriesId: string): ((v: number) => number) => {
-    const side = seriesYAxis[seriesId] ?? 'left'
-    if (isDualScale(context.scales)) {
-      return side === 'right'
-        ? context.scales.yRight.forward.bind(context.scales.yRight)
-        : context.scales.yLeft.forward.bind(context.scales.yLeft)
-    }
-    return context.scales.y.forward.bind(context.scales.y)
-  }
+function seriesFill(
+  seriesId: string,
+  context: PointEmphasisOverlayContext
+): string {
+  const stroke = context.seriesStyles?.get(seriesId)?.stroke
+  return stroke ?? 'currentColor'
+}
 
-  for (const { seriesId, point } of nearestPoints) {
-    const refs = context.pointIndex.get(seriesId)
-    if (!refs || refs.length === 0) {
-      allFound = false
-      break
-    }
+function setOverlayStroke(
+  circle: SVGCircleElement,
+  context: PointEmphasisOverlayContext
+): void {
+  const style = context.emphasisOptions?.style
+  if (style?.stroke != null) circle.setAttribute('stroke', style.stroke)
+}
 
-    const nearestRef = binarySearchNearestByX(refs, point.x)
-    if (!nearestRef) {
-      allFound = false
-      break
-    }
+function setOverlayStrokeWidth(
+  circle: SVGCircleElement,
+  context: PointEmphasisOverlayContext
+): void {
+  const width = context.emphasisOptions?.style?.strokeWidth
+  if (width != null) circle.setAttribute('stroke-width', String(width))
+}
 
-    const element = nearestRef.element
-    const cx = context.scales.x.forward(nearestRef.x)
-    const cy = getYScale(seriesId)(nearestRef.y)
-    const prevTransform =
-      element.getAttribute(SvgAttributeName.TRANSFORM) ?? null
-    // If element already has a placement transform (e.g. path with translate(cx,cy)),
-    // only append scale(k) so it scales in place. Otherwise apply full scale-around-center.
-    const hasPlacement = prevTransform != null && prevTransform !== ''
-    const newTransform = hasPlacement
-      ? `${prevTransform} scale(${scaleFactor})`
-      : `translate(${cx},${cy}) scale(${scaleFactor}) translate(${-cx},${-cy})`
-    element.setAttribute(SvgAttributeName.TRANSFORM, newTransform)
-    emphasized.push({ element, previousTransform: prevTransform })
-  }
-
-  if (nearestPoints.length === 0) {
-    return { mode: 'dom', emphasizedPoints: [] }
-  }
-
-  if (allFound && emphasized.length === nearestPoints.length) {
-    return { mode: 'dom', emphasizedPoints: emphasized }
-  }
-
-  return null
+function createOverlayCircle(
+  hoverPoint: HoverPoint,
+  context: PointEmphasisOverlayContext,
+  size: number
+): SVGCircleElement {
+  const circle = context.svg.ownerDocument.createElementNS(
+    'http://www.w3.org/2000/svg',
+    'circle'
+  )
+  const { seriesId, point } = hoverPoint
+  circle.setAttribute('cx', String(context.scales.x.forward(point.x)))
+  circle.setAttribute('cy', String(yForward(context, seriesId)(point.y)))
+  circle.setAttribute('r', String(size))
+  circle.setAttribute('fill', overlayFill(seriesId, context))
+  circle.setAttribute(
+    'opacity',
+    String(context.emphasisOptions?.style?.opacity ?? 0.6)
+  )
+  circle.setAttribute(DATA_SERIES_ID, seriesId)
+  setOverlayStroke(circle, context)
+  setOverlayStrokeWidth(circle, context)
+  return circle
 }
 
 /**
@@ -136,46 +228,9 @@ export function drawPointEmphasisOverlay(
     'http://www.w3.org/2000/svg',
     'g'
   )
-  const seriesYAxis = context.seriesYAxis ?? {}
-  const getYScale = (seriesId: string): ((v: number) => number) => {
-    const side = seriesYAxis[seriesId] ?? 'left'
-    if (isDualScale(context.scales)) {
-      return side === 'right'
-        ? context.scales.yRight.forward.bind(context.scales.yRight)
-        : context.scales.yLeft.forward.bind(context.scales.yLeft)
-    }
-    return context.scales.y.forward.bind(context.scales.y)
-  }
-
   g.setAttribute(DATA_HOVER_LAYER, 'point-emphasis')
-  for (const { seriesId, point } of nearestPoints) {
-    const cx = context.scales.x.forward(point.x)
-    const cy = getYScale(seriesId)(point.y)
-    const fill =
-      context.emphasisOptions?.style?.fill ??
-      context.seriesStyles?.get(seriesId)?.stroke ??
-      'currentColor'
-    const opacity = context.emphasisOptions?.style?.opacity ?? 0.6
-    const circle = context.svg.ownerDocument.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'circle'
-    )
-    circle.setAttribute('cx', String(cx))
-    circle.setAttribute('cy', String(cy))
-    circle.setAttribute('r', String(size))
-    circle.setAttribute('fill', fill)
-    circle.setAttribute('opacity', String(opacity))
-    circle.setAttribute(DATA_SERIES_ID, seriesId)
-    if (context.emphasisOptions?.style?.stroke != null) {
-      circle.setAttribute('stroke', context.emphasisOptions.style.stroke)
-    }
-    if (context.emphasisOptions?.style?.strokeWidth != null) {
-      circle.setAttribute(
-        'stroke-width',
-        String(context.emphasisOptions.style.strokeWidth)
-      )
-    }
-    g.appendChild(circle)
+  for (const point of nearestPoints) {
+    g.appendChild(createOverlayCircle(point, context, size))
   }
   context.svg.appendChild(g)
   return {

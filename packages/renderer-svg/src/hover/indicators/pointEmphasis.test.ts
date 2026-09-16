@@ -200,5 +200,32 @@ describe('point emphasis', () => {
       expect(circle!.getAttribute('fill')).toBe('#7c3aed')
       expect(circle!.getAttribute('opacity')).toBe('0.8')
     })
+
+    it('projects dual-axis overlays with explicit right and default left axes', () => {
+      const rightScale = {
+        ...identityScale,
+        forward: (value: number) => value * 10,
+      }
+      const overlayContext: PointEmphasisOverlayContext = {
+        scales: {
+          x: identityScale,
+          yLeft: identityScale,
+          yRight: rightScale,
+        },
+        svg,
+        seriesYAxis: { right: 'right' },
+      }
+      drawPointEmphasisOverlay(
+        [
+          { seriesId: 'right', point: { x: 1, y: 2 } },
+          { seriesId: 'default-left', point: { x: 1, y: 2 } },
+        ],
+        overlayContext,
+        5
+      )
+      const circles = svg.querySelectorAll('circle')
+      expect(circles[0]?.getAttribute('cy')).toBe('20')
+      expect(circles[1]?.getAttribute('cy')).toBe('2')
+    })
   })
 })

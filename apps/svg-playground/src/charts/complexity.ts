@@ -46,22 +46,44 @@ export function getYAtX(
   points: readonly { x: number; y: number | null }[],
   x: number
 ): number {
-  if (points.length === 0) return yMin
-  const exact = points.find(point => point.x === x && point.y != null)
-  if (exact?.y != null) return exact.y
+  const exactY = findExactY(points, x)
+  if (exactY != null) return exactY
+  return findInterpolatedY(points, x) ?? findRightmostY(points) ?? yMin
+}
 
+function findExactY(
+  points: readonly { x: number; y: number | null }[],
+  x: number
+): number | null {
+  return points.find(point => point.x === x && point.y != null)?.y ?? null
+}
+
+function findInterpolatedY(
+  points: readonly { x: number; y: number | null }[],
+  x: number
+): number | null {
   for (let i = 1; i < points.length; i += 1) {
-    const prev = points[i - 1]!
-    const next = points[i]!
-    if (prev.y == null || next.y == null) continue
-    if (x < prev.x || x > next.x) continue
-    if (next.x === prev.x) return next.y
-    const t = (x - prev.x) / (next.x - prev.x)
-    return prev.y + (next.y - prev.y) * t
+    const interpolatedY = interpolateSegment(points[i - 1]!, points[i]!, x)
+    if (interpolatedY != null) return interpolatedY
   }
+  return null
+}
 
-  const rightmost = [...points].reverse().find(point => point.y != null)
-  return rightmost?.y ?? yMin
+function interpolateSegment(
+  start: { x: number; y: number | null },
+  end: { x: number; y: number | null },
+  x: number
+): number | null {
+  if (start.y == null || end.y == null) return null
+  if (x < start.x || x > end.x) return null
+  const progress = (x - start.x) / (end.x - start.x)
+  return start.y + (end.y - start.y) * progress
+}
+
+function findRightmostY(
+  points: readonly { y: number | null }[]
+): number | null {
+  return [...points].reverse().find(point => point.y != null)?.y ?? null
 }
 
 function clampY(value: number): number {

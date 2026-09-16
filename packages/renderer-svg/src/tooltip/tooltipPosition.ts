@@ -1,38 +1,38 @@
+const TOOLTIP_OFFSET = 8
+const VIEWPORT_MARGIN = 8
+
+function horizontalPosition(event: MouseEvent, tooltipWidth: number): number {
+  const centered = event.pageX - tooltipWidth / 2
+  const minimum = window.scrollX + VIEWPORT_MARGIN
+  const maximum =
+    window.scrollX + window.innerWidth - tooltipWidth - VIEWPORT_MARGIN
+  return Math.max(minimum, Math.min(maximum, centered))
+}
+
+function positionAboveOrBelow(
+  event: MouseEvent,
+  tooltipHeight: number
+): number {
+  const above = event.pageY - tooltipHeight - TOOLTIP_OFFSET
+  const minimum = window.scrollY + VIEWPORT_MARGIN
+  return above < minimum ? event.pageY + TOOLTIP_OFFSET : above
+}
+
+function verticalPosition(event: MouseEvent, tooltipHeight: number): number {
+  const preferred = positionAboveOrBelow(event, tooltipHeight)
+  const maximum =
+    window.scrollY + window.innerHeight - tooltipHeight - VIEWPORT_MARGIN
+  return Math.min(maximum, preferred)
+}
+
 export function calculateTooltipPosition(
   event: MouseEvent,
   tooltipEl: HTMLElement
 ): { x: number; y: number } {
-  const offset = 8
-  const margin = 8
   const tooltipWidth = tooltipEl.offsetWidth
   const tooltipHeight = tooltipEl.offsetHeight
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-
-  // Center tooltip horizontally on cursor/x-line (event.pageX is the anchor). Clamp against viewport only.
-  let x = event.pageX - tooltipWidth / 2
-  let y = event.pageY - tooltipHeight - offset
-
-  const viewportLeft = window.scrollX
-  const viewportRight = window.scrollX + viewportWidth
-  if (x + tooltipWidth > viewportRight - margin) {
-    x = viewportRight - tooltipWidth - margin
+  return {
+    x: horizontalPosition(event, tooltipWidth),
+    y: verticalPosition(event, tooltipHeight),
   }
-  if (x < viewportLeft + margin) {
-    x = viewportLeft + margin
-  }
-
-  // Flip to below if too close to top of visible viewport
-  const viewportTop = window.scrollY
-  if (y < viewportTop + margin) {
-    y = event.pageY + offset
-  }
-
-  // Ensure minimum margin from bottom edge (check against visible viewport)
-  const viewportBottom = window.scrollY + viewportHeight
-  if (y + tooltipHeight > viewportBottom - margin) {
-    y = viewportBottom - tooltipHeight - margin
-  }
-
-  return { x, y }
 }

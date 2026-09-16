@@ -16,6 +16,22 @@ function parseFontSizePx(fontCss: string): number {
   return unit === 'pt' ? size * (4 / 3) : size
 }
 
+function isMissingCanvasContextMessage(value: unknown): boolean {
+  if (typeof value === 'string') {
+    return value.includes('HTMLCanvasElement.prototype.getContext')
+  }
+  if (!(value instanceof Error)) return false
+  return value.message.includes('HTMLCanvasElement.prototype.getContext')
+}
+
+function suppressMissingCanvasError(
+  previousError: typeof console.error,
+  ...args: unknown[]
+): void {
+  if (isMissingCanvasContextMessage(args[0])) return
+  previousError.apply(console, args as Parameters<typeof console.error>)
+}
+
 /**
  * jsdom without the optional native `canvas` package logs
  * "Not implemented: HTMLCanvasElement.prototype.getContext" via console.error.
@@ -25,23 +41,8 @@ function tryGet2dContext(
   canvas: HTMLCanvasElement
 ): CanvasRenderingContext2D | null {
   const prevError = console.error
-  console.error = (...args: unknown[]) => {
-    const first = args[0]
-    if (
-      typeof first === 'string' &&
-      first.includes('HTMLCanvasElement.prototype.getContext')
-    ) {
-      return
-    }
-    if (
-      first instanceof Error &&
-      typeof first.message === 'string' &&
-      first.message.includes('HTMLCanvasElement.prototype.getContext')
-    ) {
-      return
-    }
-    prevError.apply(console, args as Parameters<typeof console.error>)
-  }
+  console.error = (...args: unknown[]) =>
+    suppressMissingCanvasError(prevError, ...args)
   try {
     return canvas.getContext('2d')
   } catch {

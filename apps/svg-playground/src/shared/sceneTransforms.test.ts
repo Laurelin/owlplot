@@ -3,6 +3,7 @@ import { SceneNodeKind, type SceneNode } from '@owlplot/core'
 import {
   applySceneTransforms,
   dropSeriesNodes,
+  nodeBelongsToSeries,
   type SceneTransform,
 } from './sceneTransforms'
 import { transformCharts } from '../charts/transforms'
@@ -15,6 +16,14 @@ function makeRoot(id: string): SceneNode {
   }
 }
 
+function makeRootWithChild(child: SceneNode): SceneNode {
+  return {
+    kind: SceneNodeKind.GROUP,
+    id: 'root',
+    children: [child],
+  }
+}
+
 describe('applySceneTransforms', () => {
   it('returns the same scene reference when no transforms are provided', () => {
     const scene = makeRoot('root')
@@ -22,6 +31,7 @@ describe('applySceneTransforms', () => {
     const result = applySceneTransforms(scene)
 
     expect(result).toBe(scene)
+    expect(applySceneTransforms(scene, [])).toBe(scene)
   })
 
   it('applies transforms in order', () => {
@@ -50,7 +60,14 @@ describe('applySceneTransforms', () => {
       ...current,
       children: [
         ...current.children,
-        { kind: SceneNodeKind.RECT, id: 'injected', x: 0, y: 0, width: 1, height: 1 },
+        {
+          kind: SceneNodeKind.RECT,
+          id: 'injected',
+          x: 0,
+          y: 0,
+          width: 1,
+          height: 1,
+        },
       ],
     })
 
@@ -76,6 +93,51 @@ describe('applySceneTransforms', () => {
     expect(() => applySceneTransforms(scene, [invalidTransform])).toThrow(
       'SceneTransform must return a GROUP root node'
     )
+  })
+})
+
+describe('nodeBelongsToSeries', () => {
+  it('recognizes series paths, fills, point ids, and point metadata', () => {
+    expect(
+      nodeBelongsToSeries(
+        { kind: SceneNodeKind.PATH, id: 'series:revenue', d: '' },
+        'revenue'
+      )
+    ).toBe(true)
+    expect(
+      nodeBelongsToSeries(
+        { kind: SceneNodeKind.PATH, id: 'series-fill:revenue', d: '' },
+        'revenue'
+      )
+    ).toBe(true)
+    expect(
+      nodeBelongsToSeries(
+        { kind: SceneNodeKind.PATH, id: 'point:revenue:3', d: '' },
+        'revenue'
+      )
+    ).toBe(true)
+    expect(
+      nodeBelongsToSeries(
+        {
+          kind: SceneNodeKind.POINT,
+          id: 'custom-point',
+          seriesId: 'revenue',
+          x: 0,
+          y: 1,
+          point: { shape: { kind: 'circle' }, size: 3 },
+        },
+        'revenue'
+      )
+    ).toBe(true)
+  })
+
+  it('rejects nodes belonging to another series', () => {
+    expect(
+      nodeBelongsToSeries(
+        { kind: SceneNodeKind.PATH, id: 'series:expenses', d: '' },
+        'revenue'
+      )
+    ).toBe(false)
   })
 })
 
@@ -126,6 +188,32 @@ describe('dropSeriesNodes', () => {
       'series:revenue',
       'point:revenue:0',
     ])
+  })
+
+  it('filters nested groups while preserving a matching root', () => {
+    const nested: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'nested',
+      children: [
+        { kind: SceneNodeKind.PATH, id: 'series:expenses', d: '' },
+        { kind: SceneNodeKind.PATH, id: 'series:revenue', d: '' },
+      ],
+    }
+    const root: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'series:expenses',
+      children: [nested],
+    }
+
+    expect(dropSeriesNodes('expenses')(root)).toBe(root)
+
+    const transformed = dropSeriesNodes('expenses')(makeRootWithChild(nested))
+    expect(transformed.children[0]?.kind).toBe(SceneNodeKind.GROUP)
+    expect(
+      transformed.children[0]?.kind === SceneNodeKind.GROUP
+        ? transformed.children[0].children.map(child => child.id)
+        : []
+    ).toEqual(['series:revenue'])
   })
 })
 

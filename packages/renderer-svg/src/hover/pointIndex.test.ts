@@ -185,5 +185,55 @@ describe('point index', () => {
       expect(hit).not.toBeNull()
       expect(hit!.element).toBe(c)
     })
+
+    it('hits rect glyphs using their bounding geometry', () => {
+      const rect = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'rect'
+      )
+      rect.setAttribute(DATA_SERIES_ID, 's1')
+      rect.setAttribute(DATA_X, '1')
+      rect.setAttribute(DATA_Y, '2')
+      rect.setAttribute('x', '10')
+      rect.setAttribute('y', '20')
+      rect.setAttribute('width', '8')
+      rect.setAttribute('height', '6')
+      svg.appendChild(rect)
+      const hit = findGlyphAtPoint(
+        buildPointIndexFromRenderedElements(svg),
+        14,
+        23
+      )
+      expect(hit?.element).toBe(rect)
+    })
+
+    it('uses getBBox for path glyphs and ignores failed geometry', () => {
+      const path = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'path'
+      ) as SVGPathElement
+      path.setAttribute(DATA_SERIES_ID, 's1')
+      path.setAttribute(DATA_X, '1')
+      path.setAttribute(DATA_Y, '2')
+      path.getBBox = () =>
+        ({
+          x: 10,
+          y: 20,
+          width: 8,
+          height: 6,
+        }) as DOMRect
+      svg.appendChild(path)
+      expect(
+        findGlyphAtPoint(buildPointIndexFromRenderedElements(svg), 14, 23)
+          ?.element
+      ).toBe(path)
+
+      path.getBBox = () => {
+        throw new Error('geometry unavailable')
+      }
+      expect(
+        findGlyphAtPoint(buildPointIndexFromRenderedElements(svg), 14, 23)
+      ).toBeNull()
+    })
   })
 })

@@ -26,6 +26,11 @@ describe('formatRaw', () => {
   it('handles NaN and Infinity', () => {
     expect(formatRaw(Number.NaN)).toBe('NaN')
     expect(formatRaw(Infinity)).toBe('Infinity')
+    expect(formatRaw(-Infinity)).toBe('-Infinity')
+  })
+
+  it('preserves values outside the safe integer range', () => {
+    expect(formatRaw(Number.MAX_SAFE_INTEGER + 1)).toBe('9.00719925474099e+15')
   })
 })
 
@@ -37,6 +42,12 @@ describe('formatDecimals', () => {
 
   it('normalizes -0 to "0"', () => {
     expect(formatDecimals(-0, 2)).toBe('0')
+  })
+
+  it('handles non-finite values and normalizes decimal counts', () => {
+    expect(formatDecimals(NaN, 2)).toBe('NaN')
+    expect(formatDecimals(Infinity, 2)).toBe('Infinity')
+    expect(formatDecimals(1.6, -2)).toBe('2')
   })
 })
 
@@ -56,6 +67,12 @@ describe('formatSignificantFigures', () => {
   it('uses exponential when |value| >= 1e6', () => {
     expect(formatSignificantFigures(1.5e6, 2)).toBe('1.5e+6')
   })
+
+  it('uses exponential for tiny values and handles non-finite values', () => {
+    expect(formatSignificantFigures(0.0000123, 2)).toBe('1.2e-5')
+    expect(formatSignificantFigures(NaN, 2)).toBe('NaN')
+    expect(formatSignificantFigures(Infinity, 2)).toBe('Infinity')
+  })
 })
 
 describe('formatNumber', () => {
@@ -74,6 +91,15 @@ describe('formatNumber', () => {
 
   it('AUTO: step === 0 falls back to 0 decimals', () => {
     expect(formatNumber(42, undefined, { tickStep: 0 })).toBe('42')
+  })
+
+  it('AUTO: non-finite steps fall back to 0 decimals', () => {
+    expect(formatNumber(41.6, undefined, { tickStep: Infinity })).toBe('42')
+    expect(formatNumber(41.6, undefined, { tickStep: NaN })).toBe('42')
+  })
+
+  it('AUTO: inexact steps use their decimal magnitude', () => {
+    expect(formatNumber(1.26, undefined, { tickStep: 1 / 3 })).toBe('1.3')
   })
 
   it('explicit mode raw', () => {
@@ -112,6 +138,29 @@ describe('formatNumber', () => {
       formatNumber(1.25, undefined, { tickStep: 0.25, locale: 'en-US' })
     ).toBe('1.25')
   })
+
+  it('applies locale formatting to decimals and significant figures', () => {
+    expect(
+      formatNumber(
+        1234.5,
+        { mode: 'decimals', decimals: 2 },
+        { locale: 'en-US' }
+      )
+    ).toBe('1,234.50')
+    expect(
+      formatNumber(
+        1234.5,
+        { mode: 'significantFigures', significantFigures: 3 },
+        { locale: 'en-US' }
+      )
+    ).toBe('1,230')
+  })
+
+  it('falls back when locale formatting fails', () => {
+    expect(
+      formatNumber(1234.5, { mode: 'raw' }, { locale: 'invalid-locale-tag' })
+    ).toBe('1234.5')
+  })
 })
 
 describe('formatCompact', () => {
@@ -129,5 +178,16 @@ describe('formatCompact', () => {
 
   it('uses fallback for invalid locale and preserves a single sign', () => {
     expect(formatCompact(-140000, 'invalid-locale-tag')).toBe('-140K')
+  })
+
+  it('covers every fallback magnitude and special values', () => {
+    const invalidLocale = 'invalid-locale-tag'
+    expect(formatCompact(1.2e12, invalidLocale)).toBe('1.2T')
+    expect(formatCompact(1.2e9, invalidLocale)).toBe('1.2B')
+    expect(formatCompact(1.2e6, invalidLocale)).toBe('1.2M')
+    expect(formatCompact(1200, invalidLocale)).toBe('1.2K')
+    expect(formatCompact(12.34, invalidLocale, 2)).toBe('12.34')
+    expect(formatCompact(NaN, invalidLocale)).toBe('NaN')
+    expect(formatCompact(Infinity, invalidLocale)).toBe('Infinity')
   })
 })

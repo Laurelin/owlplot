@@ -26,6 +26,38 @@ export function hideYLine(svg: SVGSVGElement) {
   if (line) line.style.display = 'none'
 }
 
+type LineStyle = {
+  stroke?: string
+  strokeWidth?: number
+  strokeDasharray?: string
+}
+
+function applyStroke(line: SVGLineElement, style: LineStyle | undefined): void {
+  if (style?.stroke) line.style.stroke = style.stroke
+}
+
+function applyStrokeWidth(
+  line: SVGLineElement,
+  style: LineStyle | undefined
+): void {
+  if (style?.strokeWidth) line.style.strokeWidth = String(style.strokeWidth)
+}
+
+function applyStrokeDasharray(
+  line: SVGLineElement,
+  style: LineStyle | undefined
+): void {
+  if (style?.strokeDasharray) {
+    line.style.strokeDasharray = style.strokeDasharray
+  }
+}
+
+function applyLineStyle(line: SVGLineElement, style?: LineStyle): void {
+  applyStroke(line, style)
+  applyStrokeWidth(line, style)
+  applyStrokeDasharray(line, style)
+}
+
 export function updateYLine(
   svg: SVGSVGElement,
   svgY: number,
@@ -33,13 +65,7 @@ export function updateYLine(
   style?: { stroke?: string; strokeWidth?: number; strokeDasharray?: string }
 ) {
   const line = getOrCreateYHoverLine(svg)
-
-  if (style) {
-    if (style.stroke) line.style.stroke = style.stroke
-    if (style.strokeWidth) line.style.strokeWidth = String(style.strokeWidth)
-    if (style.strokeDasharray)
-      line.style.strokeDasharray = style.strokeDasharray
-  }
+  applyLineStyle(line, style)
 
   const clampedY = Math.max(
     plotRect.y,

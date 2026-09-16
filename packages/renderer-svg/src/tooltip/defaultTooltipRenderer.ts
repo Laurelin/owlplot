@@ -1,4 +1,10 @@
-import type { TooltipRenderer, TooltipContext } from './types'
+import type {
+  TooltipRenderer,
+  TooltipContext,
+  TooltipRenderOptions,
+  HoverSeriesStyle,
+} from './types'
+import type { TooltipDatum, TooltipPoint } from '@owlplot/core'
 import { formatValue } from '../shared/formatValue'
 import { CssClassName } from '../shared/enums'
 
@@ -12,23 +18,54 @@ const DEFAULT_TOOLTIP_FORMAT = { mode: 'raw' as const }
  * default ordering: 1) header (if any), 2) body (series rows), 3) footer (reserved).
  */
 
-type XPresentation = 'header' | 'omit'
+type HeaderPresentation = { kind: 'omit' } | { kind: 'header'; text: string }
 
-// x is semantic only when explicitly signaled.
-// we never infer meaning from numeric shape.
-// uncertain numeric x is intentionally omitted.
-function resolveXPresentation(
-  datum: { x: unknown },
-  context: TooltipContext | undefined
-): XPresentation {
-  if (typeof datum.x === 'string') return 'header'
-  if (typeof datum.x === 'number') {
-    if (context?.xFormatter ?? context?.xUnit) return 'header'
-    if (context?.xScaleType === 'time' || context?.xScaleType === 'log')
-      return 'header'
-    return 'omit'
+function hasSemanticNumericX(context?: TooltipContext): boolean {
+  if (!context) return false
+  if (context.xFormatter) return true
+  if (context.xUnit) return true
+  return context.xScaleType === 'time' || context.xScaleType === 'log'
+}
+
+function tooltipFormat(context?: TooltipContext) {
+  return context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT
+}
+
+function localeContext(context?: TooltipContext): { locale?: string } {
+  return { locale: context?.locale }
+}
+
+function appendXUnit(value: string, context?: TooltipContext): string {
+  if (!context?.xUnit) return value
+  return `${value} ${context.xUnit}`
+}
+
+function formatNumericX(value: number, context?: TooltipContext): string {
+  if (context?.xFormatter) return context.xFormatter(value)
+  const formatted = formatValue(
+    value,
+    tooltipFormat(context),
+    localeContext(context)
+  )
+  return appendXUnit(formatted, context)
+}
+
+function formatStringX(value: string, context?: TooltipContext): string {
+  if (!context?.xFormatter) return value
+  return context.xFormatter(value)
+}
+
+// x is semantic only when explicitly signaled; numeric shape alone is uncertain.
+function resolveHeader(
+  x: unknown,
+  context?: TooltipContext
+): HeaderPresentation {
+  if (typeof x === 'string') {
+    return { kind: 'header', text: formatStringX(x, context) }
   }
-  return 'omit'
+  if (typeof x !== 'number') return { kind: 'omit' }
+  if (!hasSemanticNumericX(context)) return { kind: 'omit' }
+  return { kind: 'header', text: formatNumericX(x, context) }
 }
 
 // object-based styles only; avoid cssText to prevent accidental overwrites
@@ -63,101 +100,98 @@ const styleValue: Partial<CSSStyleDeclaration> = {
 
 const SINGLE_SERIES_PADDING = '6px'
 
+function createElement(
+  tag: 'div' | 'span',
+  className?: string,
+  style?: Partial<CSSStyleDeclaration>
+): HTMLElement {
+  const element = document.createElement(tag)
+  if (className) element.className = className
+  if (style) Object.assign(element.style, style)
+  return element
+}
+
+function appendHeader(parent: HTMLElement, header: HeaderPresentation): void {
+  if (header.kind === 'omit') return
+  const element = createElement(
+    'div',
+    CssClassName.OWLPLOT_TOOLTIP_LABEL,
+    styleHeaderX
+  )
+  element.textContent = header.text
+  parent.appendChild(element)
+}
+
+function appendSwatch(
+  row: HTMLElement,
+  seriesStyle: HoverSeriesStyle | undefined
+): void {
+  if (typeof seriesStyle?.stroke !== 'string') {
+    const spacer = createElement('span')
+    spacer.setAttribute('aria-hidden', 'true')
+    row.appendChild(spacer)
+    return
+  }
+  const swatch = createElement('span', undefined, {
+    display: 'inline-block',
+    width: '11px',
+    height: '11px',
+    borderRadius: '2px',
+    backgroundColor: seriesStyle.stroke,
+    alignSelf: 'center',
+  })
+  row.appendChild(swatch)
+}
+
+function formatPointValue(
+  point: TooltipPoint,
+  context?: TooltipContext
+): string {
+  return formatValue(point.y, tooltipFormat(context), localeContext(context))
+}
+
+function appendSeriesRow(
+  parent: HTMLElement,
+  point: TooltipPoint,
+  options?: TooltipRenderOptions
+): void {
+  const row = createElement('div', undefined, {
+    display: 'grid',
+    gridTemplateColumns: '12px auto max-content',
+    columnGap: '6px',
+    alignItems: 'baseline',
+    marginBottom: '4px',
+  })
+  appendSwatch(row, options?.seriesStyles?.get(point.seriesId))
+  const label = createElement(
+    'div',
+    CssClassName.OWLPLOT_TOOLTIP_LABEL,
+    styleSeriesLabel
+  )
+  label.textContent = point.seriesId
+  row.appendChild(label)
+  const value = createElement(
+    'div',
+    CssClassName.OWLPLOT_TOOLTIP_VALUE,
+    styleValue
+  )
+  value.textContent = formatPointValue(point, options?.context)
+  row.appendChild(value)
+  parent.appendChild(row)
+}
+
+function renderTooltip(
+  datum: TooltipDatum,
+  options?: TooltipRenderOptions
+): HTMLElement {
+  const element = createElement('div', CssClassName.OWLPLOT_TOOLTIP, styleBase)
+  if (datum.points.length === 0) return element
+  if (datum.points.length === 1) element.style.padding = SINGLE_SERIES_PADDING
+  appendHeader(element, resolveHeader(datum.x, options?.context))
+  for (const point of datum.points) appendSeriesRow(element, point, options)
+  return element
+}
+
 export const defaultTooltipRenderer: TooltipRenderer = {
-  render(datum, options) {
-    const el = document.createElement('div')
-    el.className = CssClassName.OWLPLOT_TOOLTIP
-    Object.assign(el.style, styleBase)
-
-    if (datum.points.length === 0) return el
-
-    const isSingleSeries = datum.points.length === 1
-    // reduced padding when only one series is shown
-    if (isSingleSeries) el.style.padding = SINGLE_SERIES_PADDING
-
-    const context = options?.context
-    const xPresentation = resolveXPresentation(datum, context)
-
-    // --- header (optional): only when x is semantic
-    if (xPresentation === 'header') {
-      const headerEl = document.createElement('div')
-      headerEl.className = CssClassName.OWLPLOT_TOOLTIP_LABEL
-      Object.assign(headerEl.style, styleHeaderX)
-
-      if (typeof datum.x === 'string') {
-        headerEl.textContent = context?.xFormatter?.(datum.x) ?? datum.x
-      } else {
-        const formatted =
-          context?.xFormatter?.(datum.x) ??
-          formatValue(
-            datum.x,
-            context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT,
-            {
-              locale: context?.locale,
-            }
-          )
-        headerEl.textContent = context?.xUnit
-          ? `${formatted} ${context.xUnit}`
-          : formatted
-      }
-
-      el.appendChild(headerEl)
-    }
-
-    // body is always series rows; never x-derived.
-    const seriesStyles = options?.seriesStyles
-
-    for (const point of datum.points) {
-      const row = document.createElement('div')
-      Object.assign(row.style, {
-        display: 'grid',
-        gridTemplateColumns: '12px auto max-content',
-        columnGap: '6px',
-        alignItems: 'baseline',
-        marginBottom: '4px',
-      })
-
-      const seriesStyle = seriesStyles?.get(point.seriesId)
-      const stroke = seriesStyle?.stroke
-
-      if (typeof stroke === 'string') {
-        const swatch = document.createElement('span')
-        Object.assign(swatch.style, {
-          display: 'inline-block',
-          width: '11px',
-          height: '11px',
-          borderRadius: '2px',
-          backgroundColor: stroke,
-          // text aligns on baseline; icon centers optically
-          alignSelf: 'center',
-        })
-        row.appendChild(swatch)
-      } else {
-        const spacer = document.createElement('span')
-        spacer.setAttribute('aria-hidden', 'true')
-        row.appendChild(spacer)
-      }
-
-      const labelEl = document.createElement('div')
-      labelEl.className = CssClassName.OWLPLOT_TOOLTIP_LABEL
-      Object.assign(labelEl.style, styleSeriesLabel)
-      labelEl.textContent = point.seriesId
-      row.appendChild(labelEl)
-
-      const valueEl = document.createElement('div')
-      valueEl.className = CssClassName.OWLPLOT_TOOLTIP_VALUE
-      Object.assign(valueEl.style, styleValue)
-      valueEl.textContent = formatValue(
-        point.y,
-        context?.tooltipFormat ?? DEFAULT_TOOLTIP_FORMAT,
-        { locale: context?.locale }
-      )
-      row.appendChild(valueEl)
-
-      el.appendChild(row)
-    }
-
-    // --- footer (reserved): unused by default
-    return el
-  },
+  render: renderTooltip,
 }

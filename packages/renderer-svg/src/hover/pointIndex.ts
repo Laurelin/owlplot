@@ -29,8 +29,15 @@ function addPointRef(index: PointIndex, ref: HoverPointRef): void {
   index.set(ref.seriesId, refs)
 }
 
+function isProductionEnvironment(): boolean {
+  const runtime = globalThis as typeof globalThis & {
+    process?: { env?: { NODE_ENV?: string } }
+  }
+  return runtime.process?.env?.NODE_ENV === 'production'
+}
+
 function warnIfNothingIndexed(skipped: number, index: PointIndex): void {
-  if (process.env.NODE_ENV === 'production') return
+  if (isProductionEnvironment()) return
   if (skipped === 0 || index.size > 0) return
   console.warn(
     `[owlplot] Point index: ${skipped} element(s) had ${DATA_SERIES_ID} but missing or invalid ${DATA_X}/${DATA_Y}; none indexed.`

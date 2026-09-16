@@ -1,0 +1,29 @@
+---
+description: GitHub issue style. Apply when creating or editing issues (gh issue create/edit).
+alwaysApply: true
+---
+
+# GitHub issues
+
+Required sections only:
+
+- **Outcome** — what is true when this is done. ≤ 2 sentences.
+- **Done when** — observable checks. One line each. ≤ 6 bullets.
+- **Not this ticket** — exclusions. One line, or a short list.
+
+Optional: one sentence of why under Outcome if the change is otherwise ambiguous. No `## Problem`, `## Scope`, or architecture writeup. File/symbol names once. Link a comment if more context is needed.
+
+Title: imperative, specific, one line.
+
+```markdown
+## Outcome
+Nearest-x search returns an index. POINT hover slices from that index.
+
+## Done when
+- `binarySearchNearestIndexByX` → `number | null`; value wrapper stays for x-axis/emphasis
+- `neighborhood` uses that index; `indexOf` gone
+- Tests: empty, bounds, nearer-prev/current, duplicate `x`
+
+## Not this ticket
+Hit geometry, glyph index, hover mode semantics. No `indexOf` fallback.
+```

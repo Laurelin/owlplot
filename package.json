@@ -7,7 +7,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run --workspaces build",
+    "build": "npm run -w @owlplot/core build && npm run -w @owlplot/renderer-svg build && npm exec -w owlplot-react-playground -w owlplot-svg-playground -- vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "crap:check": "node scripts/check-crap.mjs",
@@ -17,11 +17,12 @@
     "dev:react": "npm --workspace apps/react-playground run dev",
     "build:demo": "npm --workspace apps/svg-playground run build",
     "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
-    "ci": "npm run build && npm run check:exports && npm run lint && npm run test && npm run crap:check",
+    "ci": "npm run build && npm run check:exports && npm run lint && npm run test:coverage && npm run crap:check",
     "check:exports": "node scripts/check-exports.mjs",
     "export:svg": "node scripts/export-chart-svg.mjs",
     "measure:dense-line": "node scripts/dense-line-cost.mjs",
-    "typecheck": "npm run -w @owlplot/core build && npm run -w @owlplot/renderer-svg build"
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/renderer-svg/tsconfig.typecheck.json",
+    "test:coverage": "vitest run --project '!exports' --coverage.enabled=true --coverage.provider=istanbul --coverage.reporter=json --coverage.reporter=text --coverage.reportsDirectory=coverage"
   },
   "devDependencies": {
     "@barney-media/crap-typescript": "^0.5.2",

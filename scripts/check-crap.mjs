@@ -1,4 +1,4 @@
-import { globSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import console from 'node:console'
 import process from 'node:process'
@@ -28,27 +28,6 @@ function requireSuccess(result, label) {
     .join('\n')
     .trim()
   throw new Error(`${label} failed${detail ? `:\n${detail}` : ''}`)
-}
-
-function generateCoverage() {
-  for (const coverageDirectory of globSync('{apps,packages}/*/coverage')) {
-    rmSync(coverageDirectory, { recursive: true, force: true })
-  }
-  requireSuccess(run('npm', ['run', 'build']), 'Build')
-  requireSuccess(
-    run('npm', [
-      'exec',
-      '--',
-      'vitest',
-      'run',
-      '--coverage.enabled=true',
-      '--coverage.provider=istanbul',
-      '--coverage.reporter=json',
-      '--coverage.reporter=text',
-      '--coverage.reportsDirectory=coverage',
-    ]),
-    'Coverage test run'
-  )
 }
 
 function analyzeCrap() {
@@ -94,8 +73,14 @@ function printViolations(violations) {
   }
 }
 
+// Analysis only: run `npm run test:coverage` first (npm run ci does).
+function requireCoverage() {
+  if (existsSync('coverage/coverage-final.json')) return
+  throw new Error('No coverage found. Run `npm run test:coverage` first.')
+}
+
 try {
-  generateCoverage()
+  requireCoverage()
   analyzeCrap()
   const violations = readViolations()
   if (violations.length > 0) {

@@ -20,7 +20,10 @@ export type {
   HoverMetadataSingle,
   HoverMetadataDual,
 } from './compute/line/hoverMetadata'
-export { isHoverMetadata, buildHoverMetadata } from './compute/line/hoverMetadata'
+export {
+  isHoverMetadata,
+  buildHoverMetadata,
+} from './compute/line/hoverMetadata'
 
 // Paint types and helpers
 export * from './paint/types'

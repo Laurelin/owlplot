@@ -15,10 +15,7 @@ import {
   type ChartConfig,
   type SceneNode,
 } from '@owlplot/core'
-import {
-  canvasMeasureText,
-  createCanvasMeasureText,
-} from './canvasMeasureText'
+import { canvasMeasureText, createCanvasMeasureText } from './canvasMeasureText'
 
 const testGlobal = globalThis as unknown as {
   window: Window & typeof globalThis
@@ -94,7 +91,10 @@ function paddingFromPlotRect(
   }
 }
 
-function collectTickProbes(node: SceneNode, out: TickProbe[] = []): TickProbe[] {
+function collectTickProbes(
+  node: SceneNode,
+  out: TickProbe[] = []
+): TickProbe[] {
   if (
     node.kind === 'text' &&
     typeof node.id === 'string' &&
@@ -113,7 +113,10 @@ function collectTickProbes(node: SceneNode, out: TickProbe[] = []): TickProbe[] 
   return out
 }
 
-function layoutProbe(scene: SceneNode, size: { width: number; height: number }) {
+function layoutProbe(
+  scene: SceneNode,
+  size: { width: number; height: number }
+) {
   const plotRect = getPlotRect(scene)
   return {
     plotRect,

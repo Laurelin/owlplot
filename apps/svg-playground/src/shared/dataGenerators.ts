@@ -44,8 +44,7 @@ export type SampleFunctionOptions = {
 }
 
 type SampledValue =
-  | { readonly kind: 'include'; readonly y: number }
-  | { readonly kind: 'skip' }
+  { readonly kind: 'include'; readonly y: number } | { readonly kind: 'skip' }
 
 function hasValidRange(xMin: number, xMax: number, step: number): boolean {
   return (

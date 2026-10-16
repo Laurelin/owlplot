@@ -43,7 +43,6 @@ export default defineConfig({
         },
       },
     ],
-    include: ['**/test/**/*.{test,spec}.ts', '**/*.{test,spec}.ts'],
     globals: true,
   },
 })

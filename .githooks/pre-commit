@@ -1,4 +1,6 @@
 #!/bin/sh
 set -eu
 
-npm run crap:check
+# Cheap checks only. The full gate (npm run ci) runs in GitHub Actions.
+npm run lint
+npm run typecheck

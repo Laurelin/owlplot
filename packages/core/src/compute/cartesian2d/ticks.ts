@@ -33,20 +33,14 @@ export function generateLogTicks(scale: ContinuousScale): number[] {
 
   for (let exp = minExp; exp <= maxExp; exp++) {
     const value = base ** exp
-    if (
-      value + LOG_EPSILON >= domainMin &&
-      value - LOG_EPSILON <= domainMax
-    ) {
+    if (value + LOG_EPSILON >= domainMin && value - LOG_EPSILON <= domainMax) {
       ticks.push(value)
     }
   }
   return ticks
 }
 
-export function generateTicks(
-  scale: ContinuousScale,
-  count: number
-): number[] {
+export function generateTicks(scale: ContinuousScale, count: number): number[] {
   if (scale.type === 'log') {
     return generateLogTicks(scale)
   }

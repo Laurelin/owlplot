@@ -53,13 +53,13 @@ describe('createLogScale', () => {
   })
 
   it('throws when domain includes negative values', () => {
-    expect(() => createLogScale([-1, 100], [0, 1], 10)).toThrow(
-      /must be > 0/i
-    )
+    expect(() => createLogScale([-1, 100], [0, 1], 10)).toThrow(/must be > 0/i)
   })
 
   it('throws when base is <= 1', () => {
-    expect(() => createLogScale([1, 100], [0, 1], 1)).toThrow(/base must be > 1/i)
+    expect(() => createLogScale([1, 100], [0, 1], 1)).toThrow(
+      /base must be > 1/i
+    )
     expect(() => createLogScale([1, 100], [0, 1], 0.5)).toThrow(
       /base must be > 1/i
     )

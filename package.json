@@ -17,22 +17,26 @@
     "dev:react": "npm --workspace apps/react-playground run dev",
     "build:demo": "npm --workspace apps/svg-playground run build",
     "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
-    "ci": "npm run build && npm run check:exports && npm run test",
+    "ci": "npm run build && npm run check:exports && npm run lint && npm run test && npm run crap:check",
     "check:exports": "node scripts/check-exports.mjs",
     "export:svg": "node scripts/export-chart-svg.mjs",
-    "measure:dense-line": "node scripts/dense-line-cost.mjs"
+    "measure:dense-line": "node scripts/dense-line-cost.mjs",
+    "typecheck": "npm run -w @owlplot/core build && npm run -w @owlplot/renderer-svg build"
   },
   "devDependencies": {
     "@barney-media/crap-typescript": "^0.5.2",
     "@eslint/js": "^9.39.2",
-    "@vitest/coverage-istanbul": "^4.0.17",
+    "@vitest/coverage-istanbul": "^5.0.5",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.0",
     "prettier": "^3.3.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0",
-    "vite": "^7.3.1",
-    "vitest": "^4.0.17"
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
   }
 }

@@ -43,7 +43,8 @@ describe('chart groups', () => {
     )
 
     const annotationText =
-      demo?.config.options?.annotations?.map(annotation => annotation.text) ?? []
+      demo?.config.options?.annotations?.map(annotation => annotation.text) ??
+      []
     expect(annotationText).toEqual(
       expect.arrayContaining([
         'O(log n), O(1)',

@@ -27,9 +27,7 @@ const MIN_PADDING_BUFFER = 4
 type Bounds = { width: number; height: number }
 
 type TextRotation =
-  | { mode: 'none' }
-  | { mode: 'vertical' }
-  | { mode: 'angled'; degrees: number }
+  { mode: 'none' } | { mode: 'vertical' } | { mode: 'angled'; degrees: number }
 
 type TickMeasurement = {
   config: AxisConfig | undefined

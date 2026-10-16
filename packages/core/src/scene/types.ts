@@ -106,12 +106,7 @@ export type SceneMetadata = {
 }
 
 export type SceneNodeRole =
-  | 'background'
-  | 'band'
-  | 'region'
-  | 'series'
-  | 'axis'
-  | 'annotation'
+  'background' | 'band' | 'region' | 'series' | 'axis' | 'annotation'
 
 export type SceneBaseNode = {
   id: string

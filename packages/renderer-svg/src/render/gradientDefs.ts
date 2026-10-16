@@ -45,8 +45,7 @@ function hashGradientPaint(paint: GradientPaint): string {
 type NormalizedGradient = ReturnType<typeof normalizeGradientPaint>
 type SvgGradientElement = SVGLinearGradientElement | SVGRadialGradientElement
 type GradientSpace =
-  | { kind: 'fill' }
-  | { kind: 'stroke'; width: number; height: number }
+  { kind: 'fill' } | { kind: 'stroke'; width: number; height: number }
 
 function resolveStrokeExtent(
   viewBoxValue: number,

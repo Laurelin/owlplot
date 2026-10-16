@@ -141,8 +141,7 @@ export type LogScaleDescriptor = {
 }
 
 export type ContinuousScaleDescriptor =
-  | LinearScaleDescriptor
-  | LogScaleDescriptor
+  LinearScaleDescriptor | LogScaleDescriptor
 
 export function toScaleDescriptor(
   scale: ContinuousScale

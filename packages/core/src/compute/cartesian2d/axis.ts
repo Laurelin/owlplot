@@ -61,8 +61,7 @@ export type AxisTickFormatOptions = {
 }
 
 type AxisFormatMode =
-  | { mode: 'automatic' }
-  | { mode: 'explicit'; format: NumberFormat }
+  { mode: 'automatic' } | { mode: 'explicit'; format: NumberFormat }
 
 type LabelRotation =
   | { mode: 'none' }

@@ -13,13 +13,14 @@
  * Usage: npm run build && npm run check:exports
  */
 import { spawnSync } from 'node:child_process'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const result = spawnSync(
-  'npx',
-  ['vitest', 'run', '--project', 'exports'],
-  { cwd: root, stdio: 'inherit', shell: false },
-)
+const result = spawnSync('npx', ['vitest', 'run', '--project', 'exports'], {
+  cwd: root,
+  stdio: 'inherit',
+  shell: false,
+})
 process.exit(result.status ?? 1)

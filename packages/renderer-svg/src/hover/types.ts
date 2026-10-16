@@ -54,8 +54,7 @@ export type RuntimeHoverMetadataDual = {
 }
 
 export type RuntimeHoverMetadata =
-  | RuntimeHoverMetadataSingle
-  | RuntimeHoverMetadataDual
+  RuntimeHoverMetadataSingle | RuntimeHoverMetadataDual
 
 // Hover resolver interface — uses hydrated runtime scales
 export interface HoverResolver {

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "lib": ["DOM", "ES2022"]
+    "lib": ["DOM", "ES2022"],
+    "types": []
   },
   "include": ["src"],
   "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"]

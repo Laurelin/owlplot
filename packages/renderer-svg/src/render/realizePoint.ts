@@ -6,6 +6,7 @@ import type {
 } from '@owlplot/core'
 import { buildTrianglePath, buildDiamondPath } from './pointShapePaths'
 import { assertNever } from '../shared/assertNever'
+import { warnDev } from '../shared/dev'
 
 /** Single-scale: one y. Dual-scale: yLeft and yRight. No mixing. */
 export type HoverScales =
@@ -55,9 +56,7 @@ function getYScaleForSeries(
 
 function resolveSeriesId(node: ScenePointNode): string | null {
   if (node.seriesId != null) return node.seriesId
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn('[owlplot] ScenePointNode requires seriesId; skipping point.')
-  }
+  warnDev('[owlplot] ScenePointNode requires seriesId; skipping point.')
   return null
 }
 

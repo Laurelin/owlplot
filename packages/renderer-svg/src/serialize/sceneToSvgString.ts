@@ -23,6 +23,7 @@ import {
   createScaleFromDescriptor,
 } from '@owlplot/core'
 import { serializeSceneTransform } from '../shared/sceneTransform'
+import { warnDev } from '../shared/dev'
 import { assertNever } from '../shared/assertNever'
 import { DATA_POINT_INDEX, DATA_SERIES_ID } from '../shared/dataAttributes'
 import {
@@ -161,11 +162,9 @@ function serializePointNode(
   const idAttr = `id="${escapeXml(node.id)}"`
   const style = styleAttrs(node.style)
   if (!context) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[owlplot] ScenePointNode requires render context with scales and seriesYAxis; skipping point.'
-      )
-    }
+    warnDev(
+      '[owlplot] ScenePointNode requires render context with scales and seriesYAxis; skipping point.'
+    )
     return ''
   }
   const realized = realizePointNode(node, context)

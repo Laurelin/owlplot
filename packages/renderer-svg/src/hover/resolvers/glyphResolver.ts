@@ -2,12 +2,12 @@ import type { HoverResolutionResult, RuntimeHoverMetadata } from '../types'
 import type { ExtendedSVGElement } from '../../shared/extendedElements'
 import { TOOLTIP_DATUM_SYMBOL } from '../../shared/symbols'
 import { DATA_X, DATA_Y } from '../../shared/dataAttributes'
+import { warnDev } from '../../shared/dev'
 
 // invariant: a glyph is only hoverable if it carries full domain metadata
 
 function warnGlyph(message: string): void {
-  if (process.env.NODE_ENV === 'production') return
-  console.warn(`[owlplot] Glyph hover: ${message}`)
+  warnDev(`[owlplot] Glyph hover: ${message}`)
 }
 
 function hasDomainAttributes(element: Element): boolean {

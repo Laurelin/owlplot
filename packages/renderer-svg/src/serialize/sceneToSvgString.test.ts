@@ -330,3 +330,87 @@ describe('sceneToSvgString', () => {
     warn.mockRestore()
   })
 })
+
+describe('sceneToSvgString branch coverage', () => {
+  it('realizes points through dual y scales', () => {
+    const scale = {
+      type: 'linear' as const,
+      domain: [0, 10] as [number, number],
+      range: [0, 100] as [number, number],
+    }
+    const scene: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'root',
+      children: [
+        {
+          kind: SceneNodeKind.POINT,
+          id: 'point:s:0',
+          seriesId: 's',
+          datumIndex: 0,
+          x: 5,
+          y: 5,
+          point: { shape: { kind: 'circle' }, size: 4 },
+        },
+      ],
+      metadata: {
+        hover: {
+          scales: { x: scale, yLeft: scale, yRight: scale },
+          plotRect: { x: 0, y: 0, width: 100, height: 100 },
+          xDomain: [0, 10],
+          yDomainLeft: [0, 10],
+          yDomainRight: [0, 10],
+          series: [{ id: 's', yAxis: 'right', sortedPoints: [] }],
+        },
+      },
+    }
+    expect(sceneToSvgString(scene, size)).toContain('<circle id="point:s:0"')
+  })
+
+  it('writes no style attribute for an empty style', () => {
+    const scene: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'root',
+      children: [
+        {
+          kind: SceneNodeKind.RECT,
+          id: 'plain',
+          x: 0,
+          y: 0,
+          width: 10,
+          height: 10,
+          style: {},
+        },
+      ],
+    }
+    const svg = sceneToSvgString(scene, size)
+    expect(svg).toContain('<rect id="plain"')
+    expect(svg).not.toContain('style=')
+  })
+})
+
+describe('sceneToSvgString with no process global', () => {
+  it('serializes with no process global', () => {
+    const runtime = globalThis as { process?: unknown }
+    const saved = runtime.process
+    delete runtime.process
+    try {
+      const scene: SceneNode = {
+        id: 'root',
+        kind: SceneNodeKind.GROUP,
+        children: [
+          {
+            id: 'mark',
+            kind: SceneNodeKind.RECT,
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 10,
+          },
+        ],
+      }
+      expect(sceneToSvgString(scene, size)).toContain('<svg')
+    } finally {
+      runtime.process = saved
+    }
+  })
+})

@@ -18,7 +18,8 @@ import {
 } from './legend'
 
 import { defaultTooltipRenderer } from '../tooltip/defaultTooltipRenderer'
-import { hideTooltip } from '../tooltip/tooltipDom'
+import { hideTooltip, removeTooltip } from '../tooltip/tooltipDom'
+import { warnDev } from '../shared/dev'
 
 import {
   attachDataHover,
@@ -36,6 +37,8 @@ import {
   TOOLTIP_CONTEXT_SYMBOL,
   SERIES_STYLES_SYMBOL,
   SERIES_POINT_SHAPES_SYMBOL,
+  X_HOVER_LINE_SYMBOL,
+  Y_HOVER_LINE_SYMBOL,
 } from '../shared/symbols'
 import { HoverModeKind, HoverIndicatorKind } from '../shared/enums'
 import { hideXLine } from '../hover/indicators/xLine'
@@ -255,8 +258,8 @@ function applyLegendPlan(
 }
 
 function warnEmptyPointIndex(pointIndex: Map<string, unknown>): void {
-  if (process.env.NODE_ENV === 'production' || pointIndex.size !== 0) return
-  console.warn(
+  if (pointIndex.size !== 0) return
+  warnDev(
     '[owlplot] Hover requested point emphasis, but no glyphs were indexed. ' +
       'Check data-owlplot-* attributes.'
   )
@@ -288,7 +291,10 @@ function isPointEmphasisIndicator(config: HoverIndicatorConfig): boolean {
 }
 
 function applyHoverPlan(plan: HoverPlan, svg: SVGSVGElement): void {
-  if (plan.kind === 'unavailable') return
+  if (plan.kind === 'unavailable') {
+    detachAllHoverListeners(svg)
+    return
+  }
   detachAllHoverListeners(svg)
   preparePointIndex(plan, svg)
   const indicators = createIndicators(plan.indicators, svg)
@@ -313,4 +319,25 @@ export function renderSvgScene(
   appendNode(scene, svg, undefined, resolveAppendContext(hover))
   applyLegendPlan(legendPlan, scene, svg, hover?.plotRect)
   applyHoverPlan(hoverPlan, svg)
+}
+
+/**
+ * End the render session for `svg`: detach hover listeners, remove the
+ * renderer-owned tooltip container, clear legend artifacts and SVG
+ * children, and delete session state stored on the element.
+ * Host-owned DOM (the `svg` itself, its parent, unrelated elements) is
+ * left in place. Safe to call more than once and on a fresh element.
+ */
+export function disposeSvgScene(svg: SVGSVGElement): void {
+  detachAllHoverListeners(svg)
+  removeTooltip(svg)
+  clearLegendArtifacts(svg)
+  clearSvg(svg)
+  const extendedSvg = svg as ExtendedSVGSVGElement
+  delete extendedSvg[POINT_INDEX_SYMBOL]
+  delete extendedSvg[X_HOVER_LINE_SYMBOL]
+  delete extendedSvg[Y_HOVER_LINE_SYMBOL]
+  delete extendedSvg[TOOLTIP_CONTEXT_SYMBOL]
+  delete extendedSvg[SERIES_STYLES_SYMBOL]
+  delete extendedSvg[SERIES_POINT_SHAPES_SYMBOL]
 }

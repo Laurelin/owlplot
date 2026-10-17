@@ -13,6 +13,7 @@ import {
 } from '../shared/dataAttributes'
 import { serializeSceneTransform } from '../shared/sceneTransform'
 import { assertNever } from '../shared/assertNever'
+import { warnDev } from '../shared/dev'
 import {
   realizePointNode,
   isDualScale,
@@ -101,8 +102,7 @@ function createTextElement(node: Extract<SceneNode, { kind: 'text' }>) {
 }
 
 function warnMissingPointContext(): void {
-  if (process.env.NODE_ENV === 'production') return
-  console.warn(
+  warnDev(
     '[owlplot] ScenePointNode requires render context with scales and seriesYAxis; skipping point.'
   )
 }

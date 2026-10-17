@@ -100,6 +100,24 @@ describe('renderLegend bottom-axis gap', () => {
     }
   )
 
+  it('uses the default gap for a node with axis: null from hand-written JSON', () => {
+    const nullAxisNode = JSON.parse(
+      JSON.stringify({
+        id: 'axis:null',
+        kind: SceneNodeKind.TEXT,
+        x: 0,
+        y: 0,
+        text: 'x',
+        axis: null,
+      })
+    ) as SceneNode
+    let marginTop = ''
+    expect(() => {
+      marginTop = legendRootMarginTop(sceneWithAxisNode(nullAxisNode))
+    }).not.toThrow()
+    expect(marginTop).toBe('8px')
+  })
+
   it('uses the default gap when no node carries axis identity', () => {
     const plain: SceneNode = {
       id: 'plain',

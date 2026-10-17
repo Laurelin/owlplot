@@ -1,11 +1,22 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import console from 'node:console'
 import process from 'node:process'
+import {
+  COMPLEXITY_THRESHOLD,
+  CRAP_THRESHOLD,
+  assertUsableCoverage,
+  dedupeCoverageFunctions,
+  findGateViolations,
+  printViolations,
+} from './check-crap-lib.mjs'
 
-const CRAP_THRESHOLD = 6
-const COMPLEXITY_THRESHOLD = 6
 const REPORT_PATH = '.crap-report.json'
+const COVERAGE_PATH = 'coverage/coverage-final.json'
+// The gate covers the published packages. Their tests produce the
+// coverage file; demo app entrypoints under apps/ have no coverage
+// project, so including them would only ever report them as skipped.
+const ANALYZED_PATHS = ['packages/core/src', 'packages/renderer-svg/src']
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -43,6 +54,7 @@ function analyzeCrap() {
       'json',
       '--output',
       REPORT_PATH,
+      ...ANALYZED_PATHS,
     ],
     { capture: true }
   )
@@ -54,29 +66,23 @@ function analyzeCrap() {
 
 function readViolations() {
   const report = JSON.parse(readFileSync(REPORT_PATH, 'utf8'))
-  return report.methods.filter(
-    method =>
-      (method.crap !== null && method.crap > CRAP_THRESHOLD) ||
-      method.cc > COMPLEXITY_THRESHOLD
-  )
-}
-
-function printViolations(violations) {
-  console.error(
-    `CRAP gate failed: ${violations.length} function(s) exceed CRAP ${CRAP_THRESHOLD} or CC ${COMPLEXITY_THRESHOLD}.`
-  )
-  for (const method of violations) {
-    const crap = method.crap === null ? 'N/A' : method.crap.toFixed(2)
-    console.error(
-      `- ${method.src}:${method.lineStart} ${method.method} (CRAP ${crap}, CC ${method.cc})`
-    )
-  }
+  return findGateViolations(report.methods)
 }
 
 // Analysis only: run `npm run test:coverage` first (npm run ci does).
+// Rewrite the coverage file without duplicate fnMap entries (see
+// dedupeCoverageFunctions) so measured functions are not skipped as
+// ambiguous; the file is a generated artifact and ci regenerates it.
 function requireCoverage() {
-  if (existsSync('coverage/coverage-final.json')) return
-  throw new Error('No coverage found. Run `npm run test:coverage` first.')
+  if (!existsSync(COVERAGE_PATH)) {
+    throw new Error('No coverage found. Run `npm run test:coverage` first.')
+  }
+  const coverage = JSON.parse(readFileSync(COVERAGE_PATH, 'utf8'))
+  assertUsableCoverage(coverage)
+  writeFileSync(
+    COVERAGE_PATH,
+    `${JSON.stringify(dedupeCoverageFunctions(coverage))}\n`
+  )
 }
 
 try {
@@ -88,7 +94,7 @@ try {
     process.exit(2)
   }
   console.log(
-    `CRAP gate passed: every analyzed function has CRAP <= ${CRAP_THRESHOLD} and CC <= ${COMPLEXITY_THRESHOLD}.`
+    `CRAP gate passed: every analyzed function has CRAP <= ${CRAP_THRESHOLD} and CC <= ${COMPLEXITY_THRESHOLD}, with coverage data.`
   )
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))

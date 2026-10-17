@@ -248,7 +248,7 @@ const BOTTOM_AXIS_ROLES: ReadonlySet<SceneAxisRole> = new Set([
 function isBottomAxisNode(node: SceneNode): boolean {
   const axis = node.axis
   return (
-    axis !== undefined &&
+    axis != null &&
     axis.orientation === Position.BOTTOM &&
     BOTTOM_AXIS_ROLES.has(axis.role)
   )

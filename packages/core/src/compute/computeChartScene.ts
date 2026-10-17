@@ -1,6 +1,7 @@
 import { ChartKind, type ChartConfig } from '../config/types'
 import type { ChartEnvironment } from '../env/types'
 import { scene } from './line/scene'
+import { assertNever } from '../assertNever'
 import { ChartSize, ComputeResult } from './types'
 
 export function computeChartScene(
@@ -11,5 +12,7 @@ export function computeChartScene(
   switch (config.kind) {
     case ChartKind.LINE:
       return scene(config, size, env)
+    default:
+      return assertNever(config.kind, 'computeChartScene')
   }
 }

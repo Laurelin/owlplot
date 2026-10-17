@@ -147,9 +147,15 @@ export type SceneRectNode = SceneBaseNode & {
   y: number
   width: number
   height: number
-  rx?: number
-  ry?: number
-}
+} & (
+    | {
+        /** Series this rect belongs to; always paired with `datumIndex`. */
+        seriesId: string
+        /** Index of this datum within its series; always paired with `seriesId`. */
+        datumIndex: number
+      }
+    | { seriesId?: never; datumIndex?: never }
+  )
 
 export type SceneCircleNode = SceneBaseNode & {
   kind: SceneNodeKind.CIRCLE

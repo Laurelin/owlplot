@@ -207,6 +207,108 @@ describe('sceneToSvgString', () => {
     expect(svg).not.toContain('point:missing:0')
   })
 
+  it('writes gradient paints as defs with url references', () => {
+    const fill = {
+      type: 'linear' as const,
+      direction: 'vertical' as const,
+      stops: [
+        { offset: 0, color: '#111111' },
+        { offset: 1, color: '#999999' },
+      ],
+    }
+    const scene: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'root',
+      children: [
+        {
+          kind: SceneNodeKind.RECT,
+          id: 'bar',
+          seriesId: 's',
+          datumIndex: 3,
+          x: 0,
+          y: 0,
+          width: 10,
+          height: 10,
+          style: { fill },
+        },
+        {
+          kind: SceneNodeKind.RECT,
+          id: 'bar-2',
+          x: 20,
+          y: 0,
+          width: 10,
+          height: 10,
+          style: { fill },
+        },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'line',
+          d: 'M0,0L10,10',
+          style: {
+            stroke: {
+              type: 'radial',
+              stops: [
+                { offset: 0, color: '#ffffff' },
+                { offset: 1, color: '#000000' },
+              ],
+            },
+          },
+        },
+      ],
+    }
+
+    const svg = sceneToSvgString(scene, { width: 100, height: 50 })
+
+    expect(svg).toContain('<defs>')
+    expect(svg).toContain('<linearGradient id="owlplot-grad-')
+    expect(svg).toContain('gradientUnits="objectBoundingBox"')
+    expect(svg).toContain('<stop offset="0%" stop-color="#111111"/>')
+    expect(svg).toContain('<stop offset="100%" stop-color="#999999"/>')
+    expect(svg).toContain('fill="url(#owlplot-grad-')
+    // The same fill paint used twice shares one def.
+    expect(svg.match(/<linearGradient/g)).toHaveLength(1)
+    expect(svg).toContain('<radialGradient id="owlplot-grad-')
+    expect(svg).toContain('gradientUnits="userSpaceOnUse"')
+    expect(svg).toContain('stroke="url(#owlplot-grad-')
+    expect(svg).toContain(
+      'id="bar" data-owlplot-series-id="s" data-owlplot-point-index="3"'
+    )
+  })
+
+  it('rejects a rect with only one of seriesId and datumIndex at compile time', () => {
+    // @ts-expect-error seriesId without datumIndex is not a valid rect
+    const onlySeries: SceneNode = {
+      kind: SceneNodeKind.RECT,
+      id: 'bad-1',
+      seriesId: 's',
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+    }
+    // @ts-expect-error datumIndex without seriesId is not a valid rect
+    const onlyDatum: SceneNode = {
+      kind: SceneNodeKind.RECT,
+      id: 'bad-2',
+      datumIndex: 0,
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+    }
+    expect([onlySeries.id, onlyDatum.id]).toEqual(['bad-1', 'bad-2'])
+  })
+
+  it('throws for an unhandled scene node kind', () => {
+    const bogus = {
+      kind: 'bogus',
+      id: 'bogus',
+    } as unknown as SceneNode
+    expect(() => sceneToSvgString(bogus, { width: 10, height: 10 })).toThrow(
+      '[serializeNode] Unexpected value:'
+    )
+  })
+
   it('skips point nodes that cannot be resolved', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const withoutContext: SceneNode = {

@@ -43,9 +43,122 @@ function hashGradientPaint(paint: GradientPaint): string {
 }
 
 type NormalizedGradient = ReturnType<typeof normalizeGradientPaint>
-type SvgGradientElement = SVGLinearGradientElement | SVGRadialGradientElement
 type GradientSpace =
   { kind: 'fill' } | { kind: 'stroke'; width: number; height: number }
+
+/** Pure paint-to-def data shared by the DOM renderer and string output. */
+export type GradientDefData = {
+  id: string
+  tag: 'linearGradient' | 'radialGradient'
+  gradientUnits: 'objectBoundingBox' | 'userSpaceOnUse'
+  coordinates: Readonly<Record<string, string>>
+  stops: readonly { offset: string; color: string }[]
+}
+
+export type GradientDefOptions = {
+  isStroke?: boolean
+  /** Viewport size for stroke gradients (`userSpaceOnUse`); ignored for fills. */
+  width?: number
+  height?: number
+}
+
+function gradientSpace(options: GradientDefOptions): GradientSpace {
+  if (!options.isStroke) return { kind: 'fill' }
+  return {
+    kind: 'stroke',
+    width: options.width ?? 600,
+    height: options.height ?? 300,
+  }
+}
+
+function linearCoordinates(
+  direction: 'horizontal' | 'vertical',
+  space: GradientSpace
+): Record<string, string> {
+  const isVertical = direction === 'vertical'
+  if (space.kind === 'fill') {
+    return {
+      x1: '0%',
+      y1: '0%',
+      x2: isVertical ? '0%' : '100%',
+      y2: isVertical ? '100%' : '0%',
+    }
+  }
+  return {
+    x1: '0',
+    y1: '0',
+    x2: isVertical ? '0' : String(space.width),
+    y2: isVertical ? String(space.height) : '0',
+  }
+}
+
+function radialCoordinates(space: GradientSpace): Record<string, string> {
+  if (space.kind === 'fill') return { cx: '50%', cy: '50%', r: '50%' }
+  return {
+    cx: String(space.width / 2),
+    cy: String(space.height / 2),
+    r: String(Math.max(space.width, space.height) / 2),
+  }
+}
+
+/**
+ * Compute the gradient def for a paint without touching the DOM.
+ * The DOM renderer turns this data into an element; string output
+ * turns it into markup. Both share the id so `url(#id)` matches.
+ */
+function gradientCoordinates(
+  normalized: NormalizedGradient,
+  space: GradientSpace
+): Record<string, string> {
+  if (normalized.type === 'linear') {
+    return linearCoordinates(normalized.direction ?? 'horizontal', space)
+  }
+  return radialCoordinates(space)
+}
+
+export function gradientDefData(
+  paint: GradientPaint,
+  options: GradientDefOptions = {}
+): GradientDefData {
+  const isStroke = options.isStroke ?? false
+  const normalized: NormalizedGradient = normalizeGradientPaint(paint)
+  const space = gradientSpace(options)
+  return {
+    id: hashGradientPaint(paint) + (isStroke ? '-stroke' : '-fill'),
+    tag: normalized.type === 'linear' ? 'linearGradient' : 'radialGradient',
+    gradientUnits:
+      space.kind === 'stroke' ? 'userSpaceOnUse' : 'objectBoundingBox',
+    coordinates: gradientCoordinates(normalized, space),
+    stops: normalized.stops.map(stop => ({
+      offset: `${stop.offset * 100}%`,
+      color: stop.color,
+    })),
+  }
+}
+
+function buildGradientElement(data: GradientDefData): SVGElement {
+  const gradient = createSvgElement(data.tag)
+  gradient.setAttribute('id', data.id)
+  gradient.setAttribute('gradientUnits', data.gradientUnits)
+  for (const [name, value] of Object.entries(data.coordinates)) {
+    gradient.setAttribute(name, value)
+  }
+  for (const stop of data.stops) {
+    const stopElement = createSvgElement('stop')
+    stopElement.setAttribute('offset', stop.offset)
+    stopElement.setAttribute('stop-color', stop.color)
+    gradient.appendChild(stopElement)
+  }
+  return gradient
+}
+
+/** SVG `url(#…)` reference for a gradient paint. */
+export function gradientPaintUrl(
+  paint: GradientPaint,
+  options: GradientDefOptions = {}
+): string {
+  return `url(#${gradientDefData(paint, options).id})`
+}
 
 function resolveStrokeExtent(
   viewBoxValue: number,
@@ -66,116 +179,6 @@ function ensureDefs(svg: SVGSVGElement): SVGDefsElement {
   return defs
 }
 
-function resolveGradientSpace(
-  svg: SVGSVGElement,
-  isStroke: boolean
-): GradientSpace {
-  if (!isStroke) return { kind: 'fill' }
-  return {
-    kind: 'stroke',
-    width: resolveStrokeExtent(
-      svg.viewBox.baseVal.width,
-      () => svg.width.baseVal.value,
-      600
-    ),
-    height: resolveStrokeExtent(
-      svg.viewBox.baseVal.height,
-      () => svg.height.baseVal.value,
-      300
-    ),
-  }
-}
-
-function createGradientElement(
-  normalized: NormalizedGradient,
-  gradientId: string
-): SvgGradientElement {
-  const tag = normalized.type === 'linear' ? 'linearGradient' : 'radialGradient'
-  const gradient = createSvgElement(tag) as SvgGradientElement
-  gradient.setAttribute('id', gradientId)
-  return gradient
-}
-
-function setLinearCoordinates(
-  gradient: SVGLinearGradientElement,
-  direction: 'horizontal' | 'vertical',
-  space: GradientSpace
-): void {
-  const isVertical = direction === 'vertical'
-  if (space.kind === 'fill') {
-    gradient.setAttribute('x1', '0%')
-    gradient.setAttribute('y1', '0%')
-    gradient.setAttribute('x2', selectCoordinate(isVertical, '0%', '100%'))
-    gradient.setAttribute('y2', selectCoordinate(isVertical, '100%', '0%'))
-    return
-  }
-  gradient.setAttribute('x1', '0')
-  gradient.setAttribute('y1', '0')
-  gradient.setAttribute(
-    'x2',
-    selectCoordinate(isVertical, '0', String(space.width))
-  )
-  gradient.setAttribute(
-    'y2',
-    selectCoordinate(isVertical, String(space.height), '0')
-  )
-}
-
-function selectCoordinate(
-  isVertical: boolean,
-  vertical: string,
-  horizontal: string
-): string {
-  return isVertical ? vertical : horizontal
-}
-
-function setRadialCoordinates(
-  gradient: SVGRadialGradientElement,
-  space: GradientSpace
-): void {
-  if (space.kind === 'fill') {
-    gradient.setAttribute('cx', '50%')
-    gradient.setAttribute('cy', '50%')
-    gradient.setAttribute('r', '50%')
-    return
-  }
-  gradient.setAttribute('cx', String(space.width / 2))
-  gradient.setAttribute('cy', String(space.height / 2))
-  gradient.setAttribute('r', String(Math.max(space.width, space.height) / 2))
-}
-
-function configureGradientGeometry(
-  gradient: SvgGradientElement,
-  normalized: NormalizedGradient,
-  space: GradientSpace
-): void {
-  gradient.setAttribute(
-    'gradientUnits',
-    space.kind === 'stroke' ? 'userSpaceOnUse' : 'objectBoundingBox'
-  )
-  if (normalized.type === 'linear') {
-    setLinearCoordinates(
-      gradient as SVGLinearGradientElement,
-      normalized.direction ?? 'horizontal',
-      space
-    )
-    return
-  }
-  setRadialCoordinates(gradient as SVGRadialGradientElement, space)
-}
-
-function appendGradientStops(
-  gradient: SvgGradientElement,
-  normalized: NormalizedGradient
-): void {
-  for (const stop of normalized.stops) {
-    const stopElement = createSvgElement('stop')
-    stopElement.setAttribute('offset', `${stop.offset * 100}%`)
-    stopElement.setAttribute('stop-color', stop.color)
-    gradient.appendChild(stopElement)
-  }
-}
-
 /**
  * Ensures a gradient definition exists in SVG <defs>, returns URL reference.
  * Renderer owns IDs - callers never provide them.
@@ -183,25 +186,37 @@ function appendGradientStops(
  * For stroke gradients, uses userSpaceOnUse so gradients follow the path.
  * For fill gradients, uses objectBoundingBox (default behavior).
  */
+function gradientViewport(svg: SVGSVGElement): {
+  width: number
+  height: number
+} {
+  return {
+    width: resolveStrokeExtent(
+      svg.viewBox?.baseVal.width ?? 0,
+      () => svg.width?.baseVal.value ?? 0,
+      600
+    ),
+    height: resolveStrokeExtent(
+      svg.viewBox?.baseVal.height ?? 0,
+      () => svg.height?.baseVal.value ?? 0,
+      300
+    ),
+  }
+}
+
 export function ensureGradientDef(
   svg: SVGSVGElement,
   paint: GradientPaint,
   options?: { isStroke?: boolean }
 ): string {
   const isStroke = options?.isStroke ?? false
-  const gradientId = hashGradientPaint(paint) + (isStroke ? '-stroke' : '-fill')
+  const data = gradientDefData(paint, {
+    isStroke,
+    ...gradientViewport(svg),
+  })
   const defs = ensureDefs(svg)
-  const existing = defs.querySelector(`#${gradientId}`)
-  if (existing) return `url(#${gradientId})`
-
-  const normalized = normalizeGradientPaint(paint)
-  const gradient = createGradientElement(normalized, gradientId)
-  configureGradientGeometry(
-    gradient,
-    normalized,
-    resolveGradientSpace(svg, isStroke)
-  )
-  appendGradientStops(gradient, normalized)
-  defs.appendChild(gradient)
-  return `url(#${gradientId})`
+  const existing = defs.querySelector(`#${data.id}`)
+  if (existing) return `url(#${data.id})`
+  defs.appendChild(buildGradientElement(data))
+  return `url(#${data.id})`
 }

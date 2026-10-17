@@ -4,11 +4,15 @@
  * String v1 covers plot nodes: GROUP / PATH / RECT / CIRCLE / TEXT / POINT
  * (POINT geometry realized via scales from scene.metadata.hover descriptors).
  *
- * Out of string v1: tooltip, hover listeners, legend overlay, and gradient paints
- * (solid fill/stroke only; gradients are skipped).
+ * Out of string v1: tooltip, hover listeners, and legend overlay.
+ * Gradient paints are written as <defs> plus a `url(#…)` fill/stroke.
  */
 import type {
   AnyPaint,
+  GradientPaint,
+  SceneCircleNode,
+  ScenePathNode,
+  SceneRectNode,
   SceneNode,
   ScenePointNode,
   SceneStyle,
@@ -19,6 +23,13 @@ import {
   createScaleFromDescriptor,
 } from '@owlplot/core'
 import { serializeSceneTransform } from '../shared/sceneTransform'
+import { assertNever } from '../shared/assertNever'
+import { DATA_POINT_INDEX, DATA_SERIES_ID } from '../shared/dataAttributes'
+import {
+  gradientDefData,
+  gradientPaintUrl,
+  type GradientDefData,
+} from '../render/gradientDefs'
 import {
   realizePointNode,
   type PointRenderContext,
@@ -41,12 +52,16 @@ function attrs(parts: Array<string | false | null | undefined>): string {
   return joined ? ` ${joined}` : ''
 }
 
-function serializePaintStyle(
-  key: 'fill' | 'stroke',
-  paint: AnyPaint
-): string | undefined {
-  if (paint.type !== 'solid') return undefined
-  return `${key}="${escapeXml(paint.color)}"`
+function serializePaintStyle(key: 'fill' | 'stroke', paint: AnyPaint): string {
+  switch (paint.type) {
+    case 'solid':
+      return `${key}="${escapeXml(paint.color)}"`
+    case 'linear':
+    case 'radial':
+      return `${key}="${gradientPaintUrl(paint, { isStroke: key === 'stroke' })}"`
+    default:
+      return assertNever(paint, 'serializePaintStyle')
+  }
 }
 
 function serializeStyleEntry(key: string, value: unknown): string | undefined {
@@ -134,6 +149,8 @@ function serializeRealizedPoint(
         `dominant-baseline="${realized.dominantBaseline}"`,
         `font-size="${realized.fontSize}"`,
       ])}${style}>${escapeXml(realized.text)}</text>`
+    default:
+      return assertNever(realized, 'serializeRealizedPoint')
   }
 }
 
@@ -189,50 +206,108 @@ function serializeTextNode(
   ])}${style}>${escapeXml(node.text)}</text>`
 }
 
-function serializeShapeNode(
-  node: SceneNode,
+function serializePathNode(
+  node: ScenePathNode,
   idAttr: string,
   style: string
 ): string {
-  switch (node.kind) {
-    case SceneNodeKind.PATH: {
-      return `<path${attrs([idAttr, `d="${escapeXml(node.d)}"`])}${style}/>`
-    }
-    case SceneNodeKind.RECT: {
-      return `<rect${attrs([
-        idAttr,
-        `x="${node.x}"`,
-        `y="${node.y}"`,
-        `width="${node.width}"`,
-        `height="${node.height}"`,
-      ])}${style}/>`
-    }
-    case SceneNodeKind.CIRCLE: {
-      return `<circle${attrs([
-        idAttr,
-        `cx="${node.cx}"`,
-        `cy="${node.cy}"`,
-        `r="${node.r}"`,
-      ])}${style}/>`
-    }
-    default:
-      return ''
+  const seriesAttr = node.seriesId
+    ? `${DATA_SERIES_ID}="${escapeXml(node.seriesId)}"`
+    : undefined
+  return `<path${attrs([idAttr, seriesAttr, `d="${escapeXml(node.d)}"`])}${style}/>`
+}
+
+function serializeRectNode(
+  node: SceneRectNode,
+  idAttr: string,
+  style: string
+): string {
+  // Rect identity is both-or-neither, so datumIndex is set with seriesId.
+  const identityAttrs =
+    node.seriesId != null
+      ? [
+          `${DATA_SERIES_ID}="${escapeXml(node.seriesId)}"`,
+          `${DATA_POINT_INDEX}="${node.datumIndex}"`,
+        ]
+      : []
+  return `<rect${attrs([
+    idAttr,
+    ...identityAttrs,
+    `x="${node.x}"`,
+    `y="${node.y}"`,
+    `width="${node.width}"`,
+    `height="${node.height}"`,
+  ])}${style}/>`
+}
+
+function serializeCircleNode(
+  node: SceneCircleNode,
+  idAttr: string,
+  style: string
+): string {
+  return `<circle${attrs([
+    idAttr,
+    `cx="${node.cx}"`,
+    `cy="${node.cy}"`,
+    `r="${node.r}"`,
+  ])}${style}/>`
+}
+
+function serializeGradientDefs(scene: SceneNode, size: SvgStringSize): string {
+  const defs = new Map<string, GradientDefData>()
+  const visitPaint = (paint: AnyPaint | undefined, isStroke: boolean) => {
+    if (!paint || paint.type === 'solid') return
+    const data = gradientDefData(paint as GradientPaint, {
+      isStroke,
+      width: size.width,
+      height: size.height,
+    })
+    defs.set(data.id, data)
   }
+  const visit = (node: SceneNode): void => {
+    visitPaint(node.style?.fill, false)
+    visitPaint(node.style?.stroke, true)
+    if (node.kind === SceneNodeKind.GROUP) node.children.forEach(visit)
+  }
+  visit(scene)
+  if (defs.size === 0) return ''
+  const markup = [...defs.values()]
+    .map(data => {
+      const coordinates = Object.entries(data.coordinates)
+        .map(([name, value]) => `${name}="${escapeXml(value)}"`)
+        .join(' ')
+      const stops = data.stops
+        .map(
+          stop =>
+            `<stop offset="${escapeXml(stop.offset)}" stop-color="${escapeXml(stop.color)}"/>`
+        )
+        .join('')
+      return `<${data.tag} id="${escapeXml(data.id)}" gradientUnits="${data.gradientUnits}" ${coordinates}>${stops}</${data.tag}>`
+    })
+    .join('')
+  return `<defs>${markup}</defs>`
 }
 
 function serializeStandardNode(
-  node: SceneNode,
+  node: Exclude<SceneNode, ScenePointNode>,
   context: PointRenderContext | undefined
 ): string {
   const idAttr = `id="${escapeXml(node.id)}"`
   const style = styleAttrs(node.style)
-  if (node.kind === SceneNodeKind.GROUP) {
-    return serializeGroupNode(node, context, idAttr, style)
+  switch (node.kind) {
+    case SceneNodeKind.GROUP:
+      return serializeGroupNode(node, context, idAttr, style)
+    case SceneNodeKind.TEXT:
+      return serializeTextNode(node, idAttr, style)
+    case SceneNodeKind.PATH:
+      return serializePathNode(node, idAttr, style)
+    case SceneNodeKind.RECT:
+      return serializeRectNode(node, idAttr, style)
+    case SceneNodeKind.CIRCLE:
+      return serializeCircleNode(node, idAttr, style)
+    default:
+      return assertNever(node, 'serializeNode')
   }
-  if (node.kind === SceneNodeKind.TEXT) {
-    return serializeTextNode(node, idAttr, style)
-  }
-  return serializeShapeNode(node, idAttr, style)
 }
 
 function serializeNode(
@@ -253,6 +328,7 @@ export function sceneToSvgString(
   size: SvgStringSize
 ): string {
   const context = buildPointContext(scene)
+  const defs = serializeGradientDefs(scene, size)
   const body = serializeNode(scene, context)
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size.width}" height="${size.height}">${body}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size.width}" height="${size.height}">${defs}${body}</svg>`
 }

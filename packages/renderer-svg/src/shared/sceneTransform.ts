@@ -1,20 +1,18 @@
 import type { SceneTransform } from '@owlplot/core'
+import { assertNever } from './assertNever'
 
-function serializeSceneTransformValue(
-  transform: SceneTransform
-): string | undefined {
-  if (transform.kind === 'translate') {
-    return `translate(${transform.x},${transform.y})`
+function serializeSceneTransformValue(transform: SceneTransform): string {
+  switch (transform.kind) {
+    case 'translate':
+      return `translate(${transform.x},${transform.y})`
+    case 'rotate':
+      if (transform.originX != null && transform.originY != null) {
+        return `rotate(${transform.degrees} ${transform.originX} ${transform.originY})`
+      }
+      return `rotate(${transform.degrees})`
+    default:
+      return assertNever(transform, 'serializeSceneTransformValue')
   }
-
-  if (transform.kind === 'rotate') {
-    if (transform.originX != null && transform.originY != null) {
-      return `rotate(${transform.degrees} ${transform.originX} ${transform.originY})`
-    }
-    return `rotate(${transform.degrees})`
-  }
-
-  return undefined
 }
 
 /** Serialize scene transform(s) to an SVG transform attribute value. */

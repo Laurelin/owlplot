@@ -42,6 +42,13 @@ describe('realizePointNode', () => {
     expect(realizePointNode(point(shape), context)?.tag).toBe(tag)
   })
 
+  it('throws for an unhandled point shape kind', () => {
+    const bogus = { kind: 'bogus' } as unknown as PointShape
+    expect(() => realizePointNode(point(bogus), context)).toThrow(
+      '[realizePointShape] Unexpected value:'
+    )
+  })
+
   it('skips points without a series id', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     expect(

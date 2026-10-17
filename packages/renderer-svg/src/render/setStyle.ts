@@ -1,6 +1,7 @@
 import type { AnyPaint, GradientPaint, SceneStyle } from '@owlplot/core'
 import { SvgAttributeName } from '../shared/enums'
 import { ensureGradientDef } from './gradientDefs'
+import { assertNever } from '../shared/assertNever'
 
 type StyleEffect =
   | { kind: 'attribute'; name: string; value: string }
@@ -14,13 +15,15 @@ function resolvePaintEffect(
   name: 'fill' | 'stroke',
   paint: AnyPaint
 ): StyleEffect | null {
-  if (paint.type === 'solid') {
-    return { kind: 'attribute', name, value: paint.color }
+  switch (paint.type) {
+    case 'solid':
+      return { kind: 'attribute', name, value: paint.color }
+    case 'linear':
+    case 'radial':
+      return { kind: 'gradient', name, paint }
+    default:
+      return assertNever(paint, 'resolvePaintEffect')
   }
-  if (paint.type === 'linear' || paint.type === 'radial') {
-    return { kind: 'gradient', name, paint }
-  }
-  return null
 }
 
 function resolveStyleEffect(key: string, value: unknown): StyleEffect | null {

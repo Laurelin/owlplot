@@ -134,17 +134,38 @@ function buildTicks(
   values: number[],
   scale: ContinuousScale,
   config: AxisConfig | undefined,
-  options: AxisTickFormatOptions
+  options: AxisTickFormatOptions,
+  tickLabels?: readonly string[]
 ): AxisTick[] {
   let previousLabel: string | undefined
   const ticks: AxisTick[] = []
   for (const value of values) {
-    const formatted = formatAxisTickLabel(value, config, options)
+    const formatted =
+      tickLabels === undefined
+        ? formatAxisTickLabel(value, config, options)
+        : (tickLabels[value] ?? '')
     const label = previousLabel === formatted ? '' : formatted
     previousLabel = formatted
     ticks.push({ value, position: scale.forward(value), label })
   }
   return ticks
+}
+
+/** Integer tick positions that carry a category label: value i uses tickLabels[i]. */
+function categoryTickValues(
+  scale: ContinuousScale,
+  labelCount: number
+): number[] {
+  const [domainMin, domainMax] = scale.domain
+  const values: number[] = []
+  for (
+    let value = Math.ceil(domainMin);
+    value <= Math.floor(domainMax);
+    value++
+  ) {
+    if (value >= 0 && value < labelCount) values.push(value)
+  }
+  return values
 }
 
 function resolveTickRotation(
@@ -426,17 +447,32 @@ export function computeAxisLayout(
     axisLabelFont?: string
     locale?: string
     compactThreshold?: number
+    /**
+     * Category labels indexed by integer tick value (value i shows
+     * tickLabels[i]). When set, ticks sit at integer positions inside the
+     * domain that have a label, and numeric tick formatting is not used.
+     */
+    tickLabels?: readonly string[]
   }
 ): AxisLayout {
   const tickCount = config?.tickCount ?? DEFAULT_TICK_COUNT
-  const values = generateTicks(scale, tickCount)
+  const values =
+    options.tickLabels === undefined
+      ? generateTicks(scale, tickCount)
+      : categoryTickValues(scale, options.tickLabels.length)
   const tickStep = computeTickStep(values)
   const tickFormatOptions: AxisTickFormatOptions = {
     tickStep,
     locale: options.locale,
     compactThreshold: options.compactThreshold,
   }
-  const ticks = buildTicks(values, scale, config, tickFormatOptions)
+  const ticks = buildTicks(
+    values,
+    scale,
+    config,
+    tickFormatOptions,
+    options.tickLabels
+  )
   const measuredTicks = measureTickLabels(
     ticks,
     orientation,

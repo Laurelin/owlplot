@@ -249,3 +249,70 @@ describe('computeCartesianLayout geometry and axes', () => {
     expect(result.axes.yRight?.ticks.length).toBeGreaterThan(0)
   })
 })
+
+describe('computeCartesianLayout explicit x domain and category ticks', () => {
+  it('accepts category strings for x ticks with no series points', () => {
+    const result = computeCartesianLayout(
+      [],
+      { width: 400, height: 200 },
+      measureText,
+      {
+        padding,
+        xDomain: [0, 2],
+        xTickLabels: ['Alpha', 'Beta', 'Gamma'],
+      }
+    )
+    expect(result.xDomain).toEqual([0, 2])
+    expect(result.axes.x.ticks.map(tick => tick.value)).toEqual([0, 1, 2])
+    expect(result.axes.x.ticks.map(tick => tick.label)).toEqual([
+      'Alpha',
+      'Beta',
+      'Gamma',
+    ])
+    expect(result.axes.x.labelLayouts.map(layout => layout.text)).toEqual([
+      'Alpha',
+      'Beta',
+      'Gamma',
+    ])
+    expect(result.scales.x.forward(0)).toBe(result.plotRect.x)
+    expect(result.scales.x.forward(2)).toBe(
+      result.plotRect.x + result.plotRect.width
+    )
+  })
+
+  it('uses an explicit x domain instead of deriving one from points', () => {
+    const result = computeCartesianLayout(
+      [
+        line('series', [
+          { x: 10, y: 1 },
+          { x: 20, y: 2 },
+        ]),
+      ],
+      { width: 400, height: 200 },
+      measureText,
+      { padding, enableAdaptivePadding: false, xDomain: [0, 2] }
+    )
+    expect(result.xDomain).toEqual([0, 2])
+    expect(result.scales.x.forward(0)).toBe(result.plotRect.x)
+  })
+
+  it('keeps category ticks at integer positions inside a padded domain', () => {
+    const result = computeCartesianLayout(
+      [],
+      { width: 400, height: 200 },
+      measureText,
+      {
+        padding,
+        enableAdaptivePadding: false,
+        xDomain: [-0.5, 2.5],
+        xTickLabels: ['Alpha', 'Beta', 'Gamma'],
+      }
+    )
+    expect(result.xDomain).toEqual([-0.5, 2.5])
+    expect(result.axes.x.ticks.map(tick => tick.label)).toEqual([
+      'Alpha',
+      'Beta',
+      'Gamma',
+    ])
+  })
+})

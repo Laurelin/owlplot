@@ -34,6 +34,8 @@ type TickMeasurement = {
   formatConfig?: AxisConfig
   scale: ContinuousScale
   tickCount: number
+  /** Category labels to measure instead of numeric tick labels. */
+  tickLabels?: readonly string[]
 }
 
 type PaddingContext = {
@@ -102,6 +104,22 @@ function tickFormatConfig(
     : measurement.formatConfig
 }
 
+function resolveTickLabels(
+  measurement: TickMeasurement,
+  context: PaddingContext
+): readonly string[] {
+  if (measurement.tickLabels !== undefined) return measurement.tickLabels
+  const values = generateTicks(measurement.scale, measurement.tickCount)
+  const tickStep = computeTickStep(values)
+  return values.map(value =>
+    formatAxisTickLabel(value, tickFormatConfig(measurement), {
+      tickStep,
+      locale: context.locale,
+      compactThreshold: context.compactThreshold,
+    })
+  )
+}
+
 function measureTickLabels(
   measurement: TickMeasurement,
   context: PaddingContext
@@ -109,16 +127,9 @@ function measureTickLabels(
   if (measurement.config?.showTickLabels === false) {
     return { width: 0, height: 0 }
   }
-  const values = generateTicks(measurement.scale, measurement.tickCount)
-  const tickStep = computeTickStep(values)
   const rotation = resolveTextRotation(measurement.config?.labelOrientation)
   let maximum: Bounds = { width: 0, height: 0 }
-  for (const value of values) {
-    const label = formatAxisTickLabel(value, tickFormatConfig(measurement), {
-      tickStep,
-      locale: context.locale,
-      compactThreshold: context.compactThreshold,
-    })
+  for (const label of resolveTickLabels(measurement, context)) {
     const bounds = measureTextFont(
       context.measureText,
       label,
@@ -279,11 +290,18 @@ export function computeAdaptivePadding(
     yScaleRight?: ContinuousScale
     locale?: string
     compactThreshold?: number
+    /** Category labels for the bottom (x) axis, measured instead of numeric tick labels. */
+    xTickLabels?: readonly string[]
   } = {}
 ): AdaptivePadding {
   const context = createPaddingContext(measureText, options)
   const bottomTicks = measureTickLabels(
-    { config: bottomAxisConfig, scale: xScale, tickCount: xTickCount },
+    {
+      config: bottomAxisConfig,
+      scale: xScale,
+      tickCount: xTickCount,
+      tickLabels: options.xTickLabels,
+    },
     context
   )
   const bottomTitle = measureAxisTitle(

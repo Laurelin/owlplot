@@ -1,5 +1,11 @@
-import type { ContinuousScale, PointShape, ScenePointNode } from '@owlplot/core'
+import type {
+  ContinuousScale,
+  PointShape,
+  ScenePointNode,
+  SymbolPointShape,
+} from '@owlplot/core'
 import { buildTrianglePath, buildDiamondPath } from './pointShapePaths'
+import { assertNever } from '../shared/assertNever'
 
 /** Single-scale: one y. Dual-scale: yLeft and yRight. No mixing. */
 export type HoverScales =
@@ -55,13 +61,21 @@ function resolveSeriesId(node: ScenePointNode): string | null {
   return null
 }
 
+// No symbol registry yet: a symbol shape maps to a circle by design.
+function normalizePointShape(
+  shape: PointShape
+): Exclude<PointShape, SymbolPointShape> {
+  return shape.kind === 'symbol' ? { kind: 'circle' } : shape
+}
+
 function realizePointShape(
   shape: PointShape,
   size: number,
   cx: number,
   cy: number
 ): RealizedPointElement {
-  switch (shape.kind) {
+  const normalized = normalizePointShape(shape)
+  switch (normalized.kind) {
     case 'square': {
       const halfSide = size * Math.SQRT1_2
       return {
@@ -89,14 +103,15 @@ function realizePointShape(
         tag: 'text',
         x: cx,
         y: cy,
-        text: shape.value,
+        text: normalized.value,
         fontSize: Math.round(size * 2),
         textAnchor: 'middle',
         dominantBaseline: 'central',
       }
     case 'circle':
-    default:
       return { tag: 'circle', cx, cy, r: size }
+    default:
+      return assertNever(normalized, 'realizePointShape')
   }
 }
 

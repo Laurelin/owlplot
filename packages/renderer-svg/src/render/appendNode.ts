@@ -12,6 +12,7 @@ import {
   DATA_Y,
 } from '../shared/dataAttributes'
 import { serializeSceneTransform } from '../shared/sceneTransform'
+import { assertNever } from '../shared/assertNever'
 import {
   realizePointNode,
   isDualScale,
@@ -107,9 +108,8 @@ function warnMissingPointContext(): void {
 }
 
 function createRealizedPointElement(
-  realized: ReturnType<typeof realizePointNode>
-): SVGElement | null {
-  if (!realized) return null
+  realized: NonNullable<ReturnType<typeof realizePointNode>>
+): SVGElement {
   const el = createSvgElement(realized.tag)
   switch (realized.tag) {
     case 'circle':
@@ -139,6 +139,8 @@ function createRealizedPointElement(
       })
       el.textContent = realized.text
       break
+    default:
+      return assertNever(realized, 'createRealizedPointElement')
   }
   return el
 }
@@ -151,12 +153,25 @@ function createPointElement(
     warnMissingPointContext()
     return null
   }
-  const el = createRealizedPointElement(realizePointNode(node, context))
-  if (el) stampPointDataAttributes(el, node)
+  const realized = realizePointNode(node, context)
+  if (!realized) return null
+  const el = createRealizedPointElement(realized)
+  stampPointDataAttributes(el, node)
   return el
 }
 
-function createBasicNodeElement(node: SceneNode): SVGElement | null {
+type BasicSceneNode = Extract<
+  SceneNode,
+  {
+    kind:
+      | SceneNodeKind.GROUP
+      | SceneNodeKind.PATH
+      | SceneNodeKind.RECT
+      | SceneNodeKind.CIRCLE
+  }
+>
+
+function createBasicNodeElement(node: BasicSceneNode): SVGElement | null {
   switch (node.kind) {
     case SceneNodeKind.GROUP:
       return createGroupElement(node)
@@ -182,7 +197,7 @@ function createBasicNodeElement(node: SceneNode): SVGElement | null {
       return el
     }
     default:
-      return null
+      return assertNever(node, 'createBasicNodeElement')
   }
 }
 
@@ -218,6 +233,12 @@ function appendGroupChildren(
 function stampSeriesId(el: SVGElement, node: SceneNode): void {
   if (node.kind === SceneNodeKind.PATH && node.seriesId) {
     el.setAttribute(DATA_SERIES_ID, node.seriesId)
+    return
+  }
+  // Rect identity is both-or-neither, so datumIndex is set with seriesId.
+  if (node.kind === SceneNodeKind.RECT && node.seriesId != null) {
+    el.setAttribute(DATA_SERIES_ID, node.seriesId)
+    stampPointIndex(el, node.datumIndex)
   }
 }
 

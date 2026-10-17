@@ -24,6 +24,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "d": "M 40 178 L 228.79999999999998 24M 606.4 178",
       "id": "series:a",
       "kind": "path",
+      "seriesId": "a",
       "style": {
         "fill": {
           "color": "none",
@@ -37,6 +38,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       },
     },
     {
+      "datumIndex": 0,
       "id": "point:a:0",
       "kind": "point",
       "metadata": {
@@ -74,6 +76,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "y": 1,
     },
     {
+      "datumIndex": 1,
       "id": "point:a:1",
       "kind": "point",
       "metadata": {
@@ -111,6 +114,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "y": 2,
     },
     {
+      "datumIndex": 3,
       "id": "point:a:3",
       "kind": "point",
       "metadata": {
@@ -151,6 +155,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "d": "M 40 332 C 102.93333333333334 280.6666666666667, 165.86666666666665 216.5, 228.79999999999998 178 C 291.7333333333333 139.5, 354.66666666666663 126.66666666666666, 417.59999999999997 101 C 480.5333333333333 75.33333333333333, 543.4666666666667 49.66666666666667, 606.4 24",
       "id": "series:b",
       "kind": "path",
+      "seriesId": "b",
       "style": {
         "fill": {
           "color": "none",
@@ -164,6 +169,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       },
     },
     {
+      "datumIndex": 0,
       "id": "point:b:0",
       "kind": "point",
       "metadata": {
@@ -201,6 +207,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "y": 0,
     },
     {
+      "datumIndex": 1,
       "id": "point:b:1",
       "kind": "point",
       "metadata": {
@@ -238,6 +245,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "y": 1,
     },
     {
+      "datumIndex": 2,
       "id": "point:b:2",
       "kind": "point",
       "metadata": {
@@ -275,6 +283,7 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "y": 1.5,
     },
     {
+      "datumIndex": 3,
       "id": "point:b:3",
       "kind": "point",
       "metadata": {
@@ -312,8 +321,16 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       "y": 2,
     },
     {
+      "axis": {
+        "orientation": "bottom",
+        "role": "group",
+      },
       "children": [
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "line",
+          },
           "d": "M 0 0 L 566.4 0",
           "id": "axis-line:bottom",
           "kind": "path",
@@ -326,6 +343,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick",
+          },
           "d": "M 141.6 0 L 141.6 4",
           "id": "axis-tick:bottom:1",
           "kind": "path",
@@ -338,6 +359,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick-label",
+          },
           "dominantBaseline": "hanging",
           "id": "axis-tick-label:bottom:1",
           "kind": "text",
@@ -355,6 +380,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "y": 12,
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick",
+          },
           "d": "M 283.2 0 L 283.2 4",
           "id": "axis-tick:bottom:2",
           "kind": "path",
@@ -367,6 +396,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick-label",
+          },
           "dominantBaseline": "hanging",
           "id": "axis-tick-label:bottom:2",
           "kind": "text",
@@ -384,6 +417,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "y": 12,
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick",
+          },
           "d": "M 424.79999999999995 0 L 424.79999999999995 4",
           "id": "axis-tick:bottom:3",
           "kind": "path",
@@ -396,6 +433,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick-label",
+          },
           "dominantBaseline": "hanging",
           "id": "axis-tick-label:bottom:3",
           "kind": "text",
@@ -413,6 +454,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "y": 12,
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick",
+          },
           "d": "M 566.4 0 L 566.4 4",
           "id": "axis-tick:bottom:4",
           "kind": "path",
@@ -425,6 +470,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "bottom",
+            "role": "tick-label",
+          },
           "dominantBaseline": "hanging",
           "id": "axis-tick-label:bottom:4",
           "kind": "text",
@@ -451,8 +500,16 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
       },
     },
     {
+      "axis": {
+        "orientation": "left",
+        "role": "group",
+      },
       "children": [
         {
+          "axis": {
+            "orientation": "left",
+            "role": "line",
+          },
           "d": "M 0 308 L 0 0",
           "id": "axis-line:left",
           "kind": "path",
@@ -465,6 +522,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick",
+          },
           "d": "M 0 231 L -4 231",
           "id": "axis-tick:left:1",
           "kind": "path",
@@ -477,6 +538,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick-label",
+          },
           "dominantBaseline": "middle",
           "id": "axis-tick-label:left:1",
           "kind": "text",
@@ -494,6 +559,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "y": 231,
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick",
+          },
           "d": "M 0 154 L -4 154",
           "id": "axis-tick:left:2",
           "kind": "path",
@@ -506,6 +575,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick-label",
+          },
           "dominantBaseline": "middle",
           "id": "axis-tick-label:left:2",
           "kind": "text",
@@ -523,6 +596,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "y": 154,
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick",
+          },
           "d": "M 0 77 L -4 77",
           "id": "axis-tick:left:3",
           "kind": "path",
@@ -535,6 +612,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick-label",
+          },
           "dominantBaseline": "middle",
           "id": "axis-tick-label:left:3",
           "kind": "text",
@@ -552,6 +633,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           "y": 77,
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick",
+          },
           "d": "M 0 0 L -4 0",
           "id": "axis-tick:left:4",
           "kind": "path",
@@ -564,6 +649,10 @@ exports[`computeChartScene (line) > produces a deterministic scene graph 1`] = `
           },
         },
         {
+          "axis": {
+            "orientation": "left",
+            "role": "tick-label",
+          },
           "dominantBaseline": "middle",
           "id": "axis-tick-label:left:4",
           "kind": "text",

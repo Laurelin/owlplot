@@ -23,6 +23,7 @@ function point(shape: PointShape): ScenePointNode {
     kind: SceneNodeKind.POINT,
     id: `point:series:${shape.kind}`,
     seriesId: 'series',
+    datumIndex: 0,
     x: 2,
     y: 3,
     point: { shape, size: 4 },

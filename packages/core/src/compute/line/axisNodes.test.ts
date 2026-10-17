@@ -54,8 +54,12 @@ function childrenFor(axis: AxisLayout, tickFont?: string, labelFont?: string) {
 describe('axisToSceneNodes', () => {
   it('parses px and pt font sizes and preserves label rotation', () => {
     const children = childrenFor(buildAxis(), '9px', '12pt')
-    const tickLabel = children.find(node => node.id.includes('tick-label'))
-    const axisLabel = children.find(node => node.id.includes('axis-label'))
+    const tickLabel = children.find(
+      node => node.kind === 'text' && node.axis?.role === 'tick-label'
+    )
+    const axisLabel = children.find(
+      node => node.kind === 'text' && node.axis?.role === 'label'
+    )
 
     expect(tickLabel?.style?.fontSizePx).toBe(9)
     expect(axisLabel?.style?.fontSizePx).toBe(16)

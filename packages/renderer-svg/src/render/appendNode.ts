@@ -34,6 +34,7 @@ function setAttributes(
 
 type StampableNode = {
   id: string
+  datumIndex?: number
   metadata?: {
     tooltip?: {
       kind: TooltipKind
@@ -58,9 +59,10 @@ function stampPrimaryPoint(
   el.setAttribute(DATA_Y, String(point.y))
 }
 
-function stampPointIndex(el: SVGElement, nodeId: string): void {
-  const pointIndex = nodeId.match(/^point:[^:]+:(\d+)$/)?.[1]
-  if (pointIndex != null) el.setAttribute(DATA_POINT_INDEX, pointIndex)
+function stampPointIndex(el: SVGElement, datumIndex: number | undefined): void {
+  if (datumIndex != null) {
+    el.setAttribute(DATA_POINT_INDEX, String(datumIndex))
+  }
 }
 
 function stampPointDataAttributes(el: SVGElement, node: StampableNode): void {
@@ -68,7 +70,7 @@ function stampPointDataAttributes(el: SVGElement, node: StampableNode): void {
   if (!datum) return
   el.setAttribute(DATA_SERIES_ID, datum.seriesId)
   stampPrimaryPoint(el, datum.points[0])
-  stampPointIndex(el, node.id)
+  stampPointIndex(el, node.datumIndex)
 }
 
 function createGroupElement(node: Extract<SceneNode, { kind: 'group' }>) {
@@ -213,6 +215,12 @@ function appendGroupChildren(
   }
 }
 
+function stampSeriesId(el: SVGElement, node: SceneNode): void {
+  if (node.kind === SceneNodeKind.PATH && node.seriesId) {
+    el.setAttribute(DATA_SERIES_ID, node.seriesId)
+  }
+}
+
 export function appendNode(
   node: SceneNode,
   parent: SVGElement,
@@ -226,6 +234,7 @@ export function appendNode(
     appendGroupChildren(node, el, rootSvg, context)
   }
   el.setAttribute(SvgAttributeName.ID, node.id)
+  stampSeriesId(el, node)
   setStyle(el, node.style, rootSvg)
   if (node.metadata?.tooltip) {
     ;(el as ExtendedSVGElement)[TOOLTIP_DATUM_SYMBOL] = node.metadata.tooltip

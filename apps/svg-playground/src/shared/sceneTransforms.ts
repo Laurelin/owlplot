@@ -28,22 +28,9 @@ export function nodeBelongsToSeries(
   seriesId: string
 ): boolean {
   return (
-    hasSeriesContainerId(node.id, seriesId) ||
-    hasSeriesPointId(node.id, seriesId) ||
-    isPointForSeries(node, seriesId)
+    (node.kind === SceneNodeKind.PATH || node.kind === SceneNodeKind.POINT) &&
+    node.seriesId === seriesId
   )
-}
-
-function hasSeriesContainerId(nodeId: string, seriesId: string): boolean {
-  return nodeId === `series:${seriesId}` || nodeId === `series-fill:${seriesId}`
-}
-
-function hasSeriesPointId(nodeId: string, seriesId: string): boolean {
-  return nodeId.startsWith(`point:${seriesId}:`)
-}
-
-function isPointForSeries(node: SceneNode, seriesId: string): boolean {
-  return node.kind === SceneNodeKind.POINT && node.seriesId === seriesId
 }
 
 /**

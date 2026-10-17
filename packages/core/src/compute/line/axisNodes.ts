@@ -46,6 +46,7 @@ function buildAxisLineNode(axis: AxisLayout): SceneNode {
   return {
     kind: SceneNodeKind.PATH,
     id: `axis-line:${axis.orientation}`,
+    axis: { orientation: axis.orientation, role: 'line' },
     d: `M ${axis.line.x1} ${axis.line.y1} L ${axis.line.x2} ${axis.line.y2}`,
     style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
   }
@@ -72,6 +73,7 @@ function buildTickLineNode(
   return {
     kind: SceneNodeKind.PATH,
     id: `axis-tick:${axis.orientation}:${index}`,
+    axis: { orientation: axis.orientation, role: 'tick' },
     d: `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`,
     style: { stroke: DEFAULT_SOLID_CURRENT_COLOR, strokeWidth: 1 },
   }
@@ -101,6 +103,7 @@ function buildTickLabelNode(
   return {
     kind: SceneNodeKind.TEXT,
     id: `axis-tick-label:${axis.orientation}:${index}`,
+    axis: { orientation: axis.orientation, role: 'tick-label' },
     x: label.x,
     y: label.y,
     text: label.text,
@@ -140,6 +143,7 @@ function buildAxisLabelNode(
   return {
     kind: SceneNodeKind.TEXT,
     id: `axis-label:${axis.orientation}`,
+    axis: { orientation: axis.orientation, role: 'label' },
     x: label.x,
     y: label.y,
     text: label.text,
@@ -195,6 +199,7 @@ export function axisToSceneNodes(
     {
       kind: SceneNodeKind.GROUP,
       id: `axis-group:${axis.orientation}`,
+      axis: { orientation: axis.orientation, role: 'group' },
       transform: resolveAxisTransform(axis.orientation, plotRect),
       children,
     },

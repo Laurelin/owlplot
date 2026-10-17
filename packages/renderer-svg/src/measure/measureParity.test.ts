@@ -95,11 +95,7 @@ function collectTickProbes(
   node: SceneNode,
   out: TickProbe[] = []
 ): TickProbe[] {
-  if (
-    node.kind === 'text' &&
-    typeof node.id === 'string' &&
-    node.id.startsWith('axis-tick-label:')
-  ) {
+  if (node.kind === 'text' && node.axis?.role === 'tick-label') {
     out.push({
       id: node.id,
       text: node.text,

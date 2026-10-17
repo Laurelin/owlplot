@@ -1,4 +1,4 @@
-import type { SceneNode, PointShape } from '@owlplot/core'
+import type { SceneNode, ScenePathNode, PointShape } from '@owlplot/core'
 import { SceneNodeKind, isHoverMetadata } from '@owlplot/core'
 import type {
   TooltipRenderer,
@@ -60,22 +60,21 @@ function isGradientStrokeType(type: string): boolean {
 }
 
 /**
- * Walk scene and build seriesId → HoverSeriesStyle from nodes with id like "series:<id>".
+ * Walk scene and build seriesId → HoverSeriesStyle from series PATH nodes.
  * Stroke is resolved to a single color string (solid or first stop of gradient).
  */
 function buildSeriesStylesFromScene(
   scene: SceneNode
 ): Map<string, HoverSeriesStyle> {
   const map = new Map<string, HoverSeriesStyle>()
-  function recordSeriesStyle(node: SceneNode): void {
-    if (!node.id.startsWith('series:')) return
+  function recordSeriesStyle(node: ScenePathNode): void {
     const stroke = node.style?.stroke
-    if (!stroke) return
+    if (!node.seriesId || !stroke) return
     const color = strokeToSwatchColor(stroke)
-    if (color) map.set(node.id.slice(7), { stroke: color })
+    if (color) map.set(node.seriesId, { stroke: color })
   }
   function walk(node: SceneNode) {
-    recordSeriesStyle(node)
+    if (node.kind === SceneNodeKind.PATH) recordSeriesStyle(node)
     if (node.kind === SceneNodeKind.GROUP) {
       node.children.forEach(walk)
     }
@@ -85,7 +84,7 @@ function buildSeriesStylesFromScene(
 }
 
 /**
- * Walk scene and build seriesId → PointShape from POINT nodes (id: "point:seriesId:index").
+ * Walk scene and build seriesId → PointShape from POINT nodes.
  * Used for overlay emphasis default shape when point nodes exist; empty when showPoints: false.
  */
 function buildSeriesPointShapesFromScene(
@@ -94,9 +93,7 @@ function buildSeriesPointShapesFromScene(
   const map = new Map<string, PointShape>()
   function recordPointShape(node: SceneNode): void {
     if (node.kind !== SceneNodeKind.POINT) return
-    if (!node.id.startsWith('point:')) return
-    const seriesId = node.id.split(':')[1]
-    if (seriesId) map.set(seriesId, node.point.shape)
+    map.set(node.seriesId, node.point.shape)
   }
   function walk(node: SceneNode) {
     recordPointShape(node)

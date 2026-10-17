@@ -1,7 +1,9 @@
 import {
+  Position,
   SceneNodeKind,
   type AnyPaint,
   type LegendMetadata,
+  type SceneAxisRole,
   type SceneNode,
 } from '@owlplot/core'
 import { createSvgElement } from './svgDom'
@@ -179,11 +181,7 @@ function overlapsAxis(
 }
 
 function readDataBounds(svg: SVGSVGElement): Rect | undefined {
-  const candidates = Array.from(
-    svg.querySelectorAll(
-      `[${SvgAttributeName.ID}^="series:"], [${SvgAttributeName.ID}^="series-fill:"], [${DATA_SERIES_ID}]`
-    )
-  )
+  const candidates = Array.from(svg.querySelectorAll(`[${DATA_SERIES_ID}]`))
 
   const bounds = createEmptyBounds()
   for (const element of candidates) {
@@ -241,11 +239,18 @@ function boundsToRect(bounds: MutableBounds): Rect | undefined {
   }
 }
 
+const BOTTOM_AXIS_ROLES: ReadonlySet<SceneAxisRole> = new Set([
+  'tick',
+  'tick-label',
+  'label',
+])
+
 function isBottomAxisNode(node: SceneNode): boolean {
+  const axis = node.axis
   return (
-    node.id.startsWith('axis-tick:bottom:') ||
-    node.id.startsWith('axis-tick-label:bottom:') ||
-    node.id === 'axis-label:bottom'
+    axis !== undefined &&
+    axis.orientation === Position.BOTTOM &&
+    BOTTOM_AXIS_ROLES.has(axis.role)
   )
 }
 

@@ -169,6 +169,7 @@ describe('sceneToSvgString', () => {
           kind: SceneNodeKind.POINT,
           id: `point:s:${index}`,
           seriesId: 's',
+          datumIndex: index,
           x: index,
           y: index,
           point: { shape, size: 4 },
@@ -176,6 +177,7 @@ describe('sceneToSvgString', () => {
         {
           kind: SceneNodeKind.POINT,
           id: 'point:missing:0',
+          datumIndex: 0,
           x: 7,
           y: 7,
           point: { shape: { kind: 'circle' }, size: 4 },
@@ -211,6 +213,7 @@ describe('sceneToSvgString', () => {
       kind: SceneNodeKind.POINT,
       id: 'point:s:0',
       seriesId: 's',
+      datumIndex: 0,
       x: 1,
       y: 1,
       point: { shape: { kind: 'circle' }, size: 4 },

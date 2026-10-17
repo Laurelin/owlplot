@@ -68,6 +68,7 @@ function buildStrokeNode(
   return {
     kind: SceneNodeKind.PATH,
     id: `series:${series.id}`,
+    seriesId: series.id,
     d: path,
     style: {
       fill: TRANSPARENT_FILL,
@@ -99,6 +100,7 @@ function buildAreaFillNode(
   return {
     kind: SceneNodeKind.PATH,
     id: `series-fill:${series.id}`,
+    seriesId: series.id,
     d: path,
     style,
   }
@@ -161,6 +163,7 @@ function buildPointNodes(
         kind: SceneNodeKind.POINT,
         id: `point:${series.id}:${index}`,
         seriesId: series.id,
+        datumIndex: index,
         x: point.x,
         y: point.y,
         point: { shape: pointConfig.shape, size: pointConfig.size },

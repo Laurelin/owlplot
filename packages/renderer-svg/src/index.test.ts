@@ -59,6 +59,7 @@ it('renders a line path', () => {
       {
         kind: SceneNodeKind.PATH,
         id: 'series:s',
+        seriesId: 's',
         d: 'M0,0L100,50',
       },
     ],
@@ -86,6 +87,7 @@ it('renders every realized point element shape', () => {
         kind: SceneNodeKind.POINT,
         id: `point:s:${index}`,
         seriesId: 's',
+        datumIndex: index,
         x: index / 10,
         y: index / 10,
         point: { shape, size: 4 },
@@ -94,6 +96,7 @@ it('renders every realized point element shape', () => {
         kind: SceneNodeKind.POINT,
         id: 'marker:s',
         seriesId: 's',
+        datumIndex: 6,
         x: 0.7,
         y: 0.7,
         point: { shape: { kind: 'circle' }, size: 4 },
@@ -101,6 +104,7 @@ it('renders every realized point element shape', () => {
       {
         kind: SceneNodeKind.POINT,
         id: 'point:missing:0',
+        datumIndex: 0,
         x: 0.8,
         y: 0.8,
         point: { shape: { kind: 'circle' }, size: 4 },
@@ -247,12 +251,14 @@ it('resolves stroke and radial gradient definitions without duplicating defs', (
       {
         kind: SceneNodeKind.PATH,
         id: 'series:a',
+        seriesId: 'a',
         d: 'M0,0L10,10',
         style: { stroke: verticalStroke },
       },
       {
         kind: SceneNodeKind.PATH,
         id: 'series:b',
+        seriesId: 'b',
         d: 'M10,0L0,10',
         style: { stroke: verticalStroke },
       },
@@ -309,6 +315,7 @@ it('resolves stroke gradient dimensions from animated lengths and fallbacks', ()
     const scene: SceneNode = {
       kind: SceneNodeKind.PATH,
       id: 'series:s',
+      seriesId: 's',
       d: 'M0,0L10,10',
       style: { stroke: paint },
     }
@@ -364,6 +371,7 @@ it('legend click invokes onToggleSeries without display:none hide', () => {
       {
         kind: SceneNodeKind.PATH,
         id: 'series:a',
+        seriesId: 'a',
         d: 'M0,10L100,40',
         style: { stroke: { type: 'solid', color: '#ff0000' } },
       },
@@ -386,6 +394,7 @@ it('legend click invokes onToggleSeries without display:none hide', () => {
       {
         kind: SceneNodeKind.PATH,
         id: 'series:b',
+        seriesId: 'b',
         d: 'M0,40L100,10',
         style: { stroke: { type: 'solid', color: '#0000ff' } },
       },
@@ -442,6 +451,7 @@ it('dims legend swatch from hiddenSeriesIds options without DOM unload', () => {
       {
         kind: SceneNodeKind.PATH,
         id: 'series:a',
+        seriesId: 'a',
         d: 'M0,10L100,40',
         style: { stroke: { type: 'solid', color: '#ff0000' } },
       },
@@ -487,6 +497,7 @@ it('supports disabling legend rendering', () => {
       {
         kind: SceneNodeKind.PATH,
         id: 'series:a',
+        seriesId: 'a',
         d: 'M0,10L100,40',
       },
     ],
@@ -528,6 +539,7 @@ it('reserves footer space for default bottom legend to avoid overlap', () => {
       {
         kind: SceneNodeKind.PATH,
         id: 'series:a',
+        seriesId: 'a',
         d: 'M0,10L100,40',
       },
     ],
@@ -568,6 +580,7 @@ it('inside legend overlays without changing caller-set svg width/height', () => 
       {
         kind: SceneNodeKind.PATH,
         id: 'series:circles',
+        seriesId: 'circles',
         d: 'M0,10L100,40',
       },
     ],
@@ -849,6 +862,7 @@ it('auto-anchors an inside gradient legend against rendered data bounds', () => 
       {
         kind: SceneNodeKind.PATH,
         id: 'series:a',
+        seriesId: 'a',
         d: 'M210,10L290,70',
       },
     ],

@@ -1,4 +1,4 @@
-import type { SceneNode, PointShape } from '@owlplot/core'
+import type { SceneNode, ScenePathNode, PointShape } from '@owlplot/core'
 import { SceneNodeKind, isHoverMetadata } from '@owlplot/core'
 import type {
   TooltipRenderer,
@@ -67,15 +67,14 @@ function buildSeriesStylesFromScene(
   scene: SceneNode
 ): Map<string, HoverSeriesStyle> {
   const map = new Map<string, HoverSeriesStyle>()
-  function recordSeriesStyle(node: SceneNode): void {
-    if (node.kind !== SceneNodeKind.PATH || !node.seriesId) return
+  function recordSeriesStyle(node: ScenePathNode): void {
     const stroke = node.style?.stroke
-    if (!stroke) return
+    if (!node.seriesId || !stroke) return
     const color = strokeToSwatchColor(stroke)
     if (color) map.set(node.seriesId, { stroke: color })
   }
   function walk(node: SceneNode) {
-    recordSeriesStyle(node)
+    if (node.kind === SceneNodeKind.PATH) recordSeriesStyle(node)
     if (node.kind === SceneNodeKind.GROUP) {
       node.children.forEach(walk)
     }

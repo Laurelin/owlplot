@@ -3,6 +3,7 @@ import {
   SceneNodeKind,
   type AnyPaint,
   type LegendMetadata,
+  type SceneAxisRole,
   type SceneNode,
 } from '@owlplot/core'
 import { createSvgElement } from './svgDom'
@@ -238,11 +239,18 @@ function boundsToRect(bounds: MutableBounds): Rect | undefined {
   }
 }
 
+const BOTTOM_AXIS_ROLES: ReadonlySet<SceneAxisRole> = new Set([
+  'tick',
+  'tick-label',
+  'label',
+])
+
 function isBottomAxisNode(node: SceneNode): boolean {
   const axis = node.axis
-  if (!axis || axis.orientation !== Position.BOTTOM) return false
   return (
-    axis.role === 'tick' || axis.role === 'tick-label' || axis.role === 'label'
+    axis !== undefined &&
+    axis.orientation === Position.BOTTOM &&
+    BOTTOM_AXIS_ROLES.has(axis.role)
   )
 }
 

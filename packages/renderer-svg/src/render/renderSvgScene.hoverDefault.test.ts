@@ -191,6 +191,63 @@ describe('renderSvgScene hover default', () => {
     expect(extended[DATA_HOVER_LISTENERS_SYMBOL]).toBeUndefined()
   })
 
+  it('records series styles only from path nodes with a resolvable stroke', () => {
+    const scene: SceneNode = {
+      id: 'root',
+      kind: SceneNodeKind.GROUP,
+      children: [
+        {
+          id: 'no-series',
+          kind: SceneNodeKind.PATH,
+          d: 'M 0 0 L 1 1',
+          style: { stroke: { type: 'solid', color: '#aaaaaa' } },
+        },
+        {
+          id: 'no-stroke',
+          kind: SceneNodeKind.PATH,
+          seriesId: 'no-stroke',
+          d: 'M 0 0 L 1 1',
+        },
+        {
+          id: 'empty-color',
+          kind: SceneNodeKind.PATH,
+          seriesId: 'empty-color',
+          d: 'M 0 0 L 1 1',
+          style: { stroke: { type: 'solid', color: '' } },
+        },
+        {
+          id: 'solid',
+          kind: SceneNodeKind.PATH,
+          seriesId: 'solid',
+          d: 'M 0 0 L 1 1',
+          style: { stroke: { type: 'solid', color: '#111111' } },
+        },
+        {
+          id: 'nested',
+          kind: SceneNodeKind.GROUP,
+          children: [
+            {
+              id: 'nested-solid',
+              kind: SceneNodeKind.PATH,
+              seriesId: 'nested-solid',
+              d: 'M 0 0 L 1 1',
+              style: { stroke: { type: 'solid', color: '#444444' } },
+            },
+          ],
+        },
+      ],
+    }
+
+    renderSvgScene(scene, svg, { tooltip: null, legend: false })
+
+    const styles = (svg as ExtendedSVGSVGElement)[SERIES_STYLES_SYMBOL]
+    expect(styles?.get('solid')).toEqual({ stroke: '#111111' })
+    expect(styles?.has('no-stroke')).toBe(false)
+    expect(styles?.has('empty-color')).toBe(false)
+    expect(styles?.get('nested-solid')).toEqual({ stroke: '#444444' })
+    expect(styles?.size).toBe(2)
+  })
+
   it('honors explicit single and array indicator configurations', () => {
     renderSvgScene(sceneWithStampedGlyphs(), svg, {
       tooltip: null,

@@ -191,6 +191,14 @@ type CartesianLayoutOptions = {
   yAxis?: AxisConfig | null
   yAxisRight?: AxisConfig
   yAxisRightDomain?: [number, number]
+  /** Explicit x domain. When omitted, the x domain is derived from series points. */
+  xDomain?: [number, number]
+  /**
+   * Category labels for the x axis, indexed by integer x position
+   * (position i shows xTickLabels[i]). Forwarded to the x axis layout only;
+   * line callers pass neither this nor xDomain and keep derived domains.
+   */
+  xTickLabels?: readonly string[]
   yDomain?: YDomainPolicy
   enableAdaptivePadding?: boolean
   axisTickFont?: string
@@ -273,6 +281,7 @@ function resolvePadding(
       yScaleRight,
       locale: options.locale,
       compactThreshold: options.compactThreshold,
+      xTickLabels: options.xTickLabels,
     }
   )
   return {
@@ -358,7 +367,10 @@ function createAxes(
       scales.xAxis,
       measureText,
       options.xAxis,
-      axisOptions
+      {
+        ...axisOptions,
+        tickLabels: options.xTickLabels,
+      }
     ),
   }
   if (options.yAxis !== null && options.yAxis !== undefined) {
@@ -415,7 +427,10 @@ export function computeCartesianLayout(
   measureText: MeasureText,
   options: CartesianLayoutOptions
 ): CartesianLayoutResult {
-  const xDomain = computeXDomain(series)
+  const xDomain =
+    options.xDomain === undefined
+      ? computeXDomain(series)
+      : normalizeEqualDomain(options.xDomain)
   const partitioned = partitionSeries(series)
   const yDomains = resolveYDomains(
     partitioned.left,

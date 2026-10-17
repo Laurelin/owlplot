@@ -203,3 +203,39 @@ describe('computeAdaptivePadding', () => {
     ).toEqual({ top: 40, right: 50, bottom: 40, left: 50 })
   })
 })
+
+describe('computeAdaptivePadding (category tick labels)', () => {
+  it('measures category labels instead of numeric labels for the bottom axis', () => {
+    const xScale = createLinearScale([0, 2], [0, 1])
+    const yScale = createLinearScale([0, 100], [0, 1])
+    const bottomAxis = {
+      labelOrientation: { orientation: LabelOrientation.VERTICAL },
+    }
+    const numeric = computeAdaptivePadding(
+      600,
+      300,
+      xScale,
+      yScale,
+      measureText,
+      bottomAxis,
+      {},
+      undefined,
+      5,
+      5
+    )
+    const category = computeAdaptivePadding(
+      600,
+      300,
+      xScale,
+      yScale,
+      measureText,
+      bottomAxis,
+      {},
+      undefined,
+      5,
+      5,
+      { xTickLabels: ['A-very-long-category', 'Beta', 'Gamma'] }
+    )
+    expect(category.bottom).toBeGreaterThan(numeric.bottom)
+  })
+})

@@ -241,3 +241,58 @@ describe('computeAxisLayout (placements)', () => {
     expect(layout.ticks).toHaveLength(1)
   })
 })
+
+describe('computeAxisLayout (category tick labels)', () => {
+  it('shows category strings at integer positions instead of numeric labels', () => {
+    const layout = computeAxisLayout(
+      Position.BOTTOM,
+      createLinearScale([0, 2], [0, 100]),
+      measureText,
+      { tickCount: 5 },
+      { tickLabels: ['Alpha', 'Beta', 'Gamma'] }
+    )
+    expect(layout.ticks.map(tick => tick.value)).toEqual([0, 1, 2])
+    expect(layout.ticks.map(tick => tick.label)).toEqual([
+      'Alpha',
+      'Beta',
+      'Gamma',
+    ])
+    expect(layout.labelLayouts.map(item => item.text)).toEqual([
+      'Alpha',
+      'Beta',
+      'Gamma',
+    ])
+    expect(layout.ticks[1]?.position).toBe(50)
+  })
+
+  it('only labels integer positions inside the domain that have a label', () => {
+    const padded = computeAxisLayout(
+      Position.BOTTOM,
+      createLinearScale([-1.5, 2.5], [0, 100]),
+      measureText,
+      {},
+      { tickLabels: ['Alpha', 'Beta', 'Gamma'] }
+    )
+    const wider = computeAxisLayout(
+      Position.BOTTOM,
+      createLinearScale([0, 5], [0, 100]),
+      measureText,
+      {},
+      { tickLabels: ['Alpha', 'Beta', 'Gamma'] }
+    )
+    expect(padded.ticks.map(tick => tick.value)).toEqual([0, 1, 2])
+    expect(wider.ticks.map(tick => tick.value)).toEqual([0, 1, 2])
+  })
+
+  it('produces no ticks for an empty label list', () => {
+    const layout = computeAxisLayout(
+      Position.BOTTOM,
+      createLinearScale([0, 2], [0, 100]),
+      measureText,
+      {},
+      { tickLabels: [] }
+    )
+    expect(layout.ticks).toEqual([])
+    expect(layout.labelLayouts).toEqual([])
+  })
+})

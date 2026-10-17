@@ -60,9 +60,24 @@ function collectSceneNodeIds(node: {
   return ids
 }
 
+function collectSceneSeriesIds(node: TestSceneNode, kind?: string): string[] {
+  const seriesIds: string[] = []
+  if (node.seriesId && (kind === undefined || node.kind === kind)) {
+    seriesIds.push(node.seriesId)
+  }
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      seriesIds.push(...collectSceneSeriesIds(child, kind))
+    }
+  }
+  return seriesIds
+}
+
 type TestSceneNode = {
   id?: string
   kind?: string
+  seriesId?: string
+  datumIndex?: number
   d?: string
   x?: number
   y?: number
@@ -1387,14 +1402,10 @@ describe('hiddenSeriesIds (recompute hide)', () => {
     }
 
     const result = computeChartScene(config, size, env)
-    const ids = collectSceneNodeIds(result.scene)
-    expect(ids.some(id => id === 'series:a' || id.startsWith('series:a'))).toBe(
-      true
-    )
-    expect(ids.some(id => id === 'series:b' || id.startsWith('series:b'))).toBe(
-      false
-    )
-    expect(ids.some(id => id.startsWith('point:b:'))).toBe(false)
+    const scene = result.scene as unknown as TestSceneNode
+    expect(collectSceneSeriesIds(scene)).toContain('a')
+    expect(collectSceneSeriesIds(scene)).not.toContain('b')
+    expect(collectSceneSeriesIds(scene, 'point')).not.toContain('b')
 
     const legend = getLegendEntries(result)
     expect(legend?.map(e => e.seriesId)).toEqual(['a', 'b'])
@@ -1421,8 +1432,45 @@ describe('hiddenSeriesIds (recompute hide)', () => {
     const result = computeChartScene(config, size, env)
     expect(result.scene.kind).toBeDefined()
     expect(result.scene.id).toBe('root')
-    const ids = collectSceneNodeIds(result.scene)
-    expect(ids.some(id => id.startsWith('series:'))).toBe(false)
+    expect(
+      collectSceneSeriesIds(result.scene as unknown as TestSceneNode)
+    ).toEqual([])
     expect(getLegendEntries(result)?.map(e => e.seriesId)).toEqual(['a'])
+  })
+
+  it('keeps a series id containing a colon as typed identity, not parsed from node ids', () => {
+    const config: ChartConfig = {
+      kind: ChartKind.LINE,
+      series: [
+        {
+          id: 'north:revenue',
+          points: [
+            { x: 0, y: 1 },
+            { x: 1, y: 2 },
+            { x: 2, y: 3 },
+          ],
+        },
+      ],
+      options: { showPoints: true },
+    }
+
+    const result = computeChartScene(config, size, env)
+    const scene = JSON.parse(JSON.stringify(result.scene)) as TestSceneNode
+    const points: TestSceneNode[] = []
+    const paths: TestSceneNode[] = []
+    const walk = (node: TestSceneNode) => {
+      if (node.kind === 'point') points.push(node)
+      if (node.kind === 'path' && node.seriesId) paths.push(node)
+      node.children?.forEach(walk)
+    }
+    walk(scene)
+
+    expect(paths.map(node => node.seriesId)).toEqual(['north:revenue'])
+    expect(points.map(node => node.seriesId)).toEqual([
+      'north:revenue',
+      'north:revenue',
+      'north:revenue',
+    ])
+    expect(points.map(node => node.datumIndex)).toEqual([0, 1, 2])
   })
 })

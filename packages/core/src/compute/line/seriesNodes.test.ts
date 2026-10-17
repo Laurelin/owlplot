@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CartesianSeries } from '../../config/types'
 import { createLinearScale } from '../cartesian2d/scale'
+import { SceneNodeKind } from '../../scene/types'
 import { buildSeriesNodes } from './seriesNodes'
 
 const scales = {
@@ -10,7 +11,12 @@ const scales = {
 
 function pointFill(series: CartesianSeries) {
   const nodes = buildSeriesNodes([series], scales, true, undefined, undefined)
-  return nodes.find(node => node.id === `point:${series.id}:0`)?.style?.fill
+  return nodes.find(
+    node =>
+      node.kind === SceneNodeKind.POINT &&
+      node.seriesId === series.id &&
+      node.datumIndex === 0
+  )?.style?.fill
 }
 
 describe('buildSeriesNodes point paint', () => {

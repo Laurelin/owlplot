@@ -97,22 +97,26 @@ describe('applySceneTransforms', () => {
 })
 
 describe('nodeBelongsToSeries', () => {
-  it('recognizes series paths, fills, point ids, and point metadata', () => {
+  it('recognizes series paths, fills, and points by typed seriesId', () => {
     expect(
       nodeBelongsToSeries(
-        { kind: SceneNodeKind.PATH, id: 'series:revenue', d: '' },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'stroke-node',
+          seriesId: 'revenue',
+          d: '',
+        },
         'revenue'
       )
     ).toBe(true)
     expect(
       nodeBelongsToSeries(
-        { kind: SceneNodeKind.PATH, id: 'series-fill:revenue', d: '' },
-        'revenue'
-      )
-    ).toBe(true)
-    expect(
-      nodeBelongsToSeries(
-        { kind: SceneNodeKind.PATH, id: 'point:revenue:3', d: '' },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'fill-node',
+          seriesId: 'revenue',
+          d: '',
+        },
         'revenue'
       )
     ).toBe(true)
@@ -122,6 +126,7 @@ describe('nodeBelongsToSeries', () => {
           kind: SceneNodeKind.POINT,
           id: 'custom-point',
           seriesId: 'revenue',
+          datumIndex: 3,
           x: 0,
           y: 1,
           point: { shape: { kind: 'circle' }, size: 3 },
@@ -131,10 +136,35 @@ describe('nodeBelongsToSeries', () => {
     ).toBe(true)
   })
 
+  it('does not recover series identity from node id spelling', () => {
+    expect(
+      nodeBelongsToSeries(
+        { kind: SceneNodeKind.PATH, id: 'series:revenue', d: '' },
+        'revenue'
+      )
+    ).toBe(false)
+    expect(
+      nodeBelongsToSeries(
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:expenses',
+          seriesId: 'revenue',
+          d: '',
+        },
+        'expenses'
+      )
+    ).toBe(false)
+  })
+
   it('rejects nodes belonging to another series', () => {
     expect(
       nodeBelongsToSeries(
-        { kind: SceneNodeKind.PATH, id: 'series:expenses', d: '' },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:expenses',
+          seriesId: 'expenses',
+          d: '',
+        },
         'revenue'
       )
     ).toBe(false)
@@ -150,22 +180,26 @@ describe('dropSeriesNodes', () => {
         {
           kind: SceneNodeKind.PATH,
           id: 'series:revenue',
+          seriesId: 'revenue',
           d: 'M 0 0',
         },
         {
           kind: SceneNodeKind.PATH,
           id: 'series:expenses',
+          seriesId: 'expenses',
           d: 'M 1 1',
         },
         {
           kind: SceneNodeKind.PATH,
           id: 'series-fill:expenses',
+          seriesId: 'expenses',
           d: 'M 2 2',
         },
         {
           kind: SceneNodeKind.POINT,
           id: 'point:expenses:0',
           seriesId: 'expenses',
+          datumIndex: 0,
           x: 0,
           y: 1,
           point: { shape: { kind: 'circle' }, size: 3 },
@@ -174,6 +208,7 @@ describe('dropSeriesNodes', () => {
           kind: SceneNodeKind.POINT,
           id: 'point:revenue:0',
           seriesId: 'revenue',
+          datumIndex: 0,
           x: 0,
           y: 2,
           point: { shape: { kind: 'circle' }, size: 3 },
@@ -190,30 +225,50 @@ describe('dropSeriesNodes', () => {
     ])
   })
 
-  it('filters nested groups while preserving a matching root', () => {
+  it('filters nested groups and keeps the group root', () => {
     const nested: SceneNode = {
       kind: SceneNodeKind.GROUP,
       id: 'nested',
       children: [
-        { kind: SceneNodeKind.PATH, id: 'series:expenses', d: '' },
-        { kind: SceneNodeKind.PATH, id: 'series:revenue', d: '' },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:expenses',
+          seriesId: 'expenses',
+          d: '',
+        },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:revenue',
+          seriesId: 'revenue',
+          d: '',
+        },
       ],
     }
-    const root: SceneNode = {
-      kind: SceneNodeKind.GROUP,
-      id: 'series:expenses',
-      children: [nested],
-    }
-
-    expect(dropSeriesNodes('expenses')(root)).toBe(root)
-
     const transformed = dropSeriesNodes('expenses')(makeRootWithChild(nested))
-    expect(transformed.children[0]?.kind).toBe(SceneNodeKind.GROUP)
+    expect(transformed.kind).toBe(SceneNodeKind.GROUP)
     expect(
       transformed.children[0]?.kind === SceneNodeKind.GROUP
         ? transformed.children[0].children.map(child => child.id)
         : []
     ).toEqual(['series:revenue'])
+
+    // The root stays a group even when every child is dropped; a root
+    // group whose id spells a series name is not itself a series node.
+    const rootOnly: SceneNode = {
+      kind: SceneNodeKind.GROUP,
+      id: 'series:expenses',
+      children: [
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'only-child',
+          seriesId: 'expenses',
+          d: '',
+        },
+      ],
+    }
+    const emptied = dropSeriesNodes('expenses')(rootOnly)
+    expect(emptied.kind).toBe(SceneNodeKind.GROUP)
+    expect(emptied.children).toEqual([])
   })
 })
 
@@ -229,8 +284,18 @@ describe('scene-transform demo wiring', () => {
       kind: SceneNodeKind.GROUP,
       id: 'root',
       children: [
-        { kind: SceneNodeKind.PATH, id: 'series:revenue', d: 'M 0 0' },
-        { kind: SceneNodeKind.PATH, id: 'series:expenses', d: 'M 1 1' },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:revenue',
+          seriesId: 'revenue',
+          d: 'M 0 0',
+        },
+        {
+          kind: SceneNodeKind.PATH,
+          id: 'series:expenses',
+          seriesId: 'expenses',
+          d: 'M 1 1',
+        },
       ],
     }
     const transformed = applySceneTransforms(scene, demo?.sceneTransforms)

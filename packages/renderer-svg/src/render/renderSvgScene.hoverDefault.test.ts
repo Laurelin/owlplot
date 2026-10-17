@@ -8,9 +8,11 @@ import {
   DATA_HOVER_LISTENERS_SYMBOL,
   GLYPH_HOVER_LISTENERS_SYMBOL,
   POINT_INDEX_SYMBOL,
+  SERIES_POINT_SHAPES_SYMBOL,
+  SERIES_STYLES_SYMBOL,
 } from '../shared/symbols'
 import { HoverIndicatorKind, HoverModeKind } from '../shared/enums'
-import { DATA_SERIES_ID } from '../shared/dataAttributes'
+import { DATA_POINT_INDEX, DATA_SERIES_ID } from '../shared/dataAttributes'
 import { buildPointIndexFromRenderedElements } from '../hover/pointIndex'
 
 const testGlobal = globalThis as unknown as {
@@ -38,6 +40,7 @@ function sceneWithStampedGlyphs(): SceneNode {
         id: 'point:s1:0',
         kind: SceneNodeKind.POINT,
         seriesId: 's1',
+        datumIndex: 0,
         x: 5,
         y: 5,
         point: { shape: { kind: 'circle' }, size: 4 },
@@ -97,6 +100,77 @@ describe('renderSvgScene hover default', () => {
     const extended = svg as ExtendedSVGSVGElement
     expect(extended[DATA_HOVER_LISTENERS_SYMBOL]).toBeDefined()
     expect(extended[GLYPH_HOVER_LISTENERS_SYMBOL]).toBeUndefined()
+  })
+
+  it('uses typed identity for a series id containing a colon (north:revenue)', () => {
+    const scale = scaleDescriptor()
+    const scene: SceneNode = {
+      id: 'root',
+      kind: SceneNodeKind.GROUP,
+      children: [
+        {
+          id: 'stroke-node-1',
+          kind: SceneNodeKind.PATH,
+          seriesId: 'north:revenue',
+          d: 'M 0 0 L 1 1',
+          style: { stroke: { type: 'solid', color: '#123456' } },
+        },
+        {
+          id: 'glyph-node-7',
+          kind: SceneNodeKind.POINT,
+          seriesId: 'north:revenue',
+          datumIndex: 2,
+          x: 5,
+          y: 5,
+          point: { shape: { kind: 'circle' }, size: 4 },
+          style: { fill: { type: 'solid', color: '#123456' } },
+          metadata: {
+            tooltip: createSceneTooltip(TooltipKind.POINT, [
+              { seriesId: 'north:revenue', x: 5, y: 5 },
+            ]),
+          },
+        },
+      ],
+      metadata: {
+        hover: {
+          scales: { x: scale, y: scale },
+          plotRect: { x: 0, y: 0, width: 200, height: 100 },
+          xDomain: [0, 10] as [number, number],
+          yDomain: [0, 10] as [number, number],
+          series: [
+            {
+              id: 'north:revenue',
+              yAxis: 'left' as const,
+              sortedPoints: [
+                { x: 3, y: 3 },
+                { x: 4, y: 4 },
+                { x: 5, y: 5 },
+              ],
+            },
+          ],
+        },
+      },
+    }
+
+    renderSvgScene(scene, svg, { tooltip: null })
+
+    const glyph = svg.querySelector(`[${DATA_POINT_INDEX}]`)
+    expect(glyph?.getAttribute(DATA_SERIES_ID)).toBe('north:revenue')
+    expect(glyph?.getAttribute(DATA_POINT_INDEX)).toBe('2')
+
+    const extended = svg as ExtendedSVGSVGElement
+    expect(extended[SERIES_STYLES_SYMBOL]?.get('north:revenue')).toEqual({
+      stroke: '#123456',
+    })
+    expect(extended[SERIES_STYLES_SYMBOL]?.has('north')).toBe(false)
+    expect(extended[SERIES_POINT_SHAPES_SYMBOL]?.get('north:revenue')).toEqual({
+      kind: 'circle',
+    })
+    expect(extended[SERIES_POINT_SHAPES_SYMBOL]?.has('north')).toBe(false)
+
+    const index = buildPointIndexFromRenderedElements(svg)
+    expect(index.get('north:revenue')).toHaveLength(1)
+    expect(index.has('north')).toBe(false)
   })
 
   it('attaches glyph hover when hoverMode is explicitly GLYPH and glyphs are stamped', () => {

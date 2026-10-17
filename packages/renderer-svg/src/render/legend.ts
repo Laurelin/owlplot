@@ -1,4 +1,5 @@
 import {
+  Position,
   SceneNodeKind,
   type AnyPaint,
   type LegendMetadata,
@@ -179,11 +180,7 @@ function overlapsAxis(
 }
 
 function readDataBounds(svg: SVGSVGElement): Rect | undefined {
-  const candidates = Array.from(
-    svg.querySelectorAll(
-      `[${SvgAttributeName.ID}^="series:"], [${SvgAttributeName.ID}^="series-fill:"], [${DATA_SERIES_ID}]`
-    )
-  )
+  const candidates = Array.from(svg.querySelectorAll(`[${DATA_SERIES_ID}]`))
 
   const bounds = createEmptyBounds()
   for (const element of candidates) {
@@ -242,10 +239,10 @@ function boundsToRect(bounds: MutableBounds): Rect | undefined {
 }
 
 function isBottomAxisNode(node: SceneNode): boolean {
+  const axis = node.axis
+  if (!axis || axis.orientation !== Position.BOTTOM) return false
   return (
-    node.id.startsWith('axis-tick:bottom:') ||
-    node.id.startsWith('axis-tick-label:bottom:') ||
-    node.id === 'axis-label:bottom'
+    axis.role === 'tick' || axis.role === 'tick-label' || axis.role === 'label'
   )
 }
 

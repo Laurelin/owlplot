@@ -1,6 +1,6 @@
 import type { TextAnchor, DominantBaseline } from '../text/types'
 import type { AnyPaint } from '../paint/types'
-import type { PointShape } from '../config/types'
+import type { PointShape, Position } from '../config/types'
 import type { HoverMetadata } from '../compute/line/hoverMetadata'
 
 // -----------------------------------
@@ -108,8 +108,22 @@ export type SceneMetadata = {
 export type SceneNodeRole =
   'background' | 'band' | 'region' | 'series' | 'axis' | 'annotation'
 
+/** Axis role of a node, when the node belongs to an axis. */
+export type SceneAxisRole = 'line' | 'tick' | 'tick-label' | 'label' | 'group'
+
+/**
+ * Typed axis identity. Consumers read this instead of parsing `id`
+ * strings such as `axis-tick:bottom:0`.
+ */
+export type SceneAxisIdentity = {
+  orientation: Position
+  role: SceneAxisRole
+}
+
 export type SceneBaseNode = {
   id: string
+  /** Typed axis identity; set only on nodes that belong to an axis. */
+  axis?: SceneAxisIdentity
   style?: SceneStyle
   transform?: SceneTransform | SceneTransform[]
   metadata?: SceneMetadata
@@ -123,6 +137,8 @@ export type SceneGroupNode = SceneBaseNode & {
 export type ScenePathNode = SceneBaseNode & {
   kind: SceneNodeKind.PATH
   d: string
+  /** Series this path belongs to; set on series stroke/fill paths, absent otherwise. */
+  seriesId?: string
 }
 
 export type SceneRectNode = SceneBaseNode & {
@@ -147,6 +163,8 @@ export type ScenePointNode = SceneBaseNode & {
   kind: SceneNodeKind.POINT
   /** Series this point belongs to (semantic; used for scale resolution in dual-scale). */
   seriesId: string
+  /** Index of this datum within its series (`series.points[datumIndex]`). */
+  datumIndex: number
   /** Domain x (data space). */
   x: number
   /** Domain y (data space). */

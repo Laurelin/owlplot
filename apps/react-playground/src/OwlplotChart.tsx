@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { computeChartScene, type ChartConfig } from '@owlplot/core'
 import {
   createCanvasMeasureText,
+  disposeSvgScene,
   renderSvgScene,
   type HoverIndicatorConfig,
   type HoverMode,
@@ -57,6 +58,10 @@ export function OwlplotChart({
       legend,
       legendHost: host,
     })
+
+    return () => {
+      disposeSvgScene(svg)
+    }
   }, [config, width, height, legend, hoverMode, hoverIndicator, measureText])
 
   return (

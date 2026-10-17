@@ -14,6 +14,7 @@ import {
 import { SvgAttributeName } from '../shared/enums'
 import { ExtendedSVGSVGElement } from '../shared/extendedElements'
 import { EXTERNAL_LEGEND_ELEMENT_SYMBOL } from '../shared/symbols'
+import { warnDev } from '../shared/dev'
 import {
   computeLegendLayout,
   type LegendAnchor,
@@ -925,10 +926,8 @@ function toHiddenSet(
 }
 
 function warnOutsideLegendWithoutHost(): void {
-  if (process.env.NODE_ENV === 'production' || hasWarnedOutsideLegendNoHost) {
-    return
-  }
-  console.warn('[owlplot] outside legend skipped: no host')
+  if (hasWarnedOutsideLegendNoHost) return
+  warnDev('[owlplot] outside legend skipped: no host')
   hasWarnedOutsideLegendNoHost = true
 }
 

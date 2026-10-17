@@ -1,8 +1,8 @@
 import type { TooltipDatum } from '@owlplot/core'
-import { renderSvgScene } from './render/renderSvgScene'
+import { renderSvgScene, disposeSvgScene } from './render/renderSvgScene'
 import type { LegendOptions } from './render/legend'
 
-export { renderSvgScene }
+export { renderSvgScene, disposeSvgScene }
 export { formatValue } from './shared/formatValue'
 export type { TooltipDatum }
 export type { LegendOptions }

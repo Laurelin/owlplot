@@ -81,6 +81,21 @@ export function hideTooltip(svg: SVGSVGElement) {
   extendedSvg[TOOLTIP_ELEMENT_SYMBOL] = undefined
 }
 
+/**
+ * Hide the tooltip and remove its body-level container.
+ * The container is renderer-owned, so disposal removes it outright;
+ * `hideTooltip` alone only hides it. Safe to call when none exists.
+ */
+export function removeTooltip(svg: SVGSVGElement): void {
+  hideTooltip(svg)
+  const extendedSvg = svg as ExtendedSVGSVGElement
+  const container = extendedSvg[TOOLTIP_CONTAINER_SYMBOL]
+  if (container) container.remove()
+  delete extendedSvg[TOOLTIP_CONTAINER_SYMBOL]
+  delete extendedSvg[TOOLTIP_ELEMENT_SYMBOL]
+  delete extendedSvg[TOOLTIP_RENDERER_SYMBOL]
+}
+
 export function showTooltip(
   datum: TooltipDatum,
   event: MouseEvent,

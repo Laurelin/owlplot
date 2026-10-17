@@ -2,6 +2,7 @@ import type { PointIndex } from '../types'
 import { binarySearchNearestByX } from '../../shared/binarySearchNearestByX'
 import { DATA_HOVER_LAYER, DATA_SERIES_ID } from '../../shared/dataAttributes'
 import { SvgAttributeName } from '../../shared/enums'
+import { warnDev } from '../../shared/dev'
 import type { HoverSeriesStyle } from '../../tooltip/types'
 import { isDualScale } from '../../render/appendNode'
 import type { HoverScales } from '../../render/appendNode'
@@ -130,8 +131,7 @@ function applyEmphasisPlans(plans: readonly EmphasisPlan[]): EmphasizedPoint[] {
 }
 
 function warnMissingPointIndex(): void {
-  if (process.env.NODE_ENV === 'production') return
-  console.warn(
+  warnDev(
     '[owlplot] Point emphasis requested but no glyphs indexed; skipping. ' +
       'Check data-owlplot-* attributes.'
   )

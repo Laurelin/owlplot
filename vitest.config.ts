@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
@@ -36,6 +37,17 @@ export default defineConfig({
         },
       },
       {
+        // Run fixtures against package source, not built dist.
+        resolve: {
+          alias: {
+            '@owlplot/core': fileURLToPath(
+              new URL('./packages/core/src/index.ts', import.meta.url)
+            ),
+            '@owlplot/renderer-svg': fileURLToPath(
+              new URL('./packages/renderer-svg/src/index.ts', import.meta.url)
+            ),
+          },
+        },
         test: {
           include: ['fixtures/**/*.{test,spec}.ts'],
           name: 'fixtures',

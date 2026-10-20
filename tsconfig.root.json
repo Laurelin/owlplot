@@ -2,8 +2,12 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "lib": ["ESNext"],
-    "types": ["node", "vitest/globals"]
+    "lib": ["ESNext", "DOM"],
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@owlplot/core": ["./packages/core/src/index.ts"],
+      "@owlplot/renderer-svg": ["./packages/renderer-svg/src/index.ts"]
+    }
   },
   "include": ["fixtures/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
 }

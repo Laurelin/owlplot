@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/*.{mjs,ts}",
+        "!scripts/*-lib.mjs",
+        "scripts/*.d.mts",
+        ".cursor/hooks/*.mjs"
+      ]
+    }
+  },
+  "ignoreDependencies": ["@barney-media/crap-typescript"]
+}

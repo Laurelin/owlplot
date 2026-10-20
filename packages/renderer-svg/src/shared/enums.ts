@@ -39,7 +39,6 @@ export enum CssClassName {
   OWLPLOT_TOOLTIP = 'owlplot-tooltip',
   OWLPLOT_TOOLTIP_LABEL = 'owlplot-tooltip-label',
   OWLPLOT_TOOLTIP_VALUE = 'owlplot-tooltip-value',
-  OWLPLOT_TOOLTIP_SERIES = 'owlplot-tooltip-series',
 }
 
 export enum ContainerId {

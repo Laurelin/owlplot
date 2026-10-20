@@ -1,21 +1,8 @@
 import { HoverModeKind } from '../shared/enums'
 import type { HoverPointRef } from '../shared/extendedElements'
-import type {
-  HoverSeries,
-  ContinuousScale,
-  HoverMetadata,
-  HoverMetadataSingle,
-  HoverMetadataDual,
-} from '@owlplot/core'
-import { isHoverMetadata } from '@owlplot/core'
+import type { HoverSeries, ContinuousScale } from '@owlplot/core'
 
-export type {
-  HoverMetadata,
-  HoverMetadataSingle,
-  HoverMetadataDual,
-  HoverSeries,
-}
-export { isHoverMetadata }
+export type { HoverSeries }
 
 // Domain point types (avoid repetition)
 export type DomainPoint = { x: number; y: number }

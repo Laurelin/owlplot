@@ -75,7 +75,7 @@ export const chartKindFixtures = {
       },
       {
         id: 'area-baseline',
-        covers: 'area fill path is emitted and closes down to the baseline',
+        covers: 'area fill path is emitted, closed, and extends below the line',
         config: {
           kind: ChartKind.LINE,
           series: [

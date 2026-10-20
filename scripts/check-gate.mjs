@@ -3,22 +3,17 @@
 import { readFileSync } from 'node:fs'
 import console from 'node:console'
 import process from 'node:process'
+import { missingFromCi, npmScriptsIn } from './check-gate-lib.mjs'
 
 const hook = readFileSync('.githooks/pre-commit', 'utf8')
-  .split('\n')
-  .filter(line => !line.trimStart().startsWith('#'))
-  .join('\n')
 const { scripts } = JSON.parse(readFileSync('package.json', 'utf8'))
 
-const runPattern = /npm run ([\w:-]+)/g
-const hookChecks = [...hook.matchAll(runPattern)].map(m => m[1])
-const ciChecks = new Set([...scripts.ci.matchAll(runPattern)].map(m => m[1]))
-
-const missing = hookChecks.filter(name => !ciChecks.has(name))
+const missing = missingFromCi(hook, scripts.ci)
 if (missing.length > 0) {
   console.error(
     `check-gate: .githooks/pre-commit runs checks that "npm run ci" does not run: ${missing.join(', ')}`
   )
-  process.exit(1)
+  process.exitCode = 1
+} else {
+  console.log(`check-gate: ok (${npmScriptsIn(hook).join(', ')} are in ci)`)
 }
-console.log(`check-gate: ok (${hookChecks.join(', ')} are in ci)`)

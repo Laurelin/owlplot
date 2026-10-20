@@ -56,6 +56,13 @@ export default defineConfig({
       },
       {
         test: {
+          include: ['scripts/**/*.{test,spec}.ts'],
+          name: 'scripts',
+          environment: 'node',
+        },
+      },
+      {
+        test: {
           include: ['**/test/**/*.{test,spec}.ts'],
           name: 'exports',
           environment: 'node',

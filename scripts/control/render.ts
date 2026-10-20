@@ -5,10 +5,14 @@ import { sceneToSvgString } from '@owlplot/renderer-svg'
 
 export const RENDER_SIZE = { width: 640, height: 360 }
 
-export function renderFixtureSvg(config: ChartConfig): string {
+export function renderFixture(config: ChartConfig) {
   const { scene } = computeChartScene(config, RENDER_SIZE, {
     devicePixelRatio: 1,
     measureText: approximateMeasureText,
   })
-  return sceneToSvgString(scene, RENDER_SIZE)
+  return { scene, svg: sceneToSvgString(scene, RENDER_SIZE) }
+}
+
+export function renderFixtureSvg(config: ChartConfig): string {
+  return renderFixture(config).svg
 }

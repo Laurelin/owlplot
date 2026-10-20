@@ -67,7 +67,7 @@ export const chartKindFixtures = {
       },
       {
         id: 'negative-values',
-        covers: 'domain crossing zero (sign handling, zero tick)',
+        covers: 'domain crossing zero (sign handling) renders finite',
         config: {
           kind: ChartKind.LINE,
           series: [{ id: 'neg', points: pts([-8, 4, -2, 9, -5]) }],
@@ -75,7 +75,7 @@ export const chartKindFixtures = {
       },
       {
         id: 'area-baseline',
-        covers: 'area fill closes to baseline, not to chart edge',
+        covers: 'area fill path is emitted and closes down to the baseline',
         config: {
           kind: ChartKind.LINE,
           series: [
@@ -90,7 +90,7 @@ export const chartKindFixtures = {
       },
       {
         id: 'many-series-20',
-        covers: 'palette wrap and legend overflow with many series',
+        covers: 'many series: each of 20 series emits its own path',
         config: {
           kind: ChartKind.LINE,
           series: Array.from({ length: 20 }, (_, i) => ({
@@ -113,7 +113,8 @@ export const chartKindFixtures = {
       },
       {
         id: 'dense-50k',
-        covers: 'dense data: 50k points compute and serialize without NaN',
+        covers:
+          'node explosion: 50k points stay within a fixed scene node budget',
         config: {
           kind: ChartKind.LINE,
           series: [{ id: 'dense', points: buildDenseLinePoints() }],

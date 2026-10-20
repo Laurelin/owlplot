@@ -12,11 +12,7 @@ Measurement for issue #20. One fixture size. No `@owlplot/renderer-canvas` in th
 | Size | 640×360 |
 | MeasureText | `approximateMeasureText` (Node) |
 
-Command (after `npm run build`):
-
-```sh
-npm run measure:dense-line
-```
+The `measure:dense-line` script that produced these numbers was removed. The 50k fixture lives in `fixtures/denseLine.ts` and renders as the `dense-50k` variant of `npm run control -- render`.
 
 ## Recorded cost (primary)
 

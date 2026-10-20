@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error -- plain .mjs gate script, no type declarations
 import {
   assertUsableCoverage,
   dedupeCoverageFunctions,
   findGateViolations,
+  // @ts-expect-error -- plain .mjs gate script, no type declarations
 } from '../scripts/check-crap-lib.mjs'
 
 const method = (overrides: Record<string, unknown>) => ({

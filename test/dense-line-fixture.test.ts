@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DENSE_LINE_POINT_COUNT,
   buildDenseLinePoints,
-} from '../scripts/dense-line-fixture'
+} from '../fixtures/denseLine'
 
 describe('dense-line fixture', () => {
   it('uses one series size of ~50k points', () => {

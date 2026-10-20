@@ -71,5 +71,23 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  // Scripts and fixtures use the public package API only (built dist via
+  // exports). esbuild would bundle a deep src import, so lint blocks it.
+  {
+    files: ['scripts/**', 'fixtures/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/packages/*/src/**'],
+              message: 'Import from @owlplot/core or @owlplot/renderer-svg.',
+            },
+          ],
+        },
+      ],
+    },
   }
 )

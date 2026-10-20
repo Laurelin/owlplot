@@ -6,7 +6,7 @@ a typescript chart engine with a typed scene graph, interactive svg rendering, a
 
 ## 🚀 run the playground
 
-use node 22.12+ and npm. packages are private workspaces; run from this repository.
+use node 22.18+ (or 24.11+) and npm. packages are private workspaces; run from this repository.
 
 ```sh
 git clone https://github.com/Laurelin/owlplot.git
@@ -37,10 +37,10 @@ svg string export omits tooltips, hover behavior, and the legend overlay. node u
 
 ```sh
 npm run ci
-npm run export:svg -- ./chart.svg
+npm run control -- render
 ```
 
-`ci` builds the workspaces, checks package exports, and runs the tests. the export command writes a chart without a browser.
+`ci` builds the workspaces, checks package exports, and runs the tests. `control -- render` writes one svg per fixture variant (`fixtures/chartKinds.ts`) to `artifacts/control/render/` without a browser.
 
 ## 🧩 example
 
@@ -77,4 +77,4 @@ core computes layout, scales, and a typed scene from chart data. the svg rendere
 
 📚 [recipes](docs/recipes.md) — browser mounting, node export, scene transforms, curves, and tooltips.
 
-📊 [preview source](scripts/export-chart-svg.ts) — reproduce the image with `npm run export:svg -- docs/chart-preview.svg` after a build.
+📊 [preview source](fixtures/chartKinds.ts) — after a build, `npm run control -- render` writes the `basic` line variant to `artifacts/control/render/line/basic.svg`; copy it to `docs/chart-preview.svg` to refresh the image.

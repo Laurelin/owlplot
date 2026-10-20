@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ESNext"],
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["fixtures/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"]
+}

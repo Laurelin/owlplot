@@ -83,12 +83,12 @@ writeFileSync('chart.svg', sceneToSvgString(scene, size))
 Runnable sample (after `npm run build`):
 
 ```sh
-npm run export:svg
-# optional path:
-npm run export:svg -- ./out/chart.svg
+npm run control -- render
+# optional output dir:
+npm run control -- render ./out
 ```
 
-That runs `scripts/export-chart-svg.ts` via `scripts/export-chart-svg.mjs`.
+That renders every variant in `fixtures/chartKinds.ts` through `scripts/control.ts` (bundled by `scripts/run-ts.mjs`) to `<dir>/<kind>/<variant>.svg`.
 
 
 ## scene transforms

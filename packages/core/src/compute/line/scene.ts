@@ -18,7 +18,6 @@ import type { ContinuousScale } from '../cartesian2d/scale'
 import { TextAnchor } from '../../text/types'
 import type { AnyPaint } from '../../paint/types'
 
-export { axisToSceneNodes } from './axisNodes'
 export type { HoverSeries } from './hoverMetadata'
 
 /** Epsilon for "value is zero" and "domain includes zero" checks. */

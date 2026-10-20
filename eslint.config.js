@@ -13,6 +13,7 @@ export default tseslint.config(
     },
     rules: {
       'prettier/prettier': 'error', // shows Prettier issues as ESLint errors (red squiggles)
+      'no-console': 'error',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -88,6 +89,20 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+  // Console is allowed only where it is the output channel: CLI scripts
+  // print their results, warnDev is the one dev diagnostics module, and
+  // canvasMeasureText filters jsdom's console.error noise (audit #35).
+  {
+    files: [
+      'scripts/**/*.{js,mjs,ts}',
+      '.cursor/hooks/**/*.mjs',
+      'packages/renderer-svg/src/shared/dev.ts',
+      'packages/renderer-svg/src/measure/canvasMeasureText.ts',
+    ],
+    rules: {
+      'no-console': 'off',
     },
   }
 )

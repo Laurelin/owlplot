@@ -3,7 +3,6 @@ import {
   assertUsableCoverage,
   dedupeCoverageFunctions,
   findGateViolations,
-  // @ts-expect-error -- plain .mjs gate script, no type declarations
 } from '../scripts/check-crap-lib.mjs'
 
 const method = (overrides: Record<string, unknown>) => ({
@@ -19,7 +18,7 @@ describe('CRAP gate completeness', () => {
   it('fails a function with no coverage data', () => {
     const violations = findGateViolations([method({ crap: null })])
     expect(violations).toHaveLength(1)
-    expect(violations[0].method).toBe('example')
+    expect(violations[0]?.method).toBe('example')
   })
 
   it('fails an empty coverage file', () => {
@@ -66,7 +65,7 @@ describe('CRAP gate completeness', () => {
       },
     }
     const deduped = dedupeCoverageFunctions(coverage)
-    expect(Object.keys(deduped['x.ts'].fnMap)).toEqual(['0', '2'])
-    expect(deduped['x.ts'].f).toEqual({ 0: 3, 2: 1 })
+    expect(Object.keys(deduped['x.ts']?.fnMap ?? {})).toEqual(['0', '2'])
+    expect(deduped['x.ts']?.f).toEqual({ 0: 3, 2: 1 })
   })
 })

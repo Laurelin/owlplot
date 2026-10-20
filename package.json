@@ -17,8 +17,9 @@
     "dev:react": "npm --workspace apps/react-playground run dev",
     "build:demo": "npm --workspace apps/svg-playground run build",
     "deploy:demo": "npm run build:demo && npx gh-pages -d apps/svg-playground/dist",
-    "ci": "npm run build && npm run typecheck && npm run check:exports && npm run lint && npm run test:coverage && npm run crap:check",
+    "ci": "npm run check:gate && npm run build && npm run typecheck && npm run check:exports && npm run lint && npm run test:coverage && npm run crap:check",
     "check:exports": "node scripts/check-exports.mjs",
+    "check:gate": "node scripts/check-gate.mjs",
     "control": "node scripts/run-ts.mjs scripts/control.ts",
     "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/renderer-svg/tsconfig.typecheck.json && tsc -p tsconfig.root.json",
     "test:coverage": "vitest run --project '!exports' --coverage.enabled=true --coverage.provider=istanbul --coverage.reporter=json --coverage.reporter=text --coverage.reportsDirectory=coverage"

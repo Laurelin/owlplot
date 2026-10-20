@@ -75,5 +75,4 @@ TEST-results.xml
 !.cursor/rules/**
 .crap-report.json
 apps/svg-playground/SVGDemoQualityBar.md
-/chart.svg
-.tmp-dense-line-cost/
+/artifacts/

@@ -37,6 +37,13 @@ export default defineConfig({
       },
       {
         test: {
+          include: ['fixtures/**/*.{test,spec}.ts'],
+          name: 'fixtures',
+          environment: 'node',
+        },
+      },
+      {
+        test: {
           include: ['**/test/**/*.{test,spec}.ts'],
           name: 'exports',
           environment: 'node',

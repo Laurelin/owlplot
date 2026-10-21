@@ -6,7 +6,7 @@ a typescript chart engine with a typed scene graph, interactive svg rendering, a
 
 ## 🚀 run the playground
 
-use node 22.18+ (or 24.11+) and npm. packages are private workspaces; run from this repository.
+use node 22.18+ (or 24.11+) and npm; `.nvmrc` pins 22.23.3 (`nvm use`). packages are private workspaces; run from this repository.
 
 ```sh
 git clone https://github.com/Laurelin/owlplot.git
